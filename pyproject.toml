@@ -3,6 +3,7 @@ name = "agentic-customer-service-platform"
 version = "0.1.0"
 description = "Foundation for an enterprise-style agentic customer service platform."
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic>=1.13,<2.0",

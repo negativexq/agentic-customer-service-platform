@@ -262,3 +262,7 @@ Makefile             Development and verification commands
 - [Deployment expectations](docs/deployment.md)
 - [Production demo walkthrough](docs/demo/walkthrough.md)
 - [Frontend design guidelines](docs/frontend-design-guidelines.md)
+
+## License
+
+MIT — see LICENSE.
