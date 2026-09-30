@@ -15,10 +15,12 @@ from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from otel_capture import WireExporter
 
 from app.core.config import Settings
 from app.observability import metrics as application_metrics
 from app.observability import tracing
+from app.observability.export import PrivacyOTLPSpanExporter
 
 
 class RecordingProvider(TracerProvider):
@@ -79,7 +81,7 @@ def test_bootstrap_reuses_one_provider_under_concurrent_calls(
     owner = tracing.ObservabilityLifecycle()
     registry: dict[str, Any] = {"provider": trace.ProxyTracerProvider()}
     providers_created: list[TracerProvider] = []
-    exporters_created: list[InMemorySpanExporter] = []
+    exporters_created: list[WireExporter] = []
     processors_created: list[BatchSpanProcessor] = []
     processors_attached: list[object] = []
     start = Barrier(3)
@@ -108,16 +110,20 @@ def test_bootstrap_reuses_one_provider_under_concurrent_calls(
         providers_created.append(provider)
         return provider
 
-    def exporter_factory(**kwargs: Any) -> InMemorySpanExporter:
-        assert kwargs == {"endpoint": settings.otel_exporter_otlp_endpoint}
-        exporter = InMemorySpanExporter()
+    def exporter_factory(**kwargs: Any) -> PrivacyOTLPSpanExporter:
+        assert kwargs == {
+            "endpoint": settings.otel_exporter_otlp_endpoint,
+            "service_name": settings.otel_service_name,
+        }
+        exporter = WireExporter()
+        instance = exporter.exporter(service_name=settings.otel_service_name)
         exporters_created.append(exporter)
         exporter_started.set()
         assert release_exporter.wait(timeout=10), "exporter construction was not released"
-        return exporter
+        return instance
 
     def processor_factory(exporter: Any) -> BatchSpanProcessor:
-        assert exporter is exporters_created[0]
+        assert isinstance(exporter, PrivacyOTLPSpanExporter)
         processor = BatchSpanProcessor(exporter)
         processors_created.append(processor)
         return processor
@@ -126,7 +132,7 @@ def test_bootstrap_reuses_one_provider_under_concurrent_calls(
     monkeypatch.setattr(tracing, "_lifecycle", owner)
     # Keep the real _build_tracer_provider: all three construction sites execute.
     monkeypatch.setattr(tracing, "TracerProvider", provider_factory)
-    monkeypatch.setattr(tracing, "OTLPSpanExporter", exporter_factory)
+    monkeypatch.setattr(tracing, "PrivacyOTLPSpanExporter", exporter_factory)
     monkeypatch.setattr(tracing, "BatchSpanProcessor", processor_factory)
     monkeypatch.setattr(trace, "get_tracer_provider", lambda: registry["provider"])
     monkeypatch.setattr(trace, "set_tracer_provider", lambda p: registry.update(provider=p))
@@ -157,13 +163,13 @@ def test_bootstrap_reuses_one_provider_under_concurrent_calls(
         assert all(provider is providers_created[0] for provider in providers)
         assert tracing.get_tracer_provider() is registry["provider"] is providers_created[0]
         assert tracing.configure_observability(settings) is providers_created[0]
-        with tracing.span("application_span") as active_span:
+        with tracing.span("agent.run") as active_span:
             assert active_span.is_recording()
         assert len(providers_created) == len(exporters_created) == len(processors_created) == 1
     finally:
         release_exporter.set()
         tracing.shutdown_observability()
-    assert [span.name for span in exporters_created[0].get_finished_spans()] == ["application_span"]
+    assert [span.name for span in exporters_created[0].get_finished_spans()] == ["agent.run"]
 
 
 @pytest.mark.parametrize(
@@ -376,7 +382,7 @@ def test_exporter_construction_failure_closes_partial_provider(
     def fail(**_kwargs: object) -> None:
         raise RuntimeError("private exporter configuration")
 
-    monkeypatch.setattr(tracing, "OTLPSpanExporter", fail)
+    monkeypatch.setattr(tracing, "PrivacyOTLPSpanExporter", fail)
     with pytest.raises(tracing.ObservabilityConfigurationError) as error:
         tracing._build_tracer_provider(settings)
     assert str(error.value) == "telemetry_initialization_failed"
@@ -457,7 +463,7 @@ def test_processor_construction_failure_closes_exporter_and_provider(
     exporter = InMemorySpanExporter()
     closed: list[str] = []
     monkeypatch.setattr(tracing, "TracerProvider", lambda **_: provider)
-    monkeypatch.setattr(tracing, "OTLPSpanExporter", lambda **_: exporter)
+    monkeypatch.setattr(tracing, "PrivacyOTLPSpanExporter", lambda **_: exporter)
     monkeypatch.setattr(exporter, "shutdown", lambda: closed.append("exporter"))
 
     def fail(_exporter: object) -> None:

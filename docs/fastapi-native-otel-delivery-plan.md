@@ -145,6 +145,8 @@ Add separate HTTP telemetry or privacy test files where needed. T2A establishes 
 
 ### T2B — Export privacy enforcement
 
+**Accepted transport ownership update:** T2B uses an application-owned `PrivacyOTLPSpanExporter` built on public protobuf/gRPC APIs. It retains the application provider, SDK batch processor, OTLP gRPC and Jaeger endpoint; it replaces stock exporter delegation to avoid discouraged SDK span/resource reconstruction. Transport parity and bounded failure diagnostics are T2B acceptance requirements. See [T2B export privacy](fastapi-native-otel-t2b-export-privacy.md).
+
 **Prerequisite:** T2A provides a single owned pipeline and a defined injection boundary for tests.
 
 - Select and implement an SDK-compatible filtering or projection mechanism at the final export boundary.

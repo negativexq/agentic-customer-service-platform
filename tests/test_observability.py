@@ -1,13 +1,14 @@
 from collections.abc import Iterator
 from dataclasses import fields
 from datetime import datetime
+from uuid import UUID, uuid4
 
 import pytest
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from otel_capture import WireExporter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
 from app.resilience.errors import ResilienceError, RetryExhaustedError
 from app.resilience.retry import run_with_retry
+from app.ui.repository import InMemoryAgentRunProjectionRepository
 
 
 class FailingMemoryService(MemoryService):
@@ -77,10 +79,12 @@ class FailingMemoryService(MemoryService):
 @pytest.fixture
 def telemetry(
     monkeypatch: pytest.MonkeyPatch,
-) -> Iterator[tuple[InMemorySpanExporter, InMemoryMetricReader]]:
-    exporter = InMemorySpanExporter()
+) -> Iterator[tuple[WireExporter, InMemoryMetricReader]]:
+    exporter = WireExporter()
     provider = TracerProvider(shutdown_on_exit=False)
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    provider.add_span_processor(
+        SimpleSpanProcessor(exporter.exporter(service_name="agentic-customer-service-platform"))
+    )
     monkeypatch.setattr(tracing, "get_tracer_provider", lambda: provider)
     metric_reader = InMemoryMetricReader()
     meter_provider = MeterProvider(metric_readers=[metric_reader], shutdown_on_exit=False)
@@ -113,11 +117,11 @@ def decision(
     )
 
 
-def span_names(exporter: InMemorySpanExporter) -> set[str]:
+def span_names(exporter: WireExporter) -> set[str]:
     return {span.name for span in exporter.get_finished_spans()}
 
 
-def span_attributes(exporter: InMemorySpanExporter) -> list[object]:
+def span_attributes(exporter: WireExporter) -> list[object]:
     return [
         value
         for span in exporter.get_finished_spans()
@@ -126,7 +130,7 @@ def span_attributes(exporter: InMemorySpanExporter) -> list[object]:
 
 
 def test_read_action_emits_root_and_tool_spans_without_sensitive_prompt(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, _ = telemetry
     message = "Look up order 2 with private customer details"
@@ -159,8 +163,73 @@ def test_read_action_emits_root_and_tool_spans_without_sensitive_prompt(
     assert 2 not in span_attributes(exporter)
 
 
+@pytest.mark.parametrize("valid_request_uuid", [False, True])
+def test_runtime_exports_uuid_correlation_without_raw_identity_or_business_content(
+    db_session: Session,
+    telemetry: tuple[WireExporter, InMemoryMetricReader],
+    valid_request_uuid: bool,
+) -> None:
+    exporter, _ = telemetry
+    private = "PRIVATE_RUNTIME_BUSINESS_CONTENT"
+    request_id = str(uuid4()) if valid_request_uuid else private
+    context = ExecutionContext(
+        request_id=request_id,
+        conversation_id=private,
+        principal=Principal(
+            actor_id=private,
+            actor_type=ActorType.SUPPORT_OPERATOR,
+            roles=["support_operator", private],
+        ),
+        effective_customer_id=1,
+    )
+    projections = InMemoryAgentRunProjectionRepository()
+    runtime = AgentRuntime(
+        provider=FakeDecisionProvider(
+            [
+                decision(
+                    Intent.ORDER_LOOKUP,
+                    AgentRequestType.READ_ACTION,
+                    "get_order",
+                    {"customer_id": 1, "order_id": 1},
+                )
+            ]
+        ),
+        projection_repository=projections,
+    )
+    try:
+        response = runtime.run(context=context, message=private, session=db_session)
+        spans = exporter.get_finished_spans()
+        root = next(span for span in spans if span.name == "agent.run")
+        assert root.attributes is not None
+        assert root.attributes["agent.run_id"] == response.agent_run_id
+        assert UUID(response.agent_run_id).version == 4
+        assert ("request.id" in root.attributes) == valid_request_uuid
+        if valid_request_uuid:
+            assert root.attributes["request.id"] == request_id
+        assert (
+            not {
+                "customer.id",
+                "actor.id",
+                "actor.roles",
+                "conversation.id",
+                "agent.action_id",
+                "checkpoint.thread_id",
+            }
+            & root.attributes.keys()
+        )
+        assert all(private.encode() not in payload for payload in exporter.payloads)
+        view = projections.get_by_run_id(response.agent_run_id)
+        assert view is not None
+        assert view.request_id == request_id
+        assert view.conversation_id == private
+        assert root.context is not None
+        assert view.trace_id == f"{root.context.trace_id:032x}"
+    finally:
+        runtime.close()
+
+
 def test_knowledge_request_emits_rag_spans_without_chunk_content(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, _ = telemetry
     content = "Delivered orders may qualify for refund review."
@@ -207,7 +276,7 @@ def test_knowledge_request_emits_rag_spans_without_chunk_content(
 
 
 def test_confirmation_and_failure_spans_record_bounded_outcomes(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, _ = telemetry
     runtime = AgentRuntime(
@@ -245,7 +314,7 @@ def test_confirmation_and_failure_spans_record_bounded_outcomes(
 
 
 def test_metrics_reader_observes_tool_and_policy_counters(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, metric_reader = telemetry
     runtime = AgentRuntime(
@@ -296,7 +365,7 @@ def test_capacity_metric_catalog_is_bounded() -> None:
 
 
 def test_circuit_and_rate_limit_emit_only_bounded_metric_dimensions(
-    telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader],
+    telemetry: tuple[WireExporter, InMemoryMetricReader],
 ) -> None:
     _, metric_reader = telemetry
     now = 0.0
@@ -362,7 +431,7 @@ def test_circuit_and_rate_limit_emit_only_bounded_metric_dimensions(
 
 
 def test_failed_tool_records_error_category_without_arguments(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, _ = telemetry
     runtime = AgentRuntime(
@@ -391,7 +460,7 @@ def test_failed_tool_records_error_category_without_arguments(
 
 
 def test_memory_spans_include_outcomes_but_not_memory_content(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, metric_reader = telemetry
     content = "The customer prefers a private channel that must not be telemetry."
@@ -422,7 +491,7 @@ def test_memory_spans_include_outcomes_but_not_memory_content(
 
 
 def test_memory_operation_spans_record_reachable_success_and_failure_outcomes(
-    db_session: Session, telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader]
+    db_session: Session, telemetry: tuple[WireExporter, InMemoryMetricReader]
 ) -> None:
     exporter, _ = telemetry
     successful_service = MemoryService()
@@ -527,7 +596,7 @@ def test_memory_operation_spans_record_reachable_success_and_failure_outcomes(
 
 
 def test_resilience_retry_emits_bounded_trace_and_metric(
-    telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader],
+    telemetry: tuple[WireExporter, InMemoryMetricReader],
 ) -> None:
     exporter, metric_reader = telemetry
     attempts = 0

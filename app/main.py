@@ -6,12 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from fastapi.routing import iter_route_contexts
 
 from app.agent.runtime import AgentRuntime
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.database import engine
 from app.observability.middleware import instrument_fastapi
+from app.observability.privacy import register_route_templates
 from app.observability.tracing import configure_observability, shutdown_observability
 from app.persistence.checkpoint import build_checkpoint_provider
 
@@ -95,3 +97,6 @@ async def bounded_validation_error(request: Request, exc: RequestValidationError
 
 instrument_fastapi(app, settings)
 app.include_router(api_router)
+register_route_templates(
+    route.path_format for route in iter_route_contexts(app.routes) if route.path_format is not None
+)

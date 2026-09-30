@@ -31,6 +31,7 @@ from app.core.config import DecisionContractVersion, LLMProvider, Settings, get_
 from app.core.context import ExecutionContext
 from app.memory.service import MemoryService
 from app.observability.metrics import get_metrics, record_agent_run_summary
+from app.observability.privacy import safe_exception_type
 from app.observability.tracing import span
 from app.persistence.checkpoint import (
     CheckpointBackend,
@@ -161,13 +162,9 @@ class AgentRuntime:
             attributes={
                 "agent.run_id": agent_run_id,
                 "request.id": execution_context.request_id,
-                "conversation.id": conversation_id,
-                "actor.id": execution_context.principal.actor_id,
                 "actor.type": execution_context.principal.actor_type.value,
                 "actor.roles": execution_context.principal.roles,
-                "customer.id": customer_id,
                 "checkpoint.backend": self.checkpoint_backend.value,
-                "checkpoint.thread_id": thread_id_hash,
             },
         ) as root_span:
             import time
@@ -231,12 +228,6 @@ class AgentRuntime:
                         execution_mode=actual_mode,
                         fallback_message=fallback_message,
                     )
-                    action_id = state.get("action_id")
-                    if not isinstance(action_id, str):
-                        pending_action = state.get("pending_action")
-                        action_id = pending_action.action_id if pending_action is not None else None
-                    if action_id is not None:
-                        root_span.set_attribute("agent.action_id", action_id)
                     try:
                         view = projection_store.build_view(
                             projection,
@@ -281,8 +272,7 @@ class AgentRuntime:
                     "agent.persistence_or_execution_error",
                     attributes={
                         "checkpoint.backend": self.checkpoint_backend.value,
-                        "checkpoint.thread_id": thread_id_hash,
-                        "error.type": type(error).__name__,
+                        "error.type": safe_exception_type(error),
                         "error.category": classification.category.value,
                     },
                 )
