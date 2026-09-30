@@ -75,7 +75,9 @@ class WireExporter:
                             start_time=span.start_time_unix_nano,
                             end_time=span.end_time_unix_nano,
                             attributes=attributes(span.attributes),
-                            status=Status(StatusCode(span.status.code)),
+                            status=Status(
+                                StatusCode(span.status.code), span.status.message or None
+                            ),
                             events=[
                                 SimpleNamespace(name=e.name, attributes=attributes(e.attributes))
                                 for e in span.events

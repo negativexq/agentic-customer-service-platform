@@ -9,8 +9,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.routing import iter_route_contexts
 from fastapi.testclient import TestClient
-from opentelemetry import metrics, trace
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
@@ -27,6 +26,7 @@ from otel_capture import WireExporter
 from app.core.config import Settings
 from app.observability import tracing
 from app.observability.attributes import set_safe_attributes
+from app.observability.middleware import fastapi_telemetry
 from app.observability.privacy import (
     DOMAIN_SPAN_NAMES,
     NODE_NAMES,
@@ -360,9 +360,9 @@ def test_current_framework_exports_only_router_templates_and_bounded_exceptions(
 ) -> None:
     secret = "PRIVATE_URL_BODY_AUTHORIZATION_EXCEPTION"
     delegate = WireExporter()
-    application = FastAPI()
-    router = APIRouter(prefix="/customers")
     provider = TracerProvider(shutdown_on_exit=False)
+    application = FastAPI(telemetry=fastapi_telemetry(Settings(otel_enabled=True), provider))
+    router = APIRouter(prefix="/customers")
     monkeypatch.setattr(tracing, "get_tracer_provider", lambda: provider)
 
     @router.get("/{customer_id}")
@@ -382,14 +382,6 @@ def test_current_framework_exports_only_router_templates_and_bounded_exceptions(
         service_name="agentic-customer-service-platform", route_templates=lambda: routes
     )
     provider.add_span_processor(BatchSpanProcessor(wrapper))
-    FastAPIInstrumentor.instrument_app(
-        application,
-        tracer_provider=provider,
-        meter_provider=metrics.NoOpMeterProvider(),
-        # Deliberately capture credentials in this isolated test to prove final
-        # export enforcement also covers instrumentation outside the helper.
-        http_capture_headers_server_request=["authorization"],
-    )
     try:
         with TestClient(application, raise_server_exceptions=False) as client:
             response = client.get(
@@ -412,7 +404,35 @@ def test_current_framework_exports_only_router_templates_and_bounded_exceptions(
         assert all("authorization" not in str(span.attributes).lower() for span in delegate.spans)
     finally:
         provider.shutdown()
-        FastAPIInstrumentor.uninstrument_app(application)
+
+
+def test_native_catalog_retains_only_fixed_operations_and_safe_scope_data(
+    pipeline: tuple[TracerProvider, WireExporter],
+) -> None:
+    from importlib.metadata import version
+
+    from app.observability.privacy import NATIVE_SPAN_NAMES
+
+    provider, capture = pipeline
+    secret = "PRIVATE_NATIVE_FUNCTION_SCOPE_VERSION"
+    native = provider.get_tracer("fastapi", secret, attributes={"credential": secret})
+    for name in sorted(NATIVE_SPAN_NAMES):
+        with native.start_as_current_span(name) as active:
+            active.set_attribute("code.function.name", secret)
+            active.set_attribute("request.body", secret)
+    with native.start_as_current_span(secret):
+        pass
+    with provider.get_tracer(secret).start_as_current_span("fastapi.endpoint"):
+        pass
+    assert provider.force_flush(5000)
+    assert {span.name for span in capture.spans} == NATIVE_SPAN_NAMES | {"unknown"}
+    assert sum(span.name == "unknown" for span in capture.spans) == 2
+    for span in capture.spans:
+        assert span.attributes == {}
+        if span.instrumentation_scope.name == "fastapi":
+            assert span.instrumentation_scope.version == version("fastapi")
+            assert span.instrumentation_scope.attributes == {}
+    assert all(secret.encode() not in payload for payload in capture.payloads)
 
 
 def test_main_registers_nested_router_templates_not_paths() -> None:
@@ -566,8 +586,8 @@ def test_framework_chained_exception_encoded_urls_json_and_captured_cookies(
         )
     )
     capture = WireExporter()
-    application = FastAPI()
     provider = TracerProvider(shutdown_on_exit=False)
+    application = FastAPI(telemetry=fastapi_telemetry(Settings(otel_enabled=True), provider))
     monkeypatch.setattr(tracing, "get_tracer_provider", lambda: provider)
 
     @application.post("/private/{customer_id:path}")
@@ -586,13 +606,6 @@ def test_framework_chained_exception_encoded_urls_json_and_captured_cookies(
     routes = frozenset({"/private/{customer_id:path}"})
     provider.add_span_processor(
         BatchSpanProcessor(capture.exporter(service_name="test", route_templates=lambda: routes))
-    )
-    FastAPIInstrumentor.instrument_app(
-        application,
-        tracer_provider=provider,
-        meter_provider=metrics.NoOpMeterProvider(),
-        http_capture_headers_server_request=["authorization", "cookie"],
-        http_capture_headers_server_response=["set-cookie"],
     )
     try:
         with TestClient(application, raise_server_exceptions=False) as client:
@@ -625,10 +638,9 @@ def test_framework_chained_exception_encoded_urls_json_and_captured_cookies(
         for domain in domains:
             assert any(server.context.trace_id == domain.context.trace_id for server in servers)
         assert any(
-            event.attributes.get("exception.type") == "RuntimeError"
+            event.attributes.get("error.type") == "RuntimeError"
             for span in capture.spans
             for event in span.events
         )
     finally:
         provider.shutdown()
-        FastAPIInstrumentor.uninstrument_app(application)

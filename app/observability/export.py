@@ -36,7 +36,7 @@ from opentelemetry.trace import SpanContext, SpanKind
 from app.observability.privacy import (
     DOMAIN_SPAN_NAMES,
     EVENT_NAMES,
-    HTTP_METHODS,
+    NATIVE_SPAN_NAMES,
     filter_attributes,
     registered_route_templates,
 )
@@ -45,8 +45,7 @@ logger = logging.getLogger(__name__)
 _SDK_VERSION = version("opentelemetry-sdk")
 _SCOPE_VERSIONS = {
     "agentic-customer-service-platform": "",
-    "opentelemetry.instrumentation.fastapi": version("opentelemetry-instrumentation-fastapi"),
-    "opentelemetry.instrumentation.asgi": version("opentelemetry-instrumentation-asgi"),
+    "fastapi": version("fastapi"),
 }
 _RETRYABLE_CODES = frozenset(
     {
@@ -89,7 +88,11 @@ def _flags(context: SpanContext | None, trace_flags: int) -> int:
 
 
 def _safe_name(span: ReadableSpan, routes: frozenset[str]) -> str:
-    if span.name in DOMAIN_SPAN_NAMES:
+    if span.name in DOMAIN_SPAN_NAMES or (
+        span.name in NATIVE_SPAN_NAMES
+        and span.instrumentation_scope is not None
+        and span.instrumentation_scope.name == "fastapi"
+    ):
         return span.name
     attributes = filter_attributes(span.attributes, routes=routes)
     method = attributes.get("http.request.method", attributes.get("http.method"))
@@ -97,15 +100,6 @@ def _safe_name(span: ReadableSpan, routes: frozenset[str]) -> str:
         label = method if isinstance(method, str) else "HTTP"
         route = attributes.get("http.route")
         return f"{label} {route}" if route is not None else label
-    # Contrib send/receive spans often omit http.route. Compare their names to
-    # the router catalog, never accept a path merely because it looks like one.
-    for suffix in (" http send", " http receive"):
-        if span.name.endswith(suffix):
-            prefix = span.name[: -len(suffix)]
-            verb, _, route = prefix.partition(" ")
-            if verb in HTTP_METHODS and route in routes:
-                return span.name
-            return f"HTTP{suffix}"
     return "unknown"
 
 

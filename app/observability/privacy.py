@@ -105,6 +105,9 @@ DOMAIN_SPAN_NAMES = frozenset(f"agent.{name}" for name in NODE_NAMES) | frozense
         "resilience.recovery",
     }
 )
+NATIVE_SPAN_NAMES = frozenset(
+    {"fastapi.dependencies", "fastapi.endpoint", "fastapi.serialization", "fastapi.background_task"}
+)
 EVENT_NAMES = frozenset(
     {
         "escalation.created",
