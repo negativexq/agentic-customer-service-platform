@@ -114,6 +114,8 @@ Native instruments are measured directly through the facade only to prove adapte
 
 These additional cases exposed no production defect. Final closure work changes tests and documentation only; production metrics and trace transport behavior were not redesigned.
 
+The first PR CI run exposed a test capture defect on Linux: after `UNAVAILABLE`, the exporter recreates its channel/stub, but the test observed only the original stub and inspected a stale first-request payload. The capture now observes every real stub, including reconnections. The expected cumulative count remains two; no production code or acceptance assertion was relaxed.
+
 ## Validation
 
 | Check | Command | Result |

@@ -11,6 +11,7 @@ from typing import Any
 import grpc
 import pytest
 from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import ExportMetricsServiceRequest
+from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2_grpc import MetricsServiceStub
 from opentelemetry.sdk.metrics.export import MetricExportResult
 from otel_http_harness import ACTOR, TOKEN, HTTPHarness
 from sqlalchemy.orm import Session
@@ -22,7 +23,7 @@ from test_observability_http_guardrails import (
     request_graph,
 )
 
-from app.observability import metric_provider
+from app.observability import metric_export, metric_provider
 from app.observability.metric_export import PrivacyOTLPMetricExporter
 from app.observability.metric_provider import PrivacyMeterProvider
 from app.observability.metrics import get_operational_summary
@@ -46,15 +47,14 @@ def test_enabled_domain_metrics_unavailable_endpoint_does_not_block_http_or_trac
     results: list[MetricExportResult] = []
     exporters: list[PrivacyOTLPMetricExporter] = []
     original = PrivacyOTLPMetricExporter
+    original_stub = MetricsServiceStub
     monkeypatch.setenv(
         "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "authorization=Bearer%20PRIVATE_ENDPOINT_CREDENTIAL"
     )
 
-    def factory(**kwargs: Any) -> PrivacyOTLPMetricExporter:
-        instance = original(**kwargs)
-        exporters.append(instance)
-        real_rpc = instance._client.Export
-        real_export = instance.export
+    def observed_stub(channel: grpc.Channel) -> Any:
+        client = original_stub(channel)  # type: ignore[no-untyped-call]
+        real_rpc = client.Export
 
         def observe_rpc(request: ExportMetricsServiceRequest, **rpc_kwargs: Any) -> Any:
             attempts.append(ExportMetricsServiceRequest.FromString(request.SerializeToString()))
@@ -69,12 +69,23 @@ def test_enabled_domain_metrics_unavailable_endpoint_does_not_block_http_or_trac
                         gate_timed_out.set()
                 raise
 
+        monkeypatch.setattr(client, "Export", observe_rpc)
+        return client
+
+    # UNAVAILABLE recreates the channel and stub. Observe every real stub,
+    # including reconnections, rather than retaining only the first RPC capture.
+    monkeypatch.setattr(metric_export, "MetricsServiceStub", observed_stub)
+
+    def factory(**kwargs: Any) -> PrivacyOTLPMetricExporter:
+        instance = original(**kwargs)
+        exporters.append(instance)
+        real_export = instance.export
+
         def observe_export(*args: Any, **export_kwargs: Any) -> MetricExportResult:
             result = real_export(*args, **export_kwargs)
             results.append(result)
             return result
 
-        monkeypatch.setattr(instance._client, "Export", observe_rpc)
         monkeypatch.setattr(instance, "export", observe_export)
         return instance
 
