@@ -8,14 +8,16 @@ from threading import RLock
 from typing import Any
 
 from opentelemetry import metrics, trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import Status, StatusCode
 
 from app.core.config import Settings
 from app.observability.attributes import set_safe_attributes
+from app.observability.export import PrivacyOTLPSpanExporter
 from app.observability.metrics import configure_metrics, disable_metrics
+from app.observability.privacy import safe_exception_type
 
 logger = logging.getLogger(__name__)
 _NOOP_PROVIDER = trace.NoOpTracerProvider()
@@ -40,10 +42,12 @@ def _build_tracer_provider(settings: Settings) -> TracerProvider:
         resource=Resource.create({"service.name": settings.otel_service_name}),
         shutdown_on_exit=False,
     )
-    exporter: OTLPSpanExporter | None = None
+    exporter: PrivacyOTLPSpanExporter | None = None
     processor: BatchSpanProcessor | None = None
     try:
-        exporter = OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint)
+        exporter = PrivacyOTLPSpanExporter(
+            endpoint=settings.otel_exporter_otlp_endpoint, service_name=settings.otel_service_name
+        )
         processor = BatchSpanProcessor(exporter)
         provider.add_span_processor(processor)
     except Exception:
@@ -173,7 +177,16 @@ def span(
     *,
     attributes: dict[str, Any] | None = None,
 ) -> Iterator[trace.Span]:
-    with tracer().start_as_current_span(name) as active_span:
+    with tracer().start_as_current_span(
+        name, record_exception=False, set_status_on_exception=False
+    ) as active_span:
         if attributes:
             set_safe_attributes(active_span, attributes)
-        yield active_span
+        try:
+            yield active_span
+        except BaseException as error:
+            active_span.set_status(Status(StatusCode.ERROR))
+            active_span.add_event(
+                "application.exception", attributes={"error.type": safe_exception_type(error)}
+            )
+            raise

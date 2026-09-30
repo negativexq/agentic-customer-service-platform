@@ -91,7 +91,7 @@ def make_memory_action_node(
                 )
             with span(
                 "memory.forget",
-                attributes={"memory.operation": "forget", "memory.key": key},
+                attributes={"memory.operation": "forget"},
             ) as memory_span:
                 try:
                     result = service.forget(
