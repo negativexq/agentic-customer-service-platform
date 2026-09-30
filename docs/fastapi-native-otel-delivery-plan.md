@@ -231,6 +231,23 @@ HTTP SERVER span
 
 **This package closes the existing metrics export gap.**
 
+### T4A destination decision and implementation handoff
+
+After the T3 merge, the user selected **Collector + Prometheus**: backend metrics → OTLP gRPC Collector → Prometheus. Traces retain their direct Jaeger path. The [T4A metrics design](fastapi-native-otel-t4a-metrics-design.md) records the design baseline, bounded recording and final export privacy requirements, provider ownership, and remaining deployment decisions. T4A is a design deliverable; the subsequent T4B implementation and validation are recorded separately below. Production end-to-end delivery remains unverified.
+
+Proposed delivery sequence:
+
+1. **T4A:** destination and architecture design.
+2. **T4B:** owned metrics provider/reader/exporter, bounded recording, privacy, and lifecycle tests; metrics remain opt-in.
+3. **T4C:** pinned Collector + Prometheus infrastructure/configuration and Compose wiring.
+4. **T4D:** application → Collector → Prometheus end-to-end delivery, scrape/query validation, and deployment-level failure/recovery evidence.
+
+Native FastAPI metric provider binding/enablement and HTTP metric guardrails remain unimplemented. They require application-side review and validation in T4D before native HTTP metric delivery can be claimed. Infrastructure configuration alone must not activate native metrics or claim application delivery. T5 remains final runtime/deployment and release evidence.
+
+The [T4B implementation record](fastapi-native-otel-t4b-metrics-provider.md) documents the opt-in domain provider/exporter, privacy and lifecycle evidence. Native metrics and infrastructure remain subsequent packages; T4B alone does not close T4.
+
+Initial delivery requires a verified single backend metrics producer. Multiple workers/replicas require a separate aggregation or approved producer-dimension design. Production retention/access settings and service image pins remain open until the deployment package. T5 retains release, Jaeger/TLS, and runtime shutdown evidence.
+
 ### Files in scope
 
 - `app/observability/metrics.py`

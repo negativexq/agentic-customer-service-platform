@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
+import grpc
 import pytest
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -94,12 +95,27 @@ class HTTPHarness:
         external: trace.TracerProvider | None = None,
         fail_registration: bool = False,
         configure_app: Callable[[FastAPI], None] | None = None,
+        metrics_endpoint: str | None = None,
+        metrics_timeout_millis: int = 5000,
     ) -> Iterator[HTTPPipeline]:
         with self.monkeypatch.context() as patch:
             patch.setenv("OTEL_TRACES_SAMPLER", "parentbased_always_on")
             patch.delenv("OTEL_TRACES_SAMPLER_ARG", raising=False)
             capture = WireExporter()
+            real_insecure_channel = grpc.insecure_channel
             capture.install(patch)
+            if metrics_endpoint is not None:
+                # Keep the existing trace wire seam; metrics use a real gRPC
+                # channel to their independently configured destination.
+                patch.setattr(
+                    grpc,
+                    "insecure_channel",
+                    lambda target, **kwargs: (
+                        capture
+                        if target == "localhost:4317"
+                        else real_insecure_channel(target, **kwargs)
+                    ),
+                )
             events: list[str] = []
             processors: list[object] = []
             factories = {"provider": 0, "exporter": 0}
@@ -107,7 +123,11 @@ class HTTPHarness:
             owner = tracing.ObservabilityLifecycle()
             registry = {"provider": external or trace.ProxyTracerProvider()}
             reader = InMemoryMetricReader()
-            meter = MeterProvider(metric_readers=[reader], shutdown_on_exit=False)
+            meter = (
+                MeterProvider(metric_readers=[reader], shutdown_on_exit=False)
+                if metrics_endpoint is None
+                else None
+            )
             projections = InMemoryAgentRunProjectionRepository()
             patch.setattr(tracing, "_lifecycle", owner)
             patch.setattr(trace, "get_tracer_provider", lambda: registry["provider"])
@@ -117,11 +137,16 @@ class HTTPHarness:
                     registry["provider"] = value
 
             patch.setattr(trace, "set_tracer_provider", register)
-            patch.setattr(metrics, "get_meter_provider", lambda: meter)
+            if meter is not None:
+                patch.setattr(metrics, "get_meter_provider", lambda: meter)
             patch.setattr(application_metrics, "_metrics", application_metrics.get_metrics())
             settings = main.settings.model_copy(
                 update={
                     "otel_enabled": enabled,
+                    "otel_metrics_enabled": metrics_endpoint is not None,
+                    "otel_exporter_otlp_metrics_endpoint": metrics_endpoint or "",
+                    "otel_metric_export_interval_millis": 300000,
+                    "otel_metric_export_timeout_millis": metrics_timeout_millis,
                     "otel_service_name": "t2c-test",
                     "otel_exporter_otlp_endpoint": "http://localhost:4317",
                 }
@@ -183,6 +208,11 @@ class HTTPHarness:
                         settings, tracing.configure_observability(settings)
                     ),
                 )
+                if enabled and metrics_endpoint is None:
+                    # Explicit test-reader injection; production no longer adopts
+                    # the global metric provider when its metric pipeline is off.
+                    assert meter is not None
+                    application_metrics.configure_metrics(meter)
 
                 class LoopProbe:
                     def __init__(self, app: ASGIApp) -> None:
@@ -292,6 +322,7 @@ class HTTPHarness:
                     yield pipeline
             finally:
                 owner.shutdown()
-                meter.shutdown()
+                if meter is not None:
+                    meter.shutdown()
                 if application is not None:
                     application.dependency_overrides.clear()
