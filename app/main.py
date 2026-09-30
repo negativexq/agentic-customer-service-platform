@@ -12,14 +12,14 @@ from app.agent.runtime import AgentRuntime
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.database import engine
-from app.observability.middleware import instrument_fastapi
+from app.observability.middleware import fastapi_telemetry
 from app.observability.privacy import register_route_templates
 from app.observability.tracing import configure_observability, shutdown_observability
 from app.persistence.checkpoint import build_checkpoint_provider
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
-configure_observability(settings)
+tracer_provider = configure_observability(settings)
 
 
 @asynccontextmanager
@@ -69,7 +69,12 @@ def _safe_close(component: str, close: Callable[[], None]) -> None:
         )
 
 
-app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    debug=settings.debug,
+    lifespan=lifespan,
+    telemetry=fastapi_telemetry(settings, tracer_provider),
+)
 
 
 @app.exception_handler(RequestValidationError)
@@ -95,7 +100,6 @@ async def bounded_validation_error(request: Request, exc: RequestValidationError
     return await request_validation_exception_handler(request, exc)
 
 
-instrument_fastapi(app, settings)
 app.include_router(api_router)
 register_route_templates(
     route.path_format for route in iter_route_contexts(app.routes) if route.path_format is not None

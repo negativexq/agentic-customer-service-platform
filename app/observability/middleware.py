@@ -1,11 +1,16 @@
-from fastapi import FastAPI
+from fastapi.telemetry import TelemetryConfig
+from opentelemetry.trace import TracerProvider
 
 from app.core.config import Settings
 
 
-def instrument_fastapi(app: FastAPI, settings: Settings) -> None:
-    if not settings.otel_enabled:
-        return
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-    FastAPIInstrumentor.instrument_app(app)
+def fastapi_telemetry(settings: Settings, provider: TracerProvider) -> TelemetryConfig:
+    """Use the application-owned trace pipeline without native export/log/metric setup."""
+    return {
+        "tracer_provider": provider,
+        "tracing": settings.otel_enabled,
+        "operation_spans": settings.otel_enabled,
+        "auto_configure": False,
+        "logs": False,
+        "metrics": False,
+    }

@@ -1,4 +1,4 @@
-"""T2C current FastAPI/contrib baseline, scanned at the final OTLP boundary."""
+"""HTTP/domain migration contract on FastAPI native tracing, scanned at the final OTLP boundary."""
 
 from __future__ import annotations
 
