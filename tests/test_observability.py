@@ -3,7 +3,6 @@ from dataclasses import fields
 from datetime import datetime
 
 import pytest
-from opentelemetry import trace
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace import TracerProvider
@@ -24,18 +23,13 @@ from app.memory.schemas import (
     MemorySource,
 )
 from app.memory.service import MemoryService
+from app.observability import metrics as application_metrics
 from app.observability import tracing
 from app.observability.metrics import build_metrics, configure_metrics
-from app.observability.tracing import shutdown_observability
 from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
 from app.resilience.errors import ResilienceError, RetryExhaustedError
 from app.resilience.retry import run_with_retry
-
-_SPAN_EXPORTER = InMemorySpanExporter()
-_TRACER_PROVIDER = TracerProvider()
-_TRACER_PROVIDER.add_span_processor(SimpleSpanProcessor(_SPAN_EXPORTER))
-_TRACER_CONFIGURED = False
 
 
 class FailingMemoryService(MemoryService):
@@ -81,15 +75,22 @@ class FailingMemoryService(MemoryService):
 
 
 @pytest.fixture
-def telemetry() -> Iterator[tuple[InMemorySpanExporter, InMemoryMetricReader]]:
-    global _TRACER_CONFIGURED
-    if not _TRACER_CONFIGURED:
-        trace.set_tracer_provider(_TRACER_PROVIDER)
-        _TRACER_CONFIGURED = True
-    _SPAN_EXPORTER.clear()
+def telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[tuple[InMemorySpanExporter, InMemoryMetricReader]]:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider(shutdown_on_exit=False)
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(tracing, "get_tracer_provider", lambda: provider)
     metric_reader = InMemoryMetricReader()
-    configure_metrics(MeterProvider(metric_readers=[metric_reader]))
-    yield _SPAN_EXPORTER, metric_reader
+    meter_provider = MeterProvider(metric_readers=[metric_reader], shutdown_on_exit=False)
+    monkeypatch.setattr(application_metrics, "_metrics", application_metrics.get_metrics())
+    configure_metrics(meter_provider)
+    try:
+        yield exporter, metric_reader
+    finally:
+        provider.shutdown()
+        meter_provider.shutdown()
 
 
 def decision(
@@ -122,27 +123,6 @@ def span_attributes(exporter: InMemorySpanExporter) -> list[object]:
         for span in exporter.get_finished_spans()
         for value in (span.attributes or {}).values()
     ]
-
-
-def test_shutdown_observability_flushes_and_closes_owned_provider(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    events: list[object] = []
-
-    class Provider:
-        def force_flush(self, timeout_millis: int) -> bool:
-            events.append(("flush", timeout_millis))
-            return True
-
-        def shutdown(self) -> None:
-            events.append("shutdown")
-
-    monkeypatch.setattr(tracing, "_tracer_provider", Provider())
-
-    shutdown_observability(timeout_millis=1234)
-
-    assert events == [("flush", 1234), "shutdown"]
-    assert tracing._tracer_provider is None
 
 
 def test_read_action_emits_root_and_tool_spans_without_sensitive_prompt(

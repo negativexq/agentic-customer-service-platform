@@ -259,7 +259,17 @@ def build_metrics(meter: Meter | None = None) -> ObservabilityMetrics:
     )
 
 
-_metrics = build_metrics()
+_noop_metrics = build_metrics(
+    metrics.NoOpMeterProvider().get_meter("agentic-customer-service-platform")
+)
+_metrics = _noop_metrics
+
+
+def disable_metrics() -> None:
+    """Disable domain recording without replacing or closing a global provider."""
+
+    global _metrics
+    _metrics = _noop_metrics
 
 
 def get_metrics() -> ObservabilityMetrics:

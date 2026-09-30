@@ -22,6 +22,7 @@ configure_observability(settings)
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    configure_observability(settings)
     checkpoint_provider = build_checkpoint_provider(settings)
     runtime: AgentRuntime | None = None
     application.state.accepting_requests = False
