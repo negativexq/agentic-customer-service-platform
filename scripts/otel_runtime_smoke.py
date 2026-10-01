@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import select
 import subprocess
 import time
@@ -29,49 +28,6 @@ from scripts.otel_metrics_delivery_smoke import (
     metric_value,
     scan_private,
 )
-
-
-def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
-    """Project Docker bind errors into bounded service/port diagnostics only."""
-    failures: list[dict[str, Any]] = []
-    for line in output[-32768:].splitlines()[-128:]:
-        if not any(
-            term in line.lower() for term in ("address already in use", "port is already allocated")
-        ):
-            continue
-        service = next(
-            (
-                name
-                for name in ("backend", "db", "qdrant", "jaeger", "otel-collector", "prometheus")
-                if re.search(r"\b" + re.escape(project + "-" + name + "-1") + r"\b", line)
-            ),
-            None,
-        )
-        binding = re.search(
-            r"failed to bind host port for (?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5}):"
-            r"(?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5})/(tcp|udp)\b",
-            line,
-        )
-        if service is None or binding is None:
-            continue
-        host, container = int(binding[1]), int(binding[2])
-        if not (0 <= host <= 65535 and 1 <= container <= 65535):
-            continue
-        row = {
-            "service": service,
-            "container_index": 1,
-            "host_port": host,
-            "container_port": container,
-            "protocol": binding[3],
-            "reason": "port_bind_conflict",
-        }
-        if host == 0:
-            row["host_port_assignment"] = "dynamic_requested_not_reported"
-        if row not in failures:
-            failures.append(row)
-        if len(failures) == 6:
-            break
-    return failures
 
 
 class RuntimeStack(MetricsStack):
@@ -151,10 +107,6 @@ class RuntimeStack(MetricsStack):
         if self._fixture is not None:
             command.extend(("--file", str(Path(self._fixture.name, "override.json"))))
         return command
-
-    def startup_diagnostics(self, output: str) -> None:
-        print(json.dumps({"startup_port_bindings": startup_port_bindings(output, self.project)}))
-        super().startup_diagnostics(output)
 
     def clean(self) -> None:
         # Unlike best-effort interactive cleanup, acceptance must fail if down fails.

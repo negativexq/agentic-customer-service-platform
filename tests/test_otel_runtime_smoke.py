@@ -127,7 +127,7 @@ def test_startup_bind_diagnostics_keep_only_catalog_and_valid_ports(
     host: int,
     target: int,
 ) -> None:
-    from scripts.otel_runtime_smoke import startup_port_bindings
+    from scripts.otel_metrics_delivery_smoke import startup_port_bindings
 
     project = "t4d-metrics-t5-unit"
     line = (
@@ -154,7 +154,7 @@ def test_startup_bind_diagnostics_keep_only_catalog_and_valid_ports(
 
 
 def test_startup_bind_diagnostics_bound_input_and_deduplicate() -> None:
-    from scripts.otel_runtime_smoke import startup_port_bindings
+    from scripts.otel_metrics_delivery_smoke import startup_port_bindings
 
     line = (
         "endpoint t4d-metrics-t5-unit-jaeger-1: failed to bind host port for "
@@ -165,7 +165,7 @@ def test_startup_bind_diagnostics_bound_input_and_deduplicate() -> None:
 
 
 def test_startup_bind_diagnostics_do_not_invent_assigned_dynamic_port() -> None:
-    from scripts.otel_runtime_smoke import startup_port_bindings
+    from scripts.otel_metrics_delivery_smoke import startup_port_bindings
 
     line = (
         "endpoint t4d-metrics-t5-unit-qdrant-1: failed to bind host port for "
