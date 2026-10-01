@@ -174,3 +174,93 @@ def test_startup_bind_diagnostics_do_not_invent_assigned_dynamic_port() -> None:
     row = startup_port_bindings(line, "t4d-metrics-t5-unit")[0]
     assert row["container_port"] == 6333 and row["host_port"] == 0
     assert row["host_port_assignment"] == "dynamic_requested_not_reported"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "failed to bind host port 32782 for 0.0.0.0:0:172.18.0.9:4318/tcp: address already in use",
+        "failed to bind host port for [::]:32782:172.18.0.9:4318/tcp: address already in use",
+    ],
+)
+def test_inspected_state_error_reports_binding_without_endpoint_name(error: str) -> None:
+    from scripts.otel_metrics_delivery_smoke import startup_port_bindings
+
+    rows = startup_port_bindings(
+        error + " PRIVATE_SECRET", "t4d-metrics-unit", inspected_service="jaeger"
+    )
+    assert len(rows) == 1
+    assert rows[0]["service"] == "jaeger"
+    assert rows[0]["host_port"] == 32782
+    assert rows[0]["container_port"] == 4318
+    assert "PRIVATE" not in json.dumps(rows)
+    assert startup_port_bindings(error, "t4d-metrics-unit", inspected_service="PRIVATE") == []
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "Bind for 0.0.0.0:32782 failed: port is already allocated",
+        "listen tcp [::]:32782: bind: address already in use",
+    ],
+)
+def test_partial_bind_error_does_not_invent_container_port(error: str) -> None:
+    from scripts.otel_metrics_delivery_smoke import startup_port_bindings
+
+    rows = startup_port_bindings(error, "t4d-metrics-unit", inspected_service="jaeger")
+    assert rows[0]["host_port"] == 32782
+    assert rows[0]["binding_detail"] == "host_only"
+    assert "container_port" not in rows[0]
+
+
+def test_state_error_inspection_uses_only_project_container_and_safe_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    container = "a" * 64
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        stack, "run", lambda *args, **kwargs: subprocess.CompletedProcess([], 0, container, "")
+    )
+
+    def inspect(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        assert kwargs["timeout"] == 5
+        error = (
+            "PRIVATE_TOKEN failed to bind host port for "
+            "0.0.0.0:32782:172.18.0.9:4318/tcp: address already in use"
+        )
+        return subprocess.CompletedProcess(command, 0, json.dumps(error), "")
+
+    monkeypatch.setattr(subprocess, "run", inspect)
+    try:
+        stack.container_bind_diagnostics("jaeger")
+        output = json.loads(capsys.readouterr().out)
+        assert output["binding_parse"] == "matched"
+        assert output["container_state_port_bindings"][0]["container_port"] == 4318
+        assert "PRIVATE" not in json.dumps(output) and container not in json.dumps(output)
+        assert calls == [["docker", "inspect", "--format", "{{json .State.Error}}", container]]
+        stack.container_bind_diagnostics("PRIVATE")
+        assert len(calls) == 1
+    finally:
+        stack.close_fixture()
+
+
+def test_smoke_port_override_is_minimal_localhost_only_and_cleaned() -> None:
+    from pathlib import Path
+
+    stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    path = Path(stack.command[-3])
+    try:
+        contents = path.read_text()
+        for port in (8000, 9090, 16686):
+            assert f"127.0.0.1:0:{port}" in contents
+        for service in ("db", "qdrant", "frontend"):
+            assert f"  {service}:\n    ports: !override []" in contents
+        assert "4317" not in contents and "4318" not in contents
+        assert contents.count("ports: !override") == 6
+    finally:
+        stack.close_fixture()
+        stack.close_fixture()
+    assert not path.exists()
