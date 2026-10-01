@@ -38,6 +38,7 @@ class MetricsStack(ComposeStack):
         # A dedicated prefix prevents accidental cleanup of an application stack.
         expect(project.startswith("t4d-metrics-"), "Disposable project prefix required.")
         super().__init__(project, TOKEN)
+        self.stage = "startup"
         self.environment.update(
             OTEL_METRICS_ENABLED="true",
             COMPOSE_OTEL_METRICS_ENDPOINT="http://otel-collector:4317",
@@ -100,7 +101,7 @@ def metric_value(stack: MetricsStack, expression: str) -> float:
     return sum(float(value["value"][1]) for value in values)
 
 
-def exposition_samples(text: str) -> list[dict[str, Any]]:
+def exposition_samples(text: str, *, allow_empty: bool = False) -> list[dict[str, Any]]:
     """Read the pinned exporter's classic text samples, never guessed metric names."""
     samples: list[dict[str, Any]] = []
     for line in text.splitlines():
@@ -118,7 +119,7 @@ def exposition_samples(text: str) -> list[dict[str, Any]]:
             labels[label[1]] = json.loads(label[2])
             remaining = remaining[label.end() :]
         samples.append({"metric": labels, "value": [0, match[3]]})
-    expect(bool(samples), "Collector sample capture is empty.")
+    expect(allow_empty or bool(samples), "Collector sample capture is empty.")
     return samples
 
 
@@ -259,8 +260,10 @@ print(count)
     )
     for family in ("agent_runs.*", "tool_calls.*", "policy_decisions.*"):
         expect(not stack.query(f'{{__name__=~"{family}"}}'), "Domain baseline is not empty.")
-    raw_before = exposition_samples(stack.exporter_text())
+    stack.stage = "baseline"
+    raw_before = exposition_samples(stack.exporter_text(), allow_empty=True)
     stored_before = stack.query('{job="application-domain-metrics"}')
+    stack.stage = "first-request"
     trace_id = business_request(stack, base, CONVERSATION)
     eventually(lambda: bool(stack.query('{__name__=~"agent_runs.*"}')), "domain delivery")
     families = stack.query(
@@ -333,6 +336,7 @@ print(count)
 
     eventually(delivery_ready, "raw Collector and Prometheus request deltas/histograms")
     eventually(lambda: trace_delivered(stack, trace_id), "Jaeger trace delivery")
+    stack.stage = "collector-outage"
     # Collector absence must not become a business/readiness dependency.
     stack.run(("stop", "--timeout", "15", "otel-collector"))
     trace_outage = business_request(stack, base, CONVERSATION + "_OUTAGE")
@@ -347,6 +351,7 @@ print(count)
     logs = stack.run(("logs", "--no-color", "backend", "otel-collector", "prometheus")).stdout
     scan_private(logs)
     eventually(lambda: trace_delivered(stack, trace_outage), "outage trace delivery")
+    stack.stage = "collector-recovery"
     stack.run(("start", "otel-collector"))
     trace_recovery = business_request(stack, base, CONVERSATION + "_RECOVERY")
     eventually(
@@ -367,6 +372,7 @@ print(count)
             "post-recovery native delivery",
         )
     eventually(lambda: trace_delivered(stack, trace_recovery), "recovery trace delivery")
+    stack.stage = "final-privacy"
     stored = stack.query('{job="application-domain-metrics"}')
     series_path = "/api/v1/series?" + urllib.parse.urlencode(
         {"match[]": '{job="application-domain-metrics"}'}
@@ -420,9 +426,10 @@ def main() -> int:
     try:
         run_delivery(stack)
         return 0
-    except (SmokeFailure, OSError, ValueError, KeyError):
+    except (SmokeFailure, OSError, ValueError, KeyError) as error:
         print(
-            "Metrics delivery acceptance failed; inspect isolated validation locally.",
+            f"Metrics delivery acceptance failed at {stack.stage} ({type(error).__name__}); "
+            "payload/config/error details withheld.",
             file=sys.stderr,
         )
         return 1

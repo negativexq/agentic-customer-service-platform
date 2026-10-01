@@ -62,6 +62,7 @@ def delivery_exposition() -> str:
 def test_delivery_snapshot_checks_real_names_deltas_and_histograms() -> None:
     from scripts.otel_metrics_delivery_smoke import exposition_samples, verify_delivery_snapshot
 
+    assert exposition_samples("# Awaiting first export\n", allow_empty=True) == []
     samples = exposition_samples(delivery_exposition())
     verify_delivery_snapshot([], samples, native=True)
     with pytest.raises(SmokeFailure, match="delta"):
