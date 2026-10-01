@@ -246,6 +246,8 @@ Native FastAPI metric provider binding/enablement and HTTP metric guardrails rem
 
 The [T4B implementation record](fastapi-native-otel-t4b-metrics-provider.md) documents the opt-in domain provider/exporter, privacy and lifecycle evidence. Native metrics and infrastructure remain subsequent packages; T4B alone does not close T4.
 
+The [T4C infrastructure record](fastapi-native-otel-t4c-metrics-infrastructure.md) describes the optional metrics profile, pinned Collector/Prometheus configuration, network/access and resource/retention limits. Infrastructure readiness does not establish application delivery or enable native metrics; those acceptance checks remain T4D.
+
 Initial delivery requires a verified single backend metrics producer. Multiple workers/replicas require a separate aggregation or approved producer-dimension design. Production retention/access settings and service image pins remain open until the deployment package. T5 retains release, Jaeger/TLS, and runtime shutdown evidence.
 
 ### Files in scope
