@@ -170,6 +170,25 @@ jobs:
           enable-cache: true
       - name: Validate Compose model
         run: docker compose config --quiet
+      - name: Validate optional metrics infrastructure model
+        run: docker compose --profile metrics config --quiet
+      - name: Validate pinned Collector metrics configuration
+        run: >-
+          docker compose --profile metrics run --rm --no-deps otel-collector
+          validate --config=/etc/otelcol-contrib/metrics.yaml
+      - name: Validate pinned Prometheus configuration
+        run: >-
+          docker compose --profile metrics run --rm --no-deps
+          --entrypoint /bin/promtool prometheus
+          check config /etc/prometheus/prometheus.yml
+      - name: Scan pinned metrics infrastructure images
+        run: |
+          for metrics_image in $(docker compose --profile metrics config --images otel-collector prometheus); do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -v trivy-cache:/root/.cache/trivy aquasec/trivy:0.70.0 \
+              image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
+              --scanners vuln --skip-version-check "$metrics_image"
+          done
       - name: Validate integration Compose model
         run: >-
           LOCAL_DEMO_AUTH_TOKEN=integration-ci-credential
@@ -187,6 +206,7 @@ jobs:
           EVIDENCE_STORE_BUCKET: validation-evidence
         run: |
           docker compose -f docker-compose.yml -f docker-compose.prod.yml config > /tmp/production-compose.yml
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile metrics config --quiet
           if grep -q deterministic_integration /tmp/production-compose.yml; then
             echo "Integration-only LLM provider leaked into production Compose configuration."
             exit 1

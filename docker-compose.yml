@@ -62,6 +62,16 @@ services:
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: agentic-customer-service-platform
+      OTEL_METRICS_ENABLED: ${OTEL_METRICS_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${COMPOSE_OTEL_METRICS_ENDPOINT:-http://otel-collector:4317}
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: ${OTEL_METRIC_EXPORT_INTERVAL_MILLIS:-15000}
+      OTEL_METRIC_EXPORT_TIMEOUT_MILLIS: ${OTEL_METRIC_EXPORT_TIMEOUT_MILLIS:-5000}
+      WEB_CONCURRENCY: "1"
+    networks:
+      - default
+      - metrics
+    deploy:
+      replicas: 1
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -143,6 +153,72 @@ services:
       - "${OTEL_GRPC_PORT:-4317}:4317"
       - "${OTEL_HTTP_PORT:-4318}:4318"
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+    profiles: [metrics]
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command: ["--config=/etc/otelcol-contrib/metrics.yaml"]
+    environment:
+      GOMEMLIMIT: 192MiB
+    volumes:
+      - ./config/observability/collector-metrics.yaml:/etc/otelcol-contrib/metrics.yaml:ro
+    networks: [metrics]
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    profiles: [metrics]
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    read_only: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=1GB
+      - --web.listen-address=0.0.0.0:9090
+    volumes:
+      - ./config/observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    networks: [metrics, metrics-ui]
+    depends_on:
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
 volumes:
   postgres_data:
   qdrant_data:
+  prometheus_data:
+
+networks:
+  metrics:
+    internal: true
+  metrics-ui:

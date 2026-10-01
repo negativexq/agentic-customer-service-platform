@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: application-domain-metrics
+    honor_labels: false
+    scrape_protocols: [PrometheusText0.0.4]
+    sample_limit: 10000
+    label_limit: 20
+    label_name_length_limit: 100
+    label_value_length_limit: 200
+    body_size_limit: 8MB
+    static_configs:
+      - targets: [otel-collector:8889]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "target_info|otel_scope_info"
+        action: drop
