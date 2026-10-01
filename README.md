@@ -191,7 +191,7 @@ Operators inspect bounded request/workflow state, memory/RAG evidence, proposals
 | API | FastAPI + Pydantic |
 | Persistence | PostgreSQL + SQLAlchemy + Alembic |
 | Retrieval | Qdrant + dense/BM25 hybrid retrieval |
-| Observability | OpenTelemetry + Jaeger |
+| Observability | FastAPI native OpenTelemetry + Jaeger; opt-in Collector/Prometheus metrics |
 | Frontend | React + TypeScript + Vite + Tailwind |
 | Verification | Pytest + Ruff + Mypy + Vitest + Playwright |
 | Runtime | Docker Compose |
@@ -259,6 +259,7 @@ Makefile             Development and verification commands
 - [Evaluation overview](docs/evaluation-overview.md)
 - [Evaluation artifact retention policy](docs/evaluation-artifact-policy.md)
 - [Release evidence](docs/release-evidence.md)
+- [Observability architecture and rollback](docs/observability.md)
 - [Deployment expectations](docs/deployment.md)
 - [Production demo walkthrough](docs/demo/walkthrough.md)
 - [Frontend design guidelines](docs/frontend-design-guidelines.md)

@@ -64,7 +64,9 @@ The backend receives `SIGTERM` directly. Uvicorn stops accepting connections and
 1. the agent runtime and managed Qdrant client;
 2. the LangGraph checkpoint provider and its connection pool;
 3. the SQLAlchemy engine pool;
-4. the owned OpenTelemetry tracer provider after a bounded flush.
+4. the owned OpenTelemetry tracer provider after a bounded flush, then the optional owned meter provider after its independent flush/shutdown attempts.
+
+The locked Uvicorn version can re-raise SIGTERM after graceful completion, producing exit 143. Exit code alone is not delivery evidence: the [runtime acceptance](fastapi-native-otel-t5-runtime-release-evidence.md) also checks lifespan completion and final delivery. The request-draining period and subsequent component cleanup consume time; the 35-second Compose ceiling is not a universal flush guarantee.
 
 Compose allows 35 seconds before forcefully stopping the backend. Lifecycle logs contain only
 bounded component names and statuses; they do not contain prompts, customer data, or credentials.
@@ -333,9 +335,7 @@ evidence hash validation are described in [disaster recovery](disaster-recovery.
 
 Production secrets must come from an external manager such as AWS Secrets Manager, Vault, or a
 Kubernetes Secret projected into the workload. Do not bake credentials into images, pass them as
-committed Compose literals, or persist them in logs. OpenTelemetry exports bounded metrics and
-traces to an external collector; Prometheus/Grafana/Jaeger are deployment choices, not required
-business-state stores. Prompts, tokens, customer data, and raw provider payloads remain excluded
+committed Compose literals, or persist them in logs. In this repository, bounded traces go directly to Jaeger over OTLP gRPC; opt-in domain/native metrics go through the metrics-only Collector to Prometheus. These services are not business-state stores. See [observability architecture](observability.md) for signal ownership and portfolio/deployment boundaries. Prompts, tokens, customer data, and raw provider payloads remain excluded
 from telemetry and evidence projections.
 
 ## Optional live-model behavioral evaluation

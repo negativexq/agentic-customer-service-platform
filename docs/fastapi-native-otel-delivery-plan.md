@@ -284,6 +284,8 @@ Keep the process-local operational summary separate.
 
 ## 6. T5 — Runtime validation, documentation, and release
 
+T5 has started on merged T4D main. Per the project owner, this is a repository/portfolio project with no deployment environment. T5 acceptance is reproducible local runtime and TLS transport evidence, CI, reference configuration validation, and release documentation. Actual staging/production deployment, ingress, external credentials and production capacity acceptance are outside this release scope; they are not closure blockers. The [runtime/release evidence record](fastapi-native-otel-t5-runtime-release-evidence.md) separates measured evidence from those future deployment boundaries. Privacy, ownership, single-producer and failure-isolation requirements remain unchanged. T5 is not complete.
+
 ### Runtime validation
 
 | Scenario | Expected result |
@@ -295,7 +297,7 @@ Keep the process-local operational summary separate.
 | Jaeger unavailable | Business behavior and health semantics preserved |
 | Graceful shutdown | Final telemetry flushed and cleanup completed |
 | `OTEL_ENABLED=false` | No new native pipeline or export |
-| Production overlay | Existing gRPC trace path works |
+| Production reference overlay | Rendered configuration/policy validates; existing direct Jaeger gRPC route is preserved. Actual deployment is not claimed |
 | Metrics enabled | The actual destination receives measurements |
 
 ### Documentation outputs
