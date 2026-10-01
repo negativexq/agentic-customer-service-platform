@@ -119,3 +119,46 @@ def test_main_fails_boundedly_and_never_reports_success_if_cleanup_fails(
     assert closed[-1] == "fixture"
     if failure == "runtime":
         assert closed == ["clean", "fixture"]
+
+
+@pytest.mark.parametrize("service,host,target", [("qdrant", 32771, 6334), ("jaeger", 32782, 4318)])
+def test_startup_bind_diagnostics_keep_only_catalog_and_valid_ports(
+    service: str,
+    host: int,
+    target: int,
+) -> None:
+    from scripts.otel_runtime_smoke import startup_port_bindings
+
+    project = "t4d-metrics-t5-unit"
+    line = (
+        f"PRIVATE_CREDENTIAL: driver failed programming external connectivity on endpoint "
+        f"{project}-{service}-1 (PRIVATE_CONTAINER_ID): failed to bind host port for "
+        f"0.0.0.0:{host}:172.18.0.9:{target}/tcp: address already in use PRIVATE_PAYLOAD"
+    )
+    result = startup_port_bindings(line, project)
+    assert result == [
+        {
+            "service": service,
+            "container_index": 1,
+            "host_port": host,
+            "container_port": target,
+            "protocol": "tcp",
+            "reason": "port_bind_conflict",
+        }
+    ]
+    encoded = json.dumps(result)
+    assert "PRIVATE" not in encoded and "172.18" not in encoded and project not in encoded
+    assert startup_port_bindings(line, "t4d-metrics-t5-another") == []
+    assert startup_port_bindings(line.replace(str(host), "99999"), project) == []
+    assert startup_port_bindings(line.replace("/tcp", "/PRIVATE"), project) == []
+
+
+def test_startup_bind_diagnostics_bound_input_and_deduplicate() -> None:
+    from scripts.otel_runtime_smoke import startup_port_bindings
+
+    line = (
+        "endpoint t4d-metrics-t5-unit-jaeger-1: failed to bind host port for "
+        "0.0.0.0:32782:172.18.0.9:4318/tcp: address already in use"
+    )
+    assert len(startup_port_bindings((line + "\n") * 2000, "t4d-metrics-t5-unit")) == 1
+    assert startup_port_bindings("PRIVATE_UNRECOGNIZED_ERROR", "t4d-metrics-t5-unit") == []

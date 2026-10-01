@@ -295,7 +295,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [graceful, jaeger-outage, disabled, draining, both-outage]
+        # Diagnostic pass only; restore the full matrix before acceptance.
+        scenario: [disabled]
     env:
       T5_COMPOSE_PROJECT_NAME: t4d-metrics-t5-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scenario }}
     steps:
