@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:4317"
     otel_service_name: str = "agentic-customer-service-platform"
+    otel_metrics_enabled: bool = False
+    otel_exporter_otlp_metrics_endpoint: str = ""
+    otel_metric_export_interval_millis: int = Field(default=15000, ge=1000, le=300000)
+    otel_metric_export_timeout_millis: int = Field(default=5000, ge=1, le=30000)
     memory_enabled: bool = True
     memory_max_context_items: int = Field(default=5, gt=0, le=20)
     memory_default_ttl_days: int = Field(default=365, ge=0)
