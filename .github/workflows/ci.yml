@@ -289,7 +289,7 @@ jobs:
 
   telemetry-runtime:
     name: Telemetry Runtime Acceptance
-    needs: metrics-delivery
+    # Independent diagnostic pass; restore metrics-delivery before acceptance.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
