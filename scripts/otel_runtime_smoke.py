@@ -55,7 +55,7 @@ def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
         if service is None or binding is None:
             continue
         host, container = int(binding[1]), int(binding[2])
-        if not (1 <= host <= 65535 and 1 <= container <= 65535):
+        if not (0 <= host <= 65535 and 1 <= container <= 65535):
             continue
         row = {
             "service": service,
@@ -65,6 +65,8 @@ def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
             "protocol": binding[3],
             "reason": "port_bind_conflict",
         }
+        if host == 0:
+            row["host_port_assignment"] = "dynamic_requested_not_reported"
         if row not in failures:
             failures.append(row)
         if len(failures) == 6:

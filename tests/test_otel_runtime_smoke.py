@@ -162,3 +162,15 @@ def test_startup_bind_diagnostics_bound_input_and_deduplicate() -> None:
     )
     assert len(startup_port_bindings((line + "\n") * 2000, "t4d-metrics-t5-unit")) == 1
     assert startup_port_bindings("PRIVATE_UNRECOGNIZED_ERROR", "t4d-metrics-t5-unit") == []
+
+
+def test_startup_bind_diagnostics_do_not_invent_assigned_dynamic_port() -> None:
+    from scripts.otel_runtime_smoke import startup_port_bindings
+
+    line = (
+        "endpoint t4d-metrics-t5-unit-qdrant-1: failed to bind host port for "
+        "0.0.0.0:0:172.18.0.9:6333/tcp: address already in use"
+    )
+    row = startup_port_bindings(line, "t4d-metrics-t5-unit")[0]
+    assert row["container_port"] == 6333 and row["host_port"] == 0
+    assert row["host_port_assignment"] == "dynamic_requested_not_reported"
