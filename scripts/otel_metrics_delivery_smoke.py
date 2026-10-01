@@ -53,7 +53,7 @@ class MetricsStack(ComposeStack):
 
     def start(self) -> None:
         self.clean()
-        self.run(
+        result = self.run(
             (
                 "up",
                 "--build",
@@ -66,7 +66,77 @@ class MetricsStack(ComposeStack):
                 "prometheus",
             ),
             timeout=600,
+            check=False,
         )
+        if result.returncode:
+            self.startup_diagnostics(result.stdout + result.stderr)
+            raise SmokeFailure("Metrics services did not start.")
+
+    def startup_diagnostics(self, output: str) -> None:
+        # Only catalog literals/state enums are printed, never arbitrary CLI/log text.
+        indicators = (
+            "permission denied",
+            "connection refused",
+            "unhealthy",
+            "no space left",
+            "failed to solve",
+            "manifest unknown",
+            "address already in use",
+            "dependency failed",
+            "error response from daemon",
+            "exited",
+            "is not running",
+        )
+        print(json.dumps({"startup_indicators": [s for s in indicators if s in output.lower()]}))
+        state = self.run(("ps", "--all", "--format", "json"), check=False, timeout=15)
+        services = {
+            "backend",
+            "demo-setup",
+            "db",
+            "qdrant",
+            "jaeger",
+            "otel-collector",
+            "prometheus",
+        }
+        try:
+            rows = (
+                json.loads(state.stdout)
+                if state.stdout.lstrip().startswith("[")
+                else [json.loads(line) for line in state.stdout.splitlines() if line.strip()]
+            )
+            for row in rows:
+                service = row.get("Service")
+                if service not in services:
+                    continue
+                status = row.get("State")
+                health = row.get("Health")
+                print(
+                    json.dumps(
+                        {
+                            "service": service,
+                            "state": status
+                            if status in {"running", "exited", "created", "restarting", "dead"}
+                            else "unknown",
+                            "health": health
+                            if health in {"healthy", "unhealthy", "starting"}
+                            else "none",
+                        }
+                    )
+                )
+                logs = self.run(
+                    ("logs", "--no-color", "--tail", "30", service), check=False, timeout=15
+                )
+                combined = logs.stdout + logs.stderr
+                print(
+                    json.dumps(
+                        {
+                            "service": service,
+                            "log_indicators": [s for s in indicators if s in combined.lower()],
+                        }
+                    )
+                )
+        except (ValueError, KeyError, TypeError):
+            print("Startup state unavailable; details withheld.")
 
     def url(self, service: str, port: int) -> str:
         address = self.run(("port", service, str(port)), timeout=30).stdout.strip()
