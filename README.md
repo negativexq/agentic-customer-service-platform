@@ -165,7 +165,7 @@ Semantic, operational, resilience, and real-LLM evidence remain separate; denomi
 | D2d operational release gate | 18/18 operational scenarios; 8/8 mandatory phases; 6/6 fault classes |
 | Deterministic resilience snapshot | 28 scenarios, 28 passed; run `eval-9fc295817532` |
 | Real-LLM adversarial audit | 100 real-LLM samples: 82 passed all evaluated assertions; 18 produced bounded semantic/quality warnings or partial outcomes. No safety invariant failed; there were 0 unauthorized mutations, confirmation bypasses, duplicate effects, authority-bearing memory writes, or customer-data disclosures. |
-| Latest automated release checks | Backend 844 passed; frontend 49 passed; Playwright 6/6; authenticated smoke passed |
+| Recorded release QA snapshot | Backend 844 passed; frontend 49 passed; Playwright 6/6; authenticated smoke passed |
 
 The 82/18 split is a quality-outcome breakdown, not a safety rate.
 
@@ -183,6 +183,12 @@ Request → Evidence → Proposal → Decision → Authority → Outcome
 
 Operators inspect bounded request/workflow state, memory/RAG evidence, proposals, validation, policy, confirmation, authority, execution, lifecycle, and replay results. The backend projection is authoritative; the console omits chain-of-thought, raw prompts/responses, secrets, and model token streams.
 
+## Telemetry and runtime verification
+
+FastAPI native OpenTelemetry covers HTTP requests and framework operations; application instrumentation covers agent, policy, tool, RAG, memory, and resilience workflows. Both use application-owned providers: traces go directly to Jaeger, while opt-in domain and native HTTP metrics share one meter pipeline through Collector to Prometheus. Privacy filters sanitize final OTLP payloads, and metric dimensions use bounded catalogs and registered route templates. HTTP access logs omit raw paths and query strings.
+
+Runtime acceptance exercises real SIGTERM shutdown, in-flight request draining, disabled telemetry, Jaeger outage, and both telemetry destinations unavailable. Real local gRPC TLS/auth tests cover trace and metric transports. See the [runtime and TLS evidence](docs/fastapi-native-otel-t5-runtime-release-evidence.md) and [architecture and rollback guide](docs/observability.md) for measured results, reproduction commands, and limitations. These are repository/portfolio checks; no staging or production deployment validation was performed.
+
 ## Technical stack
 
 | Area | Technology |
@@ -191,7 +197,7 @@ Operators inspect bounded request/workflow state, memory/RAG evidence, proposals
 | API | FastAPI + Pydantic |
 | Persistence | PostgreSQL + SQLAlchemy + Alembic |
 | Retrieval | Qdrant + dense/BM25 hybrid retrieval |
-| Observability | OpenTelemetry + Jaeger |
+| Observability | FastAPI native OpenTelemetry + Jaeger; opt-in Collector/Prometheus metrics |
 | Frontend | React + TypeScript + Vite + Tailwind |
 | Verification | Pytest + Ruff + Mypy + Vitest + Playwright |
 | Runtime | Docker Compose |
@@ -208,6 +214,14 @@ docker compose up --build --detach
 Open <http://localhost:5173>. Setup applies migrations, seeds records, and loads the bundled knowledge base; stop with `docker compose down`. The optional live path uses an OpenAI-compatible provider for semantic proposals only; grounding, compilation, policy, confirmation, idempotency, and execution authority remain server-owned.
 
 See [deployment](docs/deployment.md) for health, readiness, and topology details.
+
+To enable optional domain and native HTTP metrics:
+
+~~~bash
+OTEL_METRICS_ENABLED=true docker compose --profile metrics up --build --detach
+~~~
+
+Prometheus is available at <http://localhost:9090>. Metrics remain disabled by default; starting the profile alone does not enable application metrics. Traces retain the existing Jaeger path. The reference metrics setup supports one backend process; multi-worker and multi-replica aggregation is outside its acceptance scope.
 
 ## Testing
 
@@ -259,6 +273,8 @@ Makefile             Development and verification commands
 - [Evaluation overview](docs/evaluation-overview.md)
 - [Evaluation artifact retention policy](docs/evaluation-artifact-policy.md)
 - [Release evidence](docs/release-evidence.md)
+- [Observability architecture and rollback](docs/observability.md)
+- [Telemetry runtime and TLS evidence](docs/fastapi-native-otel-t5-runtime-release-evidence.md)
 - [Deployment expectations](docs/deployment.md)
 - [Production demo walkthrough](docs/demo/walkthrough.md)
 - [Frontend design guidelines](docs/frontend-design-guidelines.md)
