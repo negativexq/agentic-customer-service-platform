@@ -37,6 +37,7 @@ from app.auth.models import ActorType, Principal
 from app.core.database import get_db
 from app.observability import metrics as application_metrics
 from app.observability import privacy, tracing
+from app.observability.access_logging import SafeAccessLogMiddleware
 from app.observability.export import PrivacyOTLPSpanExporter
 from app.observability.middleware import fastapi_telemetry
 from app.persistence.checkpoint import MemoryCheckpointProvider
@@ -97,6 +98,7 @@ class HTTPHarness:
         configure_app: Callable[[FastAPI], None] | None = None,
         metrics_endpoint: str | None = None,
         metrics_timeout_millis: int = 5000,
+        global_meter_provider: metrics.MeterProvider | None = None,
     ) -> Iterator[HTTPPipeline]:
         with self.monkeypatch.context() as patch:
             patch.setenv("OTEL_TRACES_SAMPLER", "parentbased_always_on")
@@ -137,7 +139,9 @@ class HTTPHarness:
                     registry["provider"] = value
 
             patch.setattr(trace, "set_tracer_provider", register)
-            if meter is not None:
+            if global_meter_provider is not None:
+                patch.setattr(metrics, "get_meter_provider", lambda: global_meter_provider)
+            elif meter is not None:
                 patch.setattr(metrics, "get_meter_provider", lambda: meter)
             patch.setattr(application_metrics, "_metrics", application_metrics.get_metrics())
             settings = main.settings.model_copy(
@@ -205,7 +209,9 @@ class HTTPHarness:
                 application = FastAPI(
                     lifespan=main.lifespan,
                     telemetry=fastapi_telemetry(
-                        settings, tracing.configure_observability(settings)
+                        settings,
+                        tracing.configure_observability(settings),
+                        owner.get_meter_provider(),
                     ),
                 )
                 if enabled and metrics_endpoint is None:
@@ -232,6 +238,7 @@ class HTTPHarness:
                         await self.app(scope, receive, observe_send)
 
                 application.add_middleware(LoopProbe)
+                application.add_middleware(SafeAccessLogMiddleware)
                 application.include_router(api_router)
                 if configure_app is not None:
                     configure_app(application)
