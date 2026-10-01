@@ -267,6 +267,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  metrics-delivery:
+    name: Application Metrics Delivery
+    needs: docker-validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      T4D_COMPOSE_PROJECT_NAME: t4d-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify domain/native delivery, privacy, and Collector recovery
+        run: python3 -m scripts.otel_metrics_delivery_smoke
+      - name: Remove isolated metrics stack and volumes
+        if: always()
+        run: >-
+          docker compose --project-name "$T4D_COMPOSE_PROJECT_NAME"
+          --file docker-compose.yml --file docker-compose.integration.yml
+          --env-file .env.example --profile metrics
+          down --volumes --remove-orphans --timeout 20
+
   integration-smoke:
     name: Authenticated Full-Stack Lifecycle Smoke
     needs: docker-validation

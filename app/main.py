@@ -12,13 +12,19 @@ from app.agent.runtime import AgentRuntime
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.database import engine
+from app.observability.access_logging import SafeAccessLogMiddleware, configure_safe_server_logging
 from app.observability.middleware import fastapi_telemetry
 from app.observability.privacy import register_route_templates
-from app.observability.tracing import configure_observability, shutdown_observability
+from app.observability.tracing import (
+    configure_observability,
+    get_meter_provider,
+    shutdown_observability,
+)
 from app.persistence.checkpoint import build_checkpoint_provider
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+configure_safe_server_logging()
 tracer_provider = configure_observability(settings)
 
 
@@ -73,7 +79,7 @@ app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
     lifespan=lifespan,
-    telemetry=fastapi_telemetry(settings, tracer_provider),
+    telemetry=fastapi_telemetry(settings, tracer_provider, get_meter_provider()),
 )
 
 
@@ -100,6 +106,7 @@ async def bounded_validation_error(request: Request, exc: RequestValidationError
     return await request_validation_exception_handler(request, exc)
 
 
+app.add_middleware(SafeAccessLogMiddleware)
 app.include_router(api_router)
 register_route_templates(
     route.path_format for route in iter_route_contexts(app.routes) if route.path_format is not None

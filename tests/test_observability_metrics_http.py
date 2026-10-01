@@ -145,7 +145,7 @@ def test_enabled_domain_metrics_unavailable_endpoint_does_not_block_http_or_trac
             assert final["agent_runs_total"].sum.data_points[0].as_int == 2
             assert final["agent_run_duration_seconds"].histogram.data_points[0].count == 2
             assert "tool_calls_total" in final and "policy_decisions_total" in final
-            assert not any(name.startswith("http.server.") for name in final)
+            assert {"http.server.request.duration", "http.server.active_requests"} <= final.keys()
             assert set(rpc_threads).isdisjoint(pipeline.worker_threads + pipeline.loop_threads)
             pipeline.assert_private_absent(MESSAGE, CONVERSATION, "PRIVATE_SECOND_CONVERSATION")
         assert owned.closed

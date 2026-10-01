@@ -242,7 +242,7 @@ Proposed delivery sequence:
 3. **T4C:** pinned Collector + Prometheus infrastructure/configuration and Compose wiring.
 4. **T4D:** application → Collector → Prometheus end-to-end delivery, scrape/query validation, and deployment-level failure/recovery evidence.
 
-Native FastAPI metric provider binding/enablement and HTTP metric guardrails remain unimplemented. They require application-side review and validation in T4D before native HTTP metric delivery can be claimed. Infrastructure configuration alone must not activate native metrics or claim application delivery. T5 remains final runtime/deployment and release evidence.
+The [T4D delivery record](fastapi-native-otel-t4d-metrics-delivery.md) documents explicit native provider binding, HTTP metric guardrails, and representative local application → Collector → Prometheus delivery/recovery. Infrastructure profile activation alone does not activate recording. Production delivery/TLS/shutdown and release acceptance remain T5; local evidence does not close those requirements.
 
 The [T4B implementation record](fastapi-native-otel-t4b-metrics-provider.md) documents the opt-in domain provider/exporter, privacy and lifecycle evidence. Native metrics and infrastructure remain subsequent packages; T4B alone does not close T4.
 
