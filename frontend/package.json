@@ -31,6 +31,6 @@
     "@typescript-eslint/parser": "^8.2.0",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   }
 }
