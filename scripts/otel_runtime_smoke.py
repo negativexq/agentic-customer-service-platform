@@ -116,6 +116,7 @@ class RuntimeStack(MetricsStack):
         if self._fixture is not None:
             self._fixture.cleanup()
             self._fixture = None
+        super().close_fixture()
 
 
 def backend_exit(stack: RuntimeStack) -> int:

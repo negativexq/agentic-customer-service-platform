@@ -11,11 +11,14 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from scripts.e2e_authenticated_smoke import (
@@ -33,7 +36,9 @@ QUERY = "PRIVATE_T4D_QUERY"
 MESSAGE = "Check my order 3 status"
 
 
-def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
+def startup_port_bindings(
+    output: str, project: str, *, inspected_service: str | None = None
+) -> list[dict[str, Any]]:
     """Project Docker bind errors into bounded service/port diagnostics only."""
     failures: list[dict[str, Any]] = []
     for line in output[-32768:].splitlines()[-128:]:
@@ -47,14 +52,34 @@ def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
                 for name in ("backend", "db", "qdrant", "jaeger", "otel-collector", "prometheus")
                 if re.search(r"\b" + re.escape(project + "-" + name + "-1") + r"\b", line)
             ),
-            None,
+            inspected_service if inspected_service in PORT_SERVICES else None,
         )
         binding = re.search(
-            r"failed to bind host port for (?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5}):"
+            r"failed to bind host port (?:\d{1,5} )?for (?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5}):"
             r"(?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5})/(tcp|udp)\b",
             line,
         )
-        if service is None or binding is None:
+        if service is None:
+            continue
+        if binding is None:
+            # Older daemon/proxy errors expose only the host side. Never infer
+            # a container port or protocol from the service name.
+            host_only = re.search(
+                r"(?:Bind for |listen tcp )(?:[0-9.]+|\[[0-9a-fA-F:]+\]):(\d{1,5})\b",
+                line,
+            )
+            if host_only is not None and 1 <= int(host_only[1]) <= 65535:
+                partial = {
+                    "service": service,
+                    "container_index": 1,
+                    "host_port": int(host_only[1]),
+                    "binding_detail": "host_only",
+                    "reason": "port_bind_conflict",
+                }
+                if partial not in failures:
+                    failures.append(partial)
+            if len(failures) == 6:
+                break
             continue
         host, container = int(binding[1]), int(binding[2])
         if not (0 <= host <= 65535 and 1 <= container <= 65535):
@@ -67,6 +92,13 @@ def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
             "protocol": binding[3],
             "reason": "port_bind_conflict",
         }
+        assigned = re.search(r"failed to bind host port (\d{1,5}) for", line)
+        if assigned is not None:
+            allocated = int(assigned[1])
+            if not 1 <= allocated <= 65535:
+                continue
+            row["host_port"] = allocated
+            host = allocated
         if host == 0:
             row["host_port_assignment"] = "dynamic_requested_not_reported"
         if row not in failures:
@@ -74,6 +106,9 @@ def startup_port_bindings(output: str, project: str) -> list[dict[str, Any]]:
         if len(failures) == 6:
             break
     return failures
+
+
+PORT_SERVICES = ("backend", "db", "qdrant", "jaeger", "otel-collector", "prometheus")
 
 
 class MetricsStack(ComposeStack):
@@ -89,10 +124,37 @@ class MetricsStack(ComposeStack):
             OTEL_METRIC_EXPORT_TIMEOUT_MILLIS="500",
             PROMETHEUS_PORT="0",
         )
+        self._port_fixture = TemporaryDirectory(prefix="otel-smoke-ports-")
+        # Replace (do not merge) the base publications. Only these three APIs
+        # are used by the host harness; all signal transport stays on Docker DNS.
+        Path(self._port_fixture.name, "ports.yaml").write_text(
+            "services:\n"
+            + "".join(
+                f"  {service}:\n    ports: !override "
+                + (f'["127.0.0.1:0:{port}"]\n' if port else "[]\n")
+                for service, port in (
+                    ("backend", 8000),
+                    ("prometheus", 9090),
+                    ("jaeger", 16686),
+                    ("db", 0),
+                    ("qdrant", 0),
+                    ("frontend", 0),
+                )
+            )
+        )
 
     @property
     def command(self) -> list[str]:
-        return [*super().command, "--profile", "metrics"]
+        return [
+            *super().command,
+            "--file",
+            str(Path(self._port_fixture.name, "ports.yaml")),
+            "--profile",
+            "metrics",
+        ]
+
+    def close_fixture(self) -> None:
+        self._port_fixture.cleanup()
 
     def start(self) -> None:
         self.clean()
@@ -167,6 +229,8 @@ class MetricsStack(ComposeStack):
                         }
                     )
                 )
+                if status in {"created", "dead", "exited"}:
+                    self.container_bind_diagnostics(service)
                 logs = self.run(
                     ("logs", "--no-color", "--tail", "30", service), check=False, timeout=15
                 )
@@ -181,6 +245,43 @@ class MetricsStack(ComposeStack):
                 )
         except (ValueError, KeyError, TypeError):
             print("Startup state unavailable; details withheld.")
+
+    def container_bind_diagnostics(self, service: str) -> None:
+        """Inspect only State.Error for a container selected by this Compose project."""
+        if service not in PORT_SERVICES:
+            return
+        try:
+            container = self.run(
+                ("ps", "--all", "--quiet", service), check=False, timeout=5
+            ).stdout.strip()
+            if re.fullmatch(r"[0-9a-f]{12,64}", container) is None:
+                return
+            result = subprocess.run(
+                ["docker", "inspect", "--format", "{{json .State.Error}}", container],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            error = json.loads(result.stdout)
+            if not isinstance(error, str):
+                return
+            bindings = startup_port_bindings(error, self.project, inspected_service=service)
+            print(
+                json.dumps(
+                    {
+                        "service": service,
+                        "container_state_port_bindings": bindings,
+                        "bind_error": any(
+                            term in error.lower()
+                            for term in ("address already in use", "port is already allocated")
+                        ),
+                        "binding_parse": "matched" if bindings else "unrecognized_or_absent",
+                    }
+                )
+            )
+        except (SmokeFailure, OSError, ValueError, subprocess.TimeoutExpired):
+            print(json.dumps({"service": service, "container_error_inspection": "unavailable"}))
 
     def url(self, service: str, port: int) -> str:
         address = self.run(("port", service, str(port)), timeout=30).stdout.strip()
@@ -548,7 +649,10 @@ def main() -> int:
         )
         return 1
     finally:
-        stack.clean()
+        try:
+            stack.clean()
+        finally:
+            stack.close_fixture()
 
 
 if __name__ == "__main__":
