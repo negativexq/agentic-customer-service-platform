@@ -39,6 +39,7 @@ services:
       OIDC_AUDIENCE: ${OIDC_AUDIENCE:?OIDC_AUDIENCE must be set}
       LOCAL_DEMO_AUTH_TOKEN: ""
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      CHECKPOINT_BACKEND: postgres
       POLICY_AUDIT_BACKEND: postgres
       AGENT_RUN_PROJECTION_BACKEND: postgres
     command: ["alembic", "upgrade", "head"]
@@ -66,6 +67,7 @@ services:
       SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
       DEPLOYMENT_ID: ${DEPLOYMENT_ID:?DEPLOYMENT_ID must be set}
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      CHECKPOINT_BACKEND: postgres
       POLICY_AUDIT_BACKEND: postgres
       AGENT_RUN_PROJECTION_BACKEND: postgres
       EVIDENCE_STORE_BACKEND: ${EVIDENCE_STORE_BACKEND:?EVIDENCE_STORE_BACKEND must be set}

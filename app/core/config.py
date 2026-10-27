@@ -204,7 +204,18 @@ class Settings(BaseSettings):
                 "deterministic_integration LLM provider requires "
                 "APP_ENV=integration and AUTH_MODE=local_demo"
             )
+        validate_production_checkpoint(self)
         return self
+
+
+def validate_production_checkpoint(settings: Settings) -> None:
+    """Reject ephemeral or unsupported checkpoint storage before production startup."""
+    if settings.app_env.strip().lower() != "production":
+        return
+    if settings.checkpoint_backend != "postgres":
+        raise ValueError("production requires PostgreSQL checkpoints")
+    if not settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+        raise ValueError("production checkpoints require a PostgreSQL database URL")
 
 
 @lru_cache
