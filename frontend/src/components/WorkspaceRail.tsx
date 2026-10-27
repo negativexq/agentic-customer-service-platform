@@ -38,7 +38,7 @@ export function WorkspaceRail({ runs, selectedRunId, currentConversationId, onSe
                 <span className="truncate text-xs font-semibold text-main">Current workspace</span>
                 <StatusIndicator label="Active" tone="success" compact />
               </div>
-              <div className="mt-1 truncate font-mono text-[10px] text-muted">{currentConversationId}</div>
+              <div className="mt-1 truncate font-mono text-xs text-muted">{currentConversationId}</div>
             </div>
           </div>
         </div>
@@ -60,11 +60,11 @@ export function WorkspaceRail({ runs, selectedRunId, currentConversationId, onSe
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className="truncate text-xs font-semibold text-main">Customer #{run.customer_id}</span>
-                    <span className="shrink-0 text-[10px] text-muted">{new Date(run.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="shrink-0 text-xs text-muted">{new Date(run.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
-                  <div className="mt-1 truncate font-mono text-[10px] text-muted">{run.conversation_id}</div>
+                  <div className="mt-1 truncate font-mono text-xs text-muted">{run.conversation_id}</div>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="truncate text-[11px] text-muted">{run.intent || "Intent not recorded"}</span>
+                    <span className="truncate text-xs text-muted">{run.intent || "Intent not recorded"}</span>
                     <StatusIndicator label={status.label} tone={status.tone} compact />
                   </div>
                 </div>
@@ -73,7 +73,7 @@ export function WorkspaceRail({ runs, selectedRunId, currentConversationId, onSe
           );
         })}
       </div>
-      <div className="mt-auto border-t border-border p-4 text-[11px] leading-5 text-muted">
+      <div className="mt-auto border-t border-border p-4 text-xs leading-5 text-muted">
         <div className="flex items-center gap-2"><Clock3 size={13} aria-hidden="true" /> bounded operational metadata</div>
         <div className="mt-2 flex items-center gap-2"><ShieldAlert size={13} className="text-warning" aria-hidden="true" /> proposal ≠ authority</div>
       </div>

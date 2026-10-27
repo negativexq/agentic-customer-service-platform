@@ -15,10 +15,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .topbar { @apply border-b border-border bg-void/95; }
   .topbar-inner { @apply mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8; }
   .run-header { @apply rounded-xl border border-border/80 bg-surface p-5 shadow-panel sm:p-6; }
-  .surface { @apply rounded-xl border border-border/80 bg-surface shadow-panel; }
+  .surface { @apply min-w-0 rounded-xl border border-border/80 bg-surface shadow-panel; }
   .brand-mark { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-info/30 bg-info/10 text-info; }
   .brand-mark-small { @apply h-7 w-7 rounded-md; }
-  .eyebrow { @apply text-[11px] font-medium tracking-[.04em] text-muted; }
+  .eyebrow { @apply text-xs font-medium tracking-[.04em] text-muted; }
   .section-title { @apply text-[15px] font-semibold leading-5 tracking-tight text-main; }
   .text-main { color: #f0f6fc; }
   .text-muted { color: #8b949e; }
@@ -26,7 +26,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .text-warning { color: #d9a85c; }
   .text-danger { color: #e06c75; }
   .text-info { color: #7d9bb8; }
-  .badge { @apply inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-medium tracking-[.03em]; }
+  .badge { @apply inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium tracking-[.03em]; }
   .badge-success { @apply border-success/25 bg-success/10 text-success; }
   .badge-warning { @apply border-warning/25 bg-warning/10 text-warning; }
   .badge-danger { @apply border-danger/25 bg-danger/10 text-danger; }
@@ -59,12 +59,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .proposal-field { @apply rounded-lg border border-border bg-void/35 p-3; }
   .control-check { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-2.5; }
   .control-flow { @apply flex flex-col items-center gap-1 rounded-lg border border-border bg-void/45 p-3 sm:flex-row sm:justify-center sm:gap-2; }
-  .flow-node { @apply rounded-md border border-border bg-surface px-2.5 py-2 text-center text-[11px] font-medium text-muted; }
+  .flow-node { @apply rounded-md border border-border bg-surface px-2.5 py-2 text-center text-xs font-medium text-muted; }
   .flow-proposal { @apply border-warning/25 bg-warning/5 text-warning; }
   .flow-authority { @apply border-success/25 bg-success/5 text-success; }
   .flow-arrow { @apply text-info sm:rotate-[-90deg]; }
   .operator-action { @apply inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-void/50 px-3 text-xs font-medium text-muted disabled:cursor-not-allowed disabled:opacity-60; }
-  .trace-authority-strip { @apply flex flex-wrap items-center justify-center gap-2 border-y border-border/70 bg-transparent px-1 py-3 text-[11px] font-medium text-muted; }
+  .trace-authority-strip { @apply flex flex-wrap items-center justify-center gap-2 border-y border-border/70 bg-transparent px-1 py-3 text-xs font-medium text-muted; }
   .trace-proposal-label { @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal; }
   .trace-authority-label { @apply inline-flex items-center gap-1 rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success; }
   .trace-stage-list { @apply mt-3 space-y-0; }
@@ -93,7 +93,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .grounding-boundary { @apply grid items-stretch gap-2 lg:grid-cols-[1fr_auto_1fr]; }
   .grounding-column { @apply rounded-lg border p-4; }
   .grounding-model { @apply border-proposal/25 bg-proposal/5; }
-  .proposal-badge { @apply inline-flex items-center rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-[10px] font-medium tracking-[.03em] text-proposal; }
+  .proposal-badge { @apply inline-flex items-center rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-xs font-medium tracking-[.03em] text-proposal; }
   .grounding-system { @apply border-success/25 bg-success/5; }
   .grounding-divider { @apply hidden items-center justify-center px-2 text-info lg:flex; }
   .grounding-stage-grid { @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-3; }
@@ -117,25 +117,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .scenario-option-icon { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-void text-info; }
   .running-state { @apply rounded-lg border border-info/20 bg-info/5 p-4; }
   .json-panel { @apply min-w-0 rounded-lg border border-border bg-void/45 p-3; }
-  .json-viewer { @apply max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-info; }
+  .json-viewer { @apply max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-info; }
   .playground-actions { @apply flex flex-wrap gap-2 border-t border-border pt-3; }
-  .playground-empty-flow { @apply my-5 flex flex-wrap items-center justify-center gap-2 border-y border-border/70 py-3 text-[11px] font-medium text-muted; }
+  .playground-empty-flow { @apply my-5 flex flex-wrap items-center justify-center gap-2 border-y border-border/70 py-3 text-xs font-medium text-muted; }
   .playground-empty-flow span:nth-child(odd) { @apply rounded-md bg-surface-elevated px-2.5 py-1.5 text-main; }
   .playground-empty-flow span:nth-child(even) { @apply text-muted; }
   .playground-lifecycle-preview { @apply my-5 grid gap-2 border-y border-border/70 py-3 sm:grid-cols-5; }
   .playground-lifecycle-step { @apply relative flex items-center gap-2 rounded-md bg-void/25 px-2.5 py-2; }
-  .playground-lifecycle-number { @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-[10px] text-info; }
-  .playground-lifecycle-step strong { @apply block text-[11px] font-medium text-main; }
-  .playground-lifecycle-step small { @apply mt-0.5 block text-[10px] leading-4 text-muted; }
+  .playground-lifecycle-number { @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info; }
+  .playground-lifecycle-step strong { @apply block text-xs font-medium text-main; }
+  .playground-lifecycle-step small { @apply mt-0.5 block text-xs leading-4 text-muted; }
   .playground-lifecycle-arrow { @apply absolute -right-2 z-10 hidden text-muted sm:block; }
   .run-detail-header { @apply p-5 sm:p-6; }
   .trace-investigation-header { @apply p-5 sm:p-6; }
   .trace-investigation-id { @apply mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-void/30 p-3; }
-  .trace-investigation-id span { @apply text-[11px] text-muted; }
+  .trace-investigation-id span { @apply text-xs text-muted; }
   .trace-investigation-id strong { @apply font-mono text-xs font-medium text-main; }
   .trace-investigation-summary { @apply mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-7; }
   .trace-investigation-summary > div { @apply min-w-0 bg-void/40 p-3; }
-  .trace-investigation-summary span { @apply block text-[10px] text-muted; }
+  .trace-investigation-summary span { @apply block text-xs text-muted; }
   .trace-investigation-summary strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .operational-event-list { @apply mt-4 space-y-2; }
   .operational-event-row { @apply grid gap-3 rounded-lg border border-border/70 bg-void/25 p-3 sm:grid-cols-[116px_minmax(0,1fr)]; }
@@ -144,12 +144,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .operational-event-blocked { @apply border-border bg-void/35; }
   .operational-event-failed { @apply border-danger/30 bg-danger/[.025]; }
   .operational-event-not_recorded { @apply border-dashed border-border/70; }
-  .operational-event-time { @apply flex items-center gap-1.5 text-[10px] font-mono text-muted sm:items-start sm:pt-0.5; }
+  .operational-event-time { @apply flex items-center gap-1.5 text-xs font-mono text-muted sm:items-start sm:pt-0.5; }
   .operational-event-time svg { @apply shrink-0; }
   .operational-event-main > div:first-child strong { @apply text-sm font-medium text-main; }
   .operational-event-fields { @apply mt-3 grid gap-2 sm:grid-cols-3; }
   .operational-event-fields > div { @apply min-w-0 rounded-md border border-border/70 bg-void/25 p-2; }
-  .operational-event-fields strong { @apply mt-1 block truncate text-[11px] font-medium text-main; }
+  .operational-event-fields strong { @apply mt-1 block truncate text-xs font-medium text-main; }
   .trace-investigation-timeline { @apply mt-4 space-y-1 rounded-lg border border-border bg-void/20 p-3; }
   .trace-investigation-step { @apply relative; }
   .trace-investigation-stage { @apply overflow-hidden rounded-lg border border-border/70 bg-void/25; }
@@ -161,17 +161,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .trace-investigation-marker { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated; }
   .trace-investigation-stage summary > span:nth-child(2) strong { @apply block text-sm font-medium text-main; }
   .trace-investigation-stage summary > span:nth-child(2) small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .trace-investigation-stage-status { @apply ml-auto flex shrink-0 flex-col items-end gap-1 text-[10px] font-mono text-muted; }
+  .trace-investigation-stage-status { @apply ml-auto flex shrink-0 flex-col items-end gap-1 text-xs font-mono text-muted; }
   .trace-investigation-stage-status svg { @apply inline-block align-text-bottom; }
   .trace-filter-bar { @apply grid gap-3 rounded-lg border border-border bg-void/25 p-3 sm:grid-cols-3; }
   .trace-filter { @apply min-w-0; }
-  .trace-filter-note { @apply text-[11px] leading-5 text-muted sm:col-span-3; }
+  .trace-filter-note { @apply text-xs leading-5 text-muted sm:col-span-3; }
   .decision-lifecycle-summary { @apply border-info/25 bg-info/[.015]; }
   .decision-lifecycle-grid { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-5; }
   .decision-lifecycle-grid > div { @apply min-w-0 bg-void/35 p-3; }
-  .decision-lifecycle-grid span { @apply block text-[10px] text-muted; }
-  .decision-lifecycle-grid strong { @apply mt-1 block truncate text-xs font-semibold capitalize text-main; }
-  .decision-lifecycle-grid small { @apply mt-1 block text-[10px] leading-4 text-muted; }
+  .decision-lifecycle-grid span { @apply block text-xs text-muted; }
+  .decision-lifecycle-grid strong { @apply mt-1 block break-words text-xs font-semibold capitalize text-main; }
+  .decision-lifecycle-grid small { @apply mt-1 block text-xs leading-4 text-muted; }
   .decision-lifecycle-proposal { @apply border-t-2 border-proposal/30; }
   .decision-lifecycle-decision { @apply border-t-2 border-warning/40 bg-warning/5; }
   .decision-lifecycle-authority { @apply border-t-2 border-success/30; }
@@ -183,11 +183,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .trace-investigation-detail-grid strong { @apply mt-1 block truncate text-xs font-medium text-main; }
   .trace-investigation-evidence { @apply mt-3 flex items-start gap-2 rounded-md border border-info/20 bg-info/5 p-3 text-xs leading-5 text-info; }
   .trace-investigation-evidence svg { @apply mt-0.5 shrink-0; }
-  .trace-investigation-stage-note { @apply mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3 text-[11px] text-muted; }
+  .trace-investigation-stage-note { @apply mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3 text-xs text-muted; }
   .decision-explanation-card { @apply border-warning/25 bg-warning/[.015]; }
   .decision-explanation-result { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2; }
   .decision-explanation-result > div { @apply min-w-0 bg-void/30 p-4; }
-  .decision-explanation-result span { @apply block text-[10px] text-muted; }
+  .decision-explanation-result span { @apply block text-xs text-muted; }
   .decision-explanation-result strong { @apply mt-1 block truncate text-sm font-semibold text-main; }
   .decision-explanation-columns { @apply mt-4 grid gap-4 sm:grid-cols-2; }
   .decision-explanation-columns > div { @apply rounded-lg border border-border bg-void/25 p-3; }
@@ -202,10 +202,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .decision-explanation-blocking { @apply mt-3 flex items-start gap-2 border-t border-warning/20 pt-3 text-xs leading-5 text-warning; }
   .evidence-relationship-graph { @apply mt-4 grid gap-1 lg:grid-cols-7 lg:items-center; }
   .evidence-relationship-step { @apply flex flex-col items-stretch; }
-  .evidence-relationship-node { @apply min-h-16 rounded-lg border p-3; }
+  .evidence-relationship-node { overflow-wrap: anywhere; @apply min-w-0 min-h-16 rounded-lg border p-3; }
   .evidence-relationship-node strong { @apply block text-xs font-medium text-main; }
-  .evidence-relationship-node span { @apply mt-1 block text-[10px] text-muted; }
-  .evidence-relationship-node small { @apply mt-1 block text-[10px] leading-4 text-muted; }
+  .evidence-relationship-node span { @apply mt-1 block text-xs text-muted; }
+  .evidence-relationship-node small { @apply mt-1 block text-xs leading-4 text-muted; }
   .evidence-relationship-input { @apply border-border bg-void/30; }
   .evidence-relationship-context { @apply border-info/25 bg-info/5; }
   .evidence-relationship-proposal { @apply border-proposal/25 bg-proposal/5; }
@@ -215,7 +215,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .evidence-relationship-context-group { @apply relative; }
   .evidence-relationship-branches { @apply mt-2 grid gap-2 sm:grid-cols-2; }
   .evidence-relationship-branches > div { @apply relative min-w-0; }
-  .evidence-relationship-branch-label { @apply mt-1 block text-center text-[10px] text-muted; }
+  .evidence-relationship-branch-label { @apply mt-1 block text-center text-xs text-muted; }
   .evidence-relationship-note { @apply mt-4 flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs leading-5 text-muted; }
   .evidence-relationship-note svg { @apply mt-0.5 shrink-0 text-success; }
   .trace-report-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4 backdrop-blur-sm; }
@@ -225,18 +225,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .trace-report-header p { @apply mt-1 text-xs leading-5 text-muted; }
   .trace-report-overview { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5; }
   .trace-report-overview > div { @apply min-w-0 bg-void/35 p-3; }
-  .trace-report-overview span { @apply block text-[10px] text-muted; }
+  .trace-report-overview span { @apply block text-xs text-muted; }
   .trace-report-overview strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .trace-report-decision { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2 lg:grid-cols-4; }
   .trace-report-decision > div { @apply min-w-0 bg-void/30 p-3; }
-  .trace-report-decision span { @apply block text-[10px] text-muted; }
+  .trace-report-decision span { @apply block text-xs text-muted; }
   .trace-report-decision strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .trace-report-sections { @apply mt-4 divide-y divide-border/70 rounded-lg border border-border bg-void/20 px-4; }
   .trace-report-sections section { @apply py-3; }
   .trace-report-sections h3 { @apply text-xs font-medium text-main; }
   .trace-report-sections p { @apply mt-1 text-xs leading-5 text-muted; }
   .trace-report-evidence-list { @apply mt-3 grid gap-2 sm:grid-cols-3; }
-  .trace-report-evidence-list span { @apply rounded-md border border-border bg-void/30 p-2 text-[11px] leading-5 text-muted; }
+  .trace-report-evidence-list span { @apply rounded-md border border-border bg-void/30 p-2 text-xs leading-5 text-muted; }
   .trace-report-check { @apply text-success; }
   .trace-report-footer { @apply mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4; }
   .overview-hero { @apply p-5 sm:p-6; }
@@ -244,23 +244,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .journey-step { @apply flex min-h-24 items-center gap-3 rounded-lg border border-border bg-void/25 p-3 text-left transition-colors hover:border-info/30 hover:bg-info/5 disabled:cursor-wait disabled:opacity-60; }
   .journey-step span:not(.journey-number) { @apply min-w-0 flex-1; }
   .journey-step strong { @apply block text-xs font-medium text-main; }
-  .journey-step small { @apply mt-1 block text-[11px] leading-5 text-muted; }
-  .journey-number { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-[10px] text-info; }
-  .overview-boundary-flow { @apply flex flex-wrap items-center gap-2 rounded-lg border border-border bg-void/35 p-3 text-[11px] font-medium text-muted; }
+  .journey-step small { @apply mt-1 block text-xs leading-5 text-muted; }
+  .journey-number { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info; }
+  .overview-boundary-flow { @apply flex flex-wrap items-center gap-2 rounded-lg border border-border bg-void/35 p-3 text-xs font-medium text-muted; }
   .overview-flow-proposal { @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal; }
   .overview-flow-system { @apply rounded-md border border-info/25 bg-info/5 px-2 py-1 text-info; }
   .overview-flow-authority { @apply rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success; }
   .safety-explanation-grid { @apply mt-4 grid gap-2 sm:grid-cols-3; }
   .safety-explanation-grid > div { @apply rounded-lg border border-border bg-void/25 p-3; }
   .safety-explanation-grid strong { @apply mt-1 block text-xs font-medium text-main; }
-  .safety-explanation-grid small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .safety-explanation-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
   .overview-safety-card { @apply rounded-lg border border-border bg-void/25 p-4; }
   .overview-status-row { @apply flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-void/25 p-3 text-xs text-main; }
   .overview-next-grid { @apply grid gap-3 md:grid-cols-3; }
   .overview-next-card { @apply flex min-h-20 items-center gap-3 rounded-lg border border-border bg-void/25 p-4 text-left transition-colors hover:border-info/30 hover:bg-info/5; }
   .overview-next-card span { @apply min-w-0 flex-1; }
   .overview-next-card strong { @apply block text-xs font-medium text-main; }
-  .overview-next-card small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .overview-next-card small { @apply mt-1 block text-xs leading-5 text-muted; }
   .overview-next-static { @apply cursor-default hover:border-border hover:bg-void/25; }
   .architecture-flow { @apply mx-auto max-w-3xl; }
   .architecture-flow-item { @apply flex flex-col items-center; }
@@ -281,11 +281,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .architecture-source-row, .architecture-decision-row, .architecture-authority-row { @apply flex items-start gap-3 py-3 first:pt-4 last:pb-0; }
   .architecture-source-row strong, .architecture-decision-row strong, .architecture-authority-row strong { @apply block text-sm font-medium text-main; }
   .architecture-source-row small, .architecture-decision-row small, .architecture-authority-row small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .architecture-zone-badge { @apply shrink-0 rounded-md bg-surface-elevated px-2 py-1 text-[10px] font-medium text-muted; }
+  .architecture-zone-badge { @apply shrink-0 rounded-md bg-surface-elevated px-2 py-1 text-xs font-medium text-muted; }
   .architecture-legend { @apply mb-4 grid gap-2 sm:grid-cols-4; }
   .architecture-legend > span { @apply flex items-center justify-between gap-3 rounded-md border px-3 py-2; }
   .architecture-legend strong { @apply text-xs font-medium; }
-  .architecture-legend small { @apply text-[10px] text-muted; }
+  .architecture-legend small { @apply text-xs text-muted; }
   .architecture-legend-context { @apply border-info/25 bg-info/5; }
   .architecture-legend-context strong { @apply text-info; }
   .architecture-legend-proposal { @apply border-proposal/25 bg-proposal/5; }
@@ -299,26 +299,26 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .architecture-side-list > div { @apply flex items-start gap-2.5 rounded-lg border border-border bg-void/25 p-3; }
   .architecture-side-list span { @apply min-w-0; }
   .architecture-side-list strong { @apply block text-xs font-medium text-main; }
-  .architecture-side-list small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .architecture-side-list small { @apply mt-1 block text-xs leading-5 text-muted; }
   .architecture-boundary-callout { @apply flex items-start gap-3 rounded-lg border border-success/25 bg-success/5 p-4; }
   .decision-context-summary { @apply rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4 shadow-sm; }
   .decision-context-item { @apply border-l border-border/70 pl-3 first:border-l-0 first:pl-0; }
   .decision-context-item strong { @apply mt-1 block text-xs font-semibold text-main; }
-  .decision-context-item small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .decision-context-item small { @apply mt-1 block text-xs leading-5 text-muted; }
   .overview-evidence-grid { @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3; }
   .overview-evidence-grid > div { @apply bg-void/35 p-4; }
   .overview-evidence-grid strong { @apply mt-1 block font-mono text-sm font-semibold text-success; }
-  .overview-evidence-grid small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .overview-evidence-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
   .overview-guarantees-grid { @apply grid gap-2 sm:grid-cols-2; }
   .overview-guarantees-grid > div { @apply rounded-lg border border-border bg-void/25 p-3; }
   .overview-guarantees-grid strong { @apply block text-xs font-medium text-main; }
-  .overview-guarantees-grid small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .overview-guarantees-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
   .safety-mechanism-note { @apply mb-3 rounded-lg border border-info/20 bg-info/5 p-3; }
   .scenario-card-list { @apply grid gap-2; }
   .scenario-card { @apply w-full rounded-lg border border-border/70 bg-transparent p-3 transition-colors hover:border-info/30 hover:bg-info/5; }
   .scenario-card:hover { @apply border-info/40; }
   .scenario-lifecycle-hint { @apply rounded-lg border border-info/20 bg-info/5 p-3; }
-  .scenario-lifecycle-stage { @apply inline-flex items-center gap-1 rounded-md border border-border bg-void/35 px-2 py-1 text-[11px] text-main; }
+  .scenario-lifecycle-stage { @apply inline-flex items-center gap-1 rounded-md border border-border bg-void/35 px-2 py-1 text-xs text-main; }
   .back-link { @apply inline-flex items-center gap-2 text-xs font-medium text-muted transition-colors hover:text-main; }
   .run-detail-metric { @apply min-w-0 bg-void/40 p-3; }
   .run-detail-metric strong { @apply mt-1 block truncate font-mono text-xs font-semibold capitalize text-main; }
@@ -333,7 +333,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .control-plane-responsibilities, .control-plane-scenarios { @apply space-y-2; }
   .control-plane-responsibility { @apply flex items-start gap-3 rounded-lg border p-3; }
   .control-plane-responsibility h3, .control-plane-scenario h3 { @apply text-xs font-medium text-main; }
-  .control-plane-responsibility p, .control-plane-scenario p { @apply mt-1 text-[11px] leading-5 text-muted; }
+  .control-plane-responsibility p, .control-plane-scenario p { @apply mt-1 text-xs leading-5 text-muted; }
   .control-plane-doc-info { @apply border-info/20 bg-info/5 text-info; }
   .control-plane-doc-proposal { @apply border-proposal/20 bg-proposal/5 text-proposal; }
   .control-plane-doc-decision { @apply border-decision/20 bg-decision/[.025] text-decision; }
@@ -348,7 +348,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .data-row { @apply flex items-center justify-between gap-4 py-2.5 text-xs; }
   .empty-state { @apply flex min-h-28 items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-void/25 p-5 text-muted; }
   .skeleton { @apply animate-pulse rounded bg-border/80; }
-  .field-label { @apply block text-[11px] font-medium text-muted; }
+  .field-label { @apply block text-xs font-medium text-muted; }
   .field-control { @apply mt-1.5 min-h-10 w-full rounded-lg border border-border bg-void/70 px-3 text-sm text-main transition-colors placeholder:text-muted/70 hover:border-border-strong focus:border-info focus:outline-none; }
   .field-readonly { @apply mt-1.5 flex min-h-10 items-center rounded-lg border border-border bg-void/40 px-3 text-xs text-muted; }
   .button-primary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-info px-4 text-sm font-semibold text-void transition-colors hover:bg-info/85 disabled:cursor-not-allowed disabled:opacity-40; }
@@ -357,7 +357,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .message-user { @apply justify-end; }
   .message-icon { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted; }
   .message-icon-agent { @apply border-info/25 bg-info/10 text-info; }
-  .message-label { @apply mb-1 text-[11px] font-medium text-muted; }
+  .message-label { @apply mb-1 text-xs font-medium text-muted; }
   .message-bubble { @apply rounded-lg border px-3.5 py-3 text-sm leading-6; }
   .message-bubble-user { @apply border-border bg-void/70 text-main; }
   .message-bubble-agent { @apply border-border bg-surface text-main; }
@@ -374,7 +374,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .agent-lifecycle-summary { @apply flex cursor-pointer list-none items-start justify-between gap-3 rounded-md border border-transparent p-2.5 transition-colors hover:border-border hover:bg-surface; }
   .agent-lifecycle-summary::-webkit-details-marker { display: none; }
   .agent-lifecycle-summary strong { @apply block text-xs font-medium capitalize text-main; }
-  .agent-lifecycle-summary small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .agent-lifecycle-summary small { @apply mt-1 block text-xs leading-5 text-muted; }
   .agent-lifecycle-detail { @apply mb-2 ml-2 grid gap-2 rounded-md border border-border bg-surface/60 p-3 sm:grid-cols-2; }
   .agent-lifecycle-arrow { @apply absolute -bottom-2 left-[7px] z-20 text-muted; }
   .memory-evidence-grid, .proposal-evidence-grid { @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-4; }
@@ -382,15 +382,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .memory-evidence-grid strong, .proposal-evidence-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .memory-evidence-detail { @apply grid gap-1 rounded-lg border border-border bg-void/25 p-3; }
   .memory-evidence-detail strong { @apply text-xs font-medium leading-5 text-main; }
-  .memory-evidence-detail small { @apply text-[11px] leading-4 text-muted; }
+  .memory-evidence-detail small { @apply text-xs leading-4 text-muted; }
   .rag-evidence-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3; }
   .rag-evidence-row strong { @apply block truncate text-xs font-medium text-main; }
-  .rag-evidence-row small { @apply mt-1 block truncate text-[11px] leading-4 text-muted; }
+  .rag-evidence-row small { @apply mt-1 block truncate text-xs leading-4 text-muted; }
   .decision-compiler-result { @apply flex items-start justify-between gap-3 rounded-lg border border-decision/25 bg-decision/[.04] p-4; }
   .decision-compiler-result strong { @apply mt-1 block font-mono text-base font-semibold text-decision; }
   .decision-check { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3; }
   .decision-check strong { @apply block text-xs font-medium text-main; }
-  .decision-check small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .decision-check small { @apply mt-1 block text-xs leading-5 text-muted; }
   .scenario-summary-header { @apply flex flex-wrap items-start justify-between gap-5 rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4; }
   .scenario-summary-header h2 { @apply mt-1 text-lg font-medium tracking-tight text-main; }
   .scenario-summary-header p { @apply mt-1 text-xs leading-5 text-muted; }
@@ -399,7 +399,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .scenario-summary-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .activity-progress { @apply mt-1 flex items-center gap-3 rounded-lg border border-border bg-surface p-3 text-xs text-muted; }
   .path-strip { @apply flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-void/35 p-3; }
-  .path-step { @apply inline-flex items-center gap-1.5 rounded-md bg-void px-2 py-1 font-mono text-[11px] text-muted; }
+  .path-step { @apply inline-flex items-center gap-1.5 rounded-md bg-void px-2 py-1 font-mono text-xs text-muted; }
   .path-arrow { @apply text-info; }
   .decision-block { @apply rounded-lg border border-border bg-void/30 p-4; }
   .source-row, .memory-row, .health-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/30 p-3; }
@@ -417,7 +417,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .marker-danger { @apply text-danger; }
   .marker-neutral { @apply text-muted; }
   .tooltip-wrap { @apply relative inline-flex; }
-  .tooltip-content { @apply pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] text-main shadow-panel group-hover:block; }
+  .tooltip-content { @apply pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-xs text-main shadow-panel group-hover:block; }
   .showcase-page { @apply mx-auto w-full min-w-0 max-w-[1540px]; }
   .showcase-hero { @apply flex flex-wrap items-end justify-between gap-6 overflow-hidden p-6 sm:p-8; background: linear-gradient(105deg, rgba(22,27,34,.98), rgba(28,35,48,.9)); }
   .showcase-hero-copy { @apply min-w-0 max-w-4xl; }
@@ -434,14 +434,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-guarantee { @apply relative flex min-h-28 items-start gap-3 rounded-lg border border-border bg-void/25 p-4; }
   .showcase-guarantee-icon { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success; }
   .showcase-guarantee h3 { @apply text-xs font-medium text-main; }
-  .showcase-guarantee p { @apply mt-1 text-[11px] leading-5 text-muted; }
-  .showcase-guarantee-number { @apply absolute right-3 top-3 font-mono text-[10px] text-border-strong; }
+  .showcase-guarantee p { @apply mt-1 text-xs leading-5 text-muted; }
+  .showcase-guarantee-number { @apply absolute right-3 top-3 font-mono text-xs text-border-strong; }
   .showcase-architecture-flow-section { @apply rounded-lg border border-border bg-void/20 p-4 sm:p-5; }
   .showcase-architecture-flow { @apply mt-4 grid gap-2 lg:grid-cols-6; }
   .showcase-architecture-flow-step { @apply relative min-w-0; }
   .showcase-architecture-flow-node { @apply min-h-32 rounded-lg border border-border bg-void/30 p-3; }
   .showcase-architecture-flow-node strong { @apply block text-xs font-medium text-main; }
-  .showcase-architecture-flow-node span, .showcase-architecture-flow-node small { @apply mt-1 block text-[10px] leading-4 text-muted; }
+  .showcase-architecture-flow-node span, .showcase-architecture-flow-node small { @apply mt-1 block text-xs leading-4 text-muted; }
   .showcase-architecture-flow-node span { @apply text-info; }
   .showcase-architecture-flow-node-1 { @apply border-info/25 bg-info/5; }
   .showcase-architecture-flow-node-2 { @apply border-proposal/25 bg-proposal/5; }
@@ -454,7 +454,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-selected-header { @apply flex flex-wrap items-start justify-between gap-4 rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4; }
   .showcase-selected-header h2 { @apply mt-1 text-lg font-medium tracking-tight text-main; }
   .showcase-selected-header p { @apply mt-1 max-w-3xl text-xs leading-5 text-muted; }
-  .showcase-selected-status { @apply flex items-center gap-2 text-[11px] text-muted; }
+  .showcase-selected-status { @apply flex items-center gap-2 text-xs text-muted; }
   .showcase-focus-note { @apply flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 p-4 text-xs leading-5 text-warning; }
   .showcase-focus-note strong { @apply font-semibold text-main; }
   .showcase-investigation-summary { @apply rounded-lg border border-info/25 border-l-2 bg-surface-elevated/70 p-4; }
@@ -464,7 +464,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-report-button { @apply inline-flex min-h-9 items-center justify-center rounded-md border border-info/30 bg-info/10 px-3 text-xs font-medium text-info transition-colors hover:border-info/50 hover:bg-info/15; }
   .showcase-summary-grid { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5; }
   .showcase-summary-grid > div { @apply bg-void/35 p-3; }
-  .showcase-summary-grid span { @apply block text-[10px] text-muted; }
+  .showcase-summary-grid span { @apply block text-xs text-muted; }
   .showcase-summary-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
   .showcase-conversation { @apply space-y-4; }
   .showcase-message { @apply flex items-start gap-3; }
@@ -472,7 +472,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-message-agent { @apply pl-8 sm:pl-16; }
   .showcase-message-avatar { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted; }
   .showcase-message-agent .showcase-message-avatar { @apply border-info/25 bg-info/10 text-info; }
-  .showcase-message-meta { @apply mb-1 flex flex-wrap items-center gap-2 text-[11px] text-muted; }
+  .showcase-message-meta { @apply mb-1 flex flex-wrap items-center gap-2 text-xs text-muted; }
   .showcase-message-meta strong { @apply font-medium text-main; }
   .showcase-message-meta span { @apply inline-flex items-center gap-1; }
   .showcase-message-bubble { @apply rounded-lg border border-border bg-void/45 px-4 py-3 text-sm leading-6 text-main; }
@@ -484,7 +484,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-conversation-party-label { @apply flex flex-wrap items-center gap-2 text-xs font-medium text-main; }
   .showcase-conversation-party-label svg { @apply text-muted; }
   .showcase-conversation-agent .showcase-conversation-party-label svg { @apply text-info; }
-  .showcase-conversation-party-meta { @apply mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted; }
+  .showcase-conversation-party-meta { @apply mt-3 flex flex-wrap items-center gap-2 text-xs text-muted; }
   .showcase-conversation-party-meta span { @apply inline-flex items-center gap-1; }
   .showcase-conversation-bridge { @apply flex items-center justify-center text-info lg:rotate-[-90deg]; }
   .showcase-conversation-boundary { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-5; }
@@ -496,17 +496,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-conversation-transcript summary { @apply cursor-pointer text-xs font-medium text-muted hover:text-main; }
   .showcase-evidence-summary { @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3; }
   .showcase-evidence-summary > div { @apply bg-void/35 p-3; }
-  .showcase-evidence-summary span, .showcase-proposal-grid span, .showcase-decision-result span { @apply block text-[10px] text-muted; }
+  .showcase-evidence-summary span, .showcase-proposal-grid span, .showcase-decision-result span { @apply block text-xs text-muted; }
   .showcase-evidence-summary strong { @apply mt-1 block text-xs font-medium text-main; }
   .showcase-evidence-list { @apply mt-4 space-y-2; }
   .showcase-evidence-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3; }
   .showcase-evidence-row strong { @apply block text-xs font-medium text-main; }
   .showcase-evidence-row p { @apply mt-1 text-xs leading-5 text-muted; }
-  .showcase-evidence-row small { @apply mt-2 block font-mono text-[10px] leading-4 text-info; }
+  .showcase-evidence-row small { @apply mt-2 block font-mono text-xs leading-4 text-info; }
   .showcase-memory-usage { @apply mt-3 grid gap-2 sm:grid-cols-2; }
   .showcase-memory-usage > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .showcase-memory-usage strong { @apply block text-[10px] font-medium text-main; }
-  .showcase-memory-usage span { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .showcase-memory-usage strong { @apply block text-xs font-medium text-main; }
+  .showcase-memory-usage span { @apply mt-1 block text-xs leading-5 text-muted; }
   .showcase-citation-preview { @apply mt-3 rounded-md border-l-2 border-success/40 bg-success/5 px-3 py-2 text-xs leading-5 text-main; }
   .showcase-evidence-role { @apply mt-3 flex flex-wrap items-baseline gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs; }
   .showcase-evidence-role strong { @apply font-medium text-success; }
@@ -520,7 +520,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-proposal-grid strong { @apply mt-1 block truncate text-xs font-medium text-main; }
   .showcase-proposal-compare { @apply mt-3 grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]; }
   .showcase-proposal-compare > div { @apply rounded-lg border border-proposal/15 bg-void/25 p-3; }
-  .showcase-proposal-compare span { @apply block text-[10px] text-muted; }
+  .showcase-proposal-compare span { @apply block text-xs text-muted; }
   .showcase-proposal-compare strong { @apply mt-1 block text-xs font-medium text-main; }
   .showcase-proposal-compare-arrow { @apply flex items-center justify-center border-0 !bg-transparent !p-0 text-proposal; }
   .showcase-proposal-system { @apply border-decision/25 !bg-decision/5; }
@@ -529,7 +529,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-proposal-callout svg { @apply text-proposal; }
   .showcase-decision-card { @apply border-decision/30 bg-decision/[.025]; }
   .showcase-decision-flow { @apply mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-6; }
-  .showcase-decision-flow span { @apply flex items-center gap-2 rounded-md border border-decision/15 bg-void/30 px-2.5 py-2 text-[10px] text-muted; }
+  .showcase-decision-flow span { @apply flex items-center gap-2 rounded-md border border-decision/15 bg-void/30 px-2.5 py-2 text-xs text-muted; }
   .showcase-decision-flow strong { @apply font-medium text-main; }
   .showcase-decision-flow svg { @apply ml-auto shrink-0 text-decision sm:hidden; }
   .showcase-decision-result { @apply mt-4 grid gap-3 rounded-lg border border-decision/25 bg-decision/5 p-4 sm:grid-cols-3; }
@@ -540,7 +540,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-check-grid > div { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3; }
   .showcase-check-grid > div > span:first-child { @apply mt-0.5 shrink-0; }
   .showcase-check-grid strong { @apply block text-xs font-medium text-main; }
-  .showcase-check-grid small { @apply mt-1 block text-[11px] leading-5 text-muted; }
+  .showcase-check-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
   .showcase-lifecycle { @apply grid gap-2 lg:grid-cols-9; }
   .showcase-lifecycle-stage { @apply relative min-w-0 rounded-lg border border-border bg-void/25 p-3; }
   .showcase-lifecycle-completed { @apply border-success/20; }
@@ -551,8 +551,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-lifecycle-marker .status-indicator { @apply text-[0px]; }
   .showcase-lifecycle-marker .status-indicator svg { @apply h-4 w-4; }
   .showcase-lifecycle-content > strong { @apply block text-xs font-medium text-main; }
-  .showcase-lifecycle-content > p { @apply mt-1 min-h-10 text-[10px] leading-4 text-muted; }
-  .showcase-lifecycle-meta { @apply mt-3 space-y-1 border-t border-border/70 pt-2 text-[10px] leading-4 text-muted; }
+  .showcase-lifecycle-content > p { @apply mt-1 min-h-10 text-xs leading-4 text-muted; }
+  .showcase-lifecycle-meta { @apply mt-3 space-y-1 border-t border-border/70 pt-2 text-xs leading-4 text-muted; }
   .showcase-lifecycle-meta span { @apply block; }
   .showcase-lifecycle-meta b { @apply mr-1 font-medium text-main; }
   .showcase-lifecycle-arrow { @apply absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 text-muted lg:block; }
@@ -566,7 +566,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .showcase-report-close { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none text-muted hover:bg-void hover:text-main; }
   .showcase-report-sections { @apply divide-y divide-border/70; }
   .showcase-report-sections > div { @apply py-3; }
-  .showcase-report-sections span { @apply text-[10px] font-medium text-muted; }
+  .showcase-report-sections span { @apply text-xs font-medium text-muted; }
   .showcase-report-sections p { @apply mt-1 text-xs leading-5 text-main; }
   .showcase-report-footer { @apply flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4; }
   .showcase-report-secondary { @apply min-h-9 rounded-md border border-border px-3 text-xs font-medium text-muted hover:bg-void hover:text-main; }
@@ -587,12 +587,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 @media (max-width: 639px) {
   .topbar-inner { overflow: hidden; }
   .console-nav { flex: 1 1 100%; width: 100%; max-width: 100%; }
-  .showcase-page { width: calc(100vw - 2rem) !important; max-width: calc(100vw - 2rem) !important; overflow-x: hidden; }
+  .showcase-page { width: 100%; max-width: 100%; overflow-x: hidden; }
   .showcase-hero { @apply items-start p-5; width: 100%; min-width: 0; max-width: 100%; }
-  .showcase-hero-copy { flex-basis: 100%; width: 100%; max-width: 358px !important; }
-  .showcase-hero h1 { width: 300px !important; max-width: 300px !important; white-space: normal; }
-  .showcase-hero p { width: 310px !important; max-width: 310px !important; }
-  .showcase-guarantee-grid, .showcase-guarantee { width: 100%; max-width: 358px; }
+  .showcase-hero-copy { flex-basis: 100%; width: 100%; max-width: 100%; }
+  .showcase-hero h1 { width: 100%; max-width: 100%; white-space: normal; }
+  .showcase-hero p { width: 100%; max-width: 100%; }
+  .showcase-guarantee-grid, .showcase-guarantee { width: 100%; max-width: 100%; }
   .showcase-hero-mark { @apply mt-1; }
   .console-nav { scroll-snap-type: x proximity; }
   .console-nav-button { scroll-snap-align: start; }
@@ -621,3 +621,58 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+/* Shared operator presentation: readable content, quiet metadata, bounded layouts. */
+@layer components {
+  .section-title { @apply text-lg leading-6; }
+  .eyebrow, .field-label { @apply text-xs leading-5; }
+  .badge { @apply text-xs tracking-normal; }
+  .console-nav { @apply border-0 bg-transparent; }
+  .console-nav-button { @apply min-h-10 text-sm; }
+  .topbar-inner { @apply gap-3; }
+  .secondary-nav { @apply relative text-sm text-muted; }
+  .secondary-nav > summary { @apply cursor-pointer rounded-md px-3 py-2; }
+  .secondary-nav > nav { @apply absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-lg border border-border bg-surface p-2 shadow-panel; }
+  .secondary-nav a { @apply flex min-h-10 items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-void hover:text-main; }
+  .secondary-nav a[aria-current="page"] { @apply bg-void text-main; }
+  .playground-layout { @apply xl:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)] gap-6; }
+  .playground-layout > *, .investigation-layout > * { min-width: 0; }
+  .scenario-shortcuts { @apply grid gap-3 sm:grid-cols-3; }
+  .scenario-shortcuts button { @apply flex min-h-16 items-center gap-3 rounded-lg border border-border bg-surface px-4 text-left text-sm text-muted transition-colors hover:border-info/50 hover:text-main; }
+  .scenario-shortcuts button[aria-pressed="true"] { @apply border-info/50 bg-info/5 text-main; }
+  .scenario-shortcuts button svg:last-child { @apply ml-auto shrink-0; }
+  .progressive-panel { @apply min-w-0 border-t border-border pt-4; }
+  .progressive-panel summary { @apply cursor-pointer text-sm font-medium text-main; }
+  .progressive-panel summary > span { @apply ml-2 text-xs font-normal text-muted; }
+  .progressive-panel summary:focus-visible, .secondary-nav summary:focus-visible { outline: 2px solid #8aa7c7; outline-offset: 4px; }
+  .investigation-tabs { @apply flex gap-2 overflow-x-auto border-b border-border; }
+  .investigation-tabs button { @apply min-h-12 border-b-2 border-transparent px-5 text-sm text-muted; }
+  .investigation-tabs button[aria-selected="true"] { @apply border-info text-main; }
+  .run-id-copy { @apply mt-3 inline-flex max-w-full flex-wrap items-center gap-2 text-xs text-muted hover:text-main; }
+  .run-id-copy span:first-of-type { @apply break-all font-mono; }
+  .run-id-copy span:last-of-type { @apply text-info; }
+  .product-hero { @apply grid items-center gap-10 p-6 sm:p-10 xl:grid-cols-[1.15fr_.85fr]; }
+  .product-hero h1 { @apply mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl; }
+  .product-boundary { @apply rounded-lg border border-border bg-void/40 p-5 sm:p-6; }
+  .product-boundary ol { @apply mt-5 grid gap-5; }
+  .product-boundary li { @apply flex items-start gap-4; }
+  .product-boundary li > span { @apply mt-1 font-mono text-xs text-info; }
+  .product-boundary strong { @apply text-sm font-medium text-main; }
+  .product-boundary p { @apply mt-1 text-sm leading-6 text-muted; }
+  .recorded-evidence { @apply border-dashed bg-void/20; }
+}
+
+@media (max-width: 639px) {
+  .showcase-page, .showcase-hero-copy, .showcase-hero h1, .showcase-hero p,
+  .showcase-guarantee-grid, .showcase-guarantee { width: 100%; max-width: 100%; min-width: 0; }
+  .showcase-hero h1, .showcase-hero p { overflow-wrap: anywhere; }
+  .console-nav { order: 3; flex-basis: 100%; }
+}
+
+.rag-evidence-row small { overflow-wrap: anywhere; }
+
+@media (max-width: 639px) {
+  .console-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 0; }
+  .console-nav-button { justify-content: center; min-width: 0; padding-inline: 4px; gap: 0; font-size: 12px; }
+  .console-nav-button svg { display: none; }
+}

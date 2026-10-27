@@ -31,7 +31,7 @@ export function MessageBubble({ message }: { message: ChatMessage }): ReactNode 
           {customer ? <UserRound size={14} /> : <Bot size={14} />}
         </span>
         <div className={`min-w-0 ${customer ? "" : "text-right"}`}>
-          <div className="mb-1 flex items-center gap-2 text-[11px] text-muted">
+          <div className="mb-1 flex items-center gap-2 text-xs text-muted">
             <span className="font-medium text-main">{customer ? "Customer" : "Agent"}</span>
             <span>{formatTime(message.timestamp)}</span>
             {!customer && message.state && <Badge tone={message.state === "awaiting confirmation" ? "warning" : "neutral"}>{message.state}</Badge>}

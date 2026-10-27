@@ -67,13 +67,13 @@ export function ConversationEvidence({ run, request, response, messages = [] }: 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-main">{row.label}</span><Badge tone={row.role === "customer" ? "neutral" : "info"}>{row.role === "customer" ? "request" : "bounded response"}</Badge>{"evidence_tags" in row && row.evidence_tags?.map((tag) => <Badge tone="neutral" key={tag}>{tag}</Badge>)}</div>
               <p className="mt-2 text-sm leading-6 text-main">{row.body}</p>
-              {"state" in row && row.state && <small className="mt-2 block text-[11px] text-muted">State: {displayStatus(row.state)}</small>}
-              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-[10px] text-muted">{new Date(row.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
+              {"state" in row && row.state && <small className="mt-2 block text-xs text-muted">State: {displayStatus(row.state)}</small>}
+              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-xs text-muted">{new Date(row.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-muted"><span>State</span><Badge tone={toneFor(run.status)}>{displayStatus(run.status)}</Badge><span>·</span><span>Intent {humanize(run.intent)}</span></div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted"><span>State</span><Badge tone={toneFor(run.status)}>{displayStatus(run.status)}</Badge><span>·</span><span>Intent {humanize(run.intent)}</span></div>
     </section>
   );
 }
