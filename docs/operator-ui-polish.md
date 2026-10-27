@@ -1,6 +1,6 @@
 # Operator Console presentation
 
-The console retains its React/Tailwind stack and dark theme. Its primary navigation is Overview, Playground, Runs, and Safety. Chat, Workspace, recorded Showcase, and Architecture remain in the More menu.
+The console retains its React/Tailwind stack and dark theme. Presentation uses solid surfaces and restrained status colors: no gradients, glow effects, decorative pulsing, backdrop blur, or sparkle icons. Its primary navigation is Overview, Playground, Runs, and Safety. Chat, Workspace, recorded Showcase, and Architecture remain in the More menu.
 
 Each destination has its own URL. `/` continues to open the legacy Workspace; `/workspace` is its canonical navigation URL. `/evidence` remains a Safety alias. Navigation supports reload, browser history, and opening links in a separate tab. Run detail returns to `/traces`, and its selected detail tab is retained in the `tab` query parameter.
 

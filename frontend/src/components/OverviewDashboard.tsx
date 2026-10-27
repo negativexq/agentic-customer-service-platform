@@ -14,7 +14,7 @@ export function OverviewDashboard({ runs, busy, onRunSafetyDemo, onNavigate }: P
   return <div className="space-y-6">
     <section className="overview-hero surface product-hero">
       <div className="max-w-3xl"><div className="eyebrow">Agent Platform / Customer operations</div>
-        <h1>Every action needs<br className="hidden sm:block" /> a reason. And authority.</h1>
+        <h1>Customer support workflows</h1>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted">Follow a refund request from conversation to decision. See what the agent proposed, what policy allowed, and what actually happened.</p>
         <div className="mt-7 flex flex-wrap gap-3"><button type="button" className="button-primary" onClick={() => { void onRunSafetyDemo(); }} disabled={busy}><Beaker size={16} aria-hidden="true" />{busy ? "Loading recorded demo…" : "Explore the refund workflow"}<ArrowRight size={15} aria-hidden="true" /></button><button type="button" className="operator-action" onClick={() => onNavigate("traces")}><Activity size={15} aria-hidden="true" />Investigate runs</button></div>
         <p className="mt-3 text-xs text-muted">Recorded demo · no runtime request</p>
