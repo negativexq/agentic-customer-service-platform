@@ -84,8 +84,9 @@ def main() -> int:
 
 def validate_published_ports(services: Mapping[str, object]) -> str | None:
     """Only frontend ingress and loopback Prometheus inspection may be published."""
-    for name in ("db", "qdrant", "jaeger", "backend", "demo-setup", "otel-collector"):
-        service = services.get(name)
+    for name, service in services.items():
+        if name in {"frontend", "prometheus"}:
+            continue
         if isinstance(service, Mapping) and service.get("ports"):
             return f"internal service {name} publishes host ports"
     frontend = services.get("frontend")

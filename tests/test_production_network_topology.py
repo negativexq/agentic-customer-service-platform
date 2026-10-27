@@ -29,13 +29,14 @@ def test_rendered_production_has_only_frontend_and_loopback_metrics_publications
 
 
 @pytest.mark.parametrize(
-    "service", ["db", "backend", "qdrant", "jaeger", "otel-collector", "demo-setup"]
+    "service",
+    ["db", "backend", "qdrant", "jaeger", "otel-collector", "demo-setup", "unexpected-service"],
 )
 def test_validator_rejects_even_loopback_publication_for_internal_services(
     production_services: dict[str, dict[str, Any]], service: str
 ) -> None:
     services = copy.deepcopy(production_services)
-    services[service]["ports"] = [
+    services.setdefault(service, {})["ports"] = [
         {"target": 5432, "published": "15432", "host_ip": "127.0.0.1", "protocol": "tcp"}
     ]
     assert validate_published_ports(services) == f"internal service {service} publishes host ports"
