@@ -6,7 +6,7 @@ Each destination has its own URL. `/` continues to open the legacy Workspace; `/
 
 Playground starts with an editable damaged-product refund request. Featured presets populate the form without executing a request; selecting another preset clears the preceding result. Scenario settings, session tools, the full scenario library, and runtime configuration are disclosed on demand. A recorded fixture preview is labeled separately from a submitted backend replay or live proposal. Neither mode bypasses server authorization.
 
-Run investigation leads with the scenario/intent and its observed outcome. The run ID is secondary, copyable metadata. A compact decision flow stays above Evidence, Policy, Execution, and Telemetry tabs. Tabs support arrow keys, Home, and End. Bounded evidence, comparisons, exports, and the report dialog remain accessible.
+Run investigation leads with the scenario/intent and its observed outcome. The run ID is secondary, selectable metadata with a copy action and explicit feedback when clipboard access is unavailable. A compact decision flow stays above Evidence, Policy, Execution, and Telemetry tabs. Tabs support arrow keys, Home, and End. Bounded evidence, comparisons, exports, and the report dialog remain accessible.
 
 Overview gives the refund workflow one primary entry point and summarizes three control boundaries. Recorded release evaluation results are visually separated from current runtime projections; demo fixture IDs are excluded from runtime counters. Historical evaluation values are not new production measurements.
 

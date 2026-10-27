@@ -642,9 +642,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .investigation-tabs { @apply flex gap-2 overflow-x-auto border-b border-border; }
   .investigation-tabs button { @apply min-h-12 border-b-2 border-transparent px-5 text-sm text-muted; }
   .investigation-tabs button[aria-selected="true"] { @apply border-info text-main; }
-  .run-id-copy { @apply mt-3 inline-flex max-w-full flex-wrap items-center gap-2 text-xs text-muted hover:text-main; }
-  .run-id-copy span:first-of-type { @apply break-all font-mono; }
-  .run-id-copy span:last-of-type { @apply text-info; }
+  .run-id-copy { @apply mt-3 inline-flex max-w-full flex-wrap items-center gap-2 text-xs text-muted; }
+  .run-id-copy code { @apply break-all font-mono; }
+  .run-id-copy button { @apply inline-flex shrink-0 items-center gap-1.5 text-info hover:text-main; }
+  .run-id-copy [role="status"] { @apply text-info; }
   .product-hero { @apply grid items-center gap-10 p-6 sm:p-10 xl:grid-cols-[1.15fr_.85fr]; }
   .product-hero h1 { @apply mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl; }
   .product-boundary { @apply rounded-lg border border-border bg-void/40 p-5 sm:p-6; }

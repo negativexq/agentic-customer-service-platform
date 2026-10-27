@@ -65,14 +65,16 @@ test("scenario presets populate requests and disclose settings without executing
   await capture(page, "playground-desktop.png");
 });
 
-test("investigation prioritizes outcome and supports keyboard-accessible detail tabs", async ({ page }) => {
+test("investigation prioritizes outcome and supports keyboard-accessible detail tabs", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await loginOperator(page, "/runs/demo-refund-memory-rag-20260823");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Awaiting confirmation");
   await expect(page.getByLabel("Decision lifecycle summary")).toContainText("Awaiting confirmation");
   await expect(page.getByLabel("Decision lifecycle summary")).toContainText("Confirmation required");
-  await expect(page.getByRole("button", { name: "Copy run ID" })).toContainText("demo-refund-memory-rag-20260823");
+  await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
   await page.getByRole("button", { name: "Copy run ID" }).click();
-  await expect(page.getByRole("button", { name: "Copy run ID" })).toContainText("Copied");
+  await expect(page.getByRole("status")).toHaveText("Copied");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("demo-refund-memory-rag-20260823");
   await expect(page.getByRole("tab", { name: "Evidence", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Evidence", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
@@ -88,6 +90,19 @@ test("investigation prioritizes outcome and supports keyboard-accessible detail 
   await capture(page, "investigation-desktop.png");
   await page.getByRole("button", { name: "Back to Runs & traces" }).click();
   await expect(page).toHaveURL(/\/traces$/);
+});
+
+test("clipboard denial leaves selectable run metadata and honest feedback", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { value: {
+      writeText: async () => { throw new DOMException("Clipboard permission denied", "NotAllowedError"); },
+    } });
+  });
+  await loginOperator(page, "/runs/demo-refund-memory-rag-20260823");
+  await page.getByRole("button", { name: "Copy run ID" }).click();
+  await expect(page.getByRole("status")).toHaveText("Copy unavailable; select the ID.");
+  await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
+  await expect(page.getByTestId("investigation-run-id")).toHaveCSS("user-select", "text");
 });
 
 test("primary surfaces fit mobile and tablet widths without clipping content", async ({ page }) => {
