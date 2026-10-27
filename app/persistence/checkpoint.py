@@ -18,7 +18,7 @@ from psycopg import Connection
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
-from app.core.config import Settings
+from app.core.config import Settings, validate_production_checkpoint
 from app.core.context import ExecutionContext
 from app.observability.metrics import get_metrics
 
@@ -219,6 +219,7 @@ class PostgresCheckpointProvider:
 
 
 def build_checkpoint_provider(settings: Settings) -> CheckpointProvider:
+    validate_production_checkpoint(settings)
     backend = CheckpointBackend(settings.checkpoint_backend)
     if backend == CheckpointBackend.MEMORY:
         return MemoryCheckpointProvider()

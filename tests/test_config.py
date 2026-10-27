@@ -41,6 +41,7 @@ def test_production_accepts_explicit_https_oidc_configuration() -> None:
         oidc_audience="agent-control-plane",
         policy_audit_backend="postgres",
         agent_run_projection_backend="postgres",
+        checkpoint_backend="postgres",
     )
 
     assert settings.auth_mode == AuthenticationMode.OIDC
