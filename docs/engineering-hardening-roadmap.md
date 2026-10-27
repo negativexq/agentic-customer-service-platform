@@ -52,13 +52,15 @@ it does not claim every check in the original #14 run passed.
 | Production checkpoint fail-closed | [#17](https://github.com/negativexq/agentic-customer-service-platform/issues/17) | [#21](https://github.com/negativexq/agentic-customer-service-platform/pull/21) / `c9f8cfa` | [40567554493](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40567554493) |
 | Production network publication policy | [#18](https://github.com/negativexq/agentic-customer-service-platform/issues/18) | [#22](https://github.com/negativexq/agentic-customer-service-platform/pull/22) / `86a7602` | [40569195854](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40569195854) |
 | Real PostgreSQL application benchmark | [#19](https://github.com/negativexq/agentic-customer-service-platform/issues/19) | [#23](https://github.com/negativexq/agentic-customer-service-platform/pull/23) / `0748e44` | [40568973887](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40568973887) |
-| Refund eligibility concurrency | [#13](https://github.com/negativexq/agentic-customer-service-platform/issues/13) | [#14](https://github.com/negativexq/agentic-customer-service-platform/pull/14) / `bd4e2b5` | [40568973887](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40568973887) |
+| Refund eligibility concurrency | [#13](https://github.com/negativexq/agentic-customer-service-platform/issues/13) | [#14](https://github.com/negativexq/agentic-customer-service-platform/pull/14) / `bd4e2b5` | [40570806608](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40570806608) |
 
-Combined validation of the final code tree passed **1190 backend tests** with
-one environment-dependent skip; Ruff and mypy (340 source files) passed. This
-was a local combined run, with PostgreSQL enabled and local LLM overrides
-excluded. The combined tree was verified byte-for-byte against merged main
-`0748e44`; these counts are not historical release-QA or model-evaluation scores.
+Post-merge [main CI run 40570806608](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40570806608)
+passed all **13 jobs** on `0748e44`. Its Backend Quality log records
+**1190 tests passed, 1 skipped**, Ruff format validation of 405 files, and mypy
+success for 340 source files. The local combined run, with PostgreSQL enabled
+and local LLM overrides excluded, matched those test counts and was verified
+byte-for-byte against merged main. These are backend regression counts, not
+historical release-QA or model-evaluation scores.
 
 ### Related completed work: refund eligibility concurrency
 
