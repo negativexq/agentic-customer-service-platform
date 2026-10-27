@@ -5,9 +5,14 @@ _Production-oriented Agentic AI Control Plane — post-release hardening backlog
 This document is the durable engineering backlog for production-boundary work
 identified during the latest main-branch technical review. It is intentionally
 not a feature wishlist. The items below are grounded in the current repository
-architecture and distinguish confirmed evidence gaps, potential authorization
-issues that require confirmation, architectural debt, governance gaps, and
+architecture. Completed controls below record their merged resolutions and evidence;
+unchecked items remain evidence gaps, architectural debt, governance work, or
 future optimization.
+
+**Last reconciled:** 2026-10-27, against merged main revision
+[`0748e44`](https://github.com/negativexq/agentic-customer-service-platform/commit/0748e44cf6b6c147d989052763954f449b2d64ce).
+DONE means the scoped fix is merged, its issue is closed, and the linked
+regressions passed; it is not a claim of unrestricted production certification.
 
 The current baseline already has strong control-plane boundaries: typed tool
 execution, `semantic_decision_v3`, a deterministic `DecisionCompiler`, explicit
@@ -19,11 +24,12 @@ boundaries; it should not replace them with more LLM-driven behavior.
 
 ## Priority checklist
 
-- [ ] P0 OIDC operator customer-scope audit
-- [ ] P0/P1 production checkpoint fail-closed
-- [ ] P1 production network topology
-- [ ] P1 evaluation evidence alignment
-- [ ] P1 PostgreSQL benchmark evidence
+- [x] P0 OIDC operator customer-scope authorization — #16 / #20
+- [x] P0/P1 production checkpoint fail-closed — #17 / #21
+- [x] P1 production network topology — #18 / #22
+- [ ] P1 evaluation evidence alignment — PARTIAL; README denominator wording resolved
+- [x] P1 PostgreSQL benchmark evidence — #19 / #23
+- [x] P1 refund eligibility concurrency — #13 / #14 (related completed work)
 - [ ] P2 repository governance
 - [ ] P2 structured compiler contracts
 - [ ] P2 tool-owned revalidation strategy
@@ -31,6 +37,59 @@ boundaries; it should not replace them with more LLM-driven behavior.
 - [ ] P3 graph compile benchmark
 - [ ] P3 warning cleanup
 - [ ] P3 RAG semantic evaluation expansion
+
+## Closure evidence — 2026-10-27
+
+All five issues below are CLOSED and their fixing PRs are MERGED. The final
+runs for PRs #20–#23 each passed all 13 CI jobs, including security/image scans,
+E2E, lifecycle, metrics delivery, and five telemetry runtime scenarios. The
+refund row uses a later green regression run containing its PostgreSQL tests;
+it does not claim every check in the original #14 run passed.
+
+| Completed control | Closed issue | Merged PR / revision | Green verification run |
+| --- | --- | --- | --- |
+| OIDC operator customer scope | [#16](https://github.com/negativexq/agentic-customer-service-platform/issues/16) | [#20](https://github.com/negativexq/agentic-customer-service-platform/pull/20) / `e98f680` | [40567530582](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40567530582) |
+| Production checkpoint fail-closed | [#17](https://github.com/negativexq/agentic-customer-service-platform/issues/17) | [#21](https://github.com/negativexq/agentic-customer-service-platform/pull/21) / `c9f8cfa` | [40567554493](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40567554493) |
+| Production network publication policy | [#18](https://github.com/negativexq/agentic-customer-service-platform/issues/18) | [#22](https://github.com/negativexq/agentic-customer-service-platform/pull/22) / `86a7602` | [40569195854](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40569195854) |
+| Real PostgreSQL application benchmark | [#19](https://github.com/negativexq/agentic-customer-service-platform/issues/19) | [#23](https://github.com/negativexq/agentic-customer-service-platform/pull/23) / `0748e44` | [40568973887](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40568973887) |
+| Refund eligibility concurrency | [#13](https://github.com/negativexq/agentic-customer-service-platform/issues/13) | [#14](https://github.com/negativexq/agentic-customer-service-platform/pull/14) / `bd4e2b5` | [40568973887](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40568973887) |
+
+Combined validation of the final code tree passed **1190 backend tests** with
+one environment-dependent skip; Ruff and mypy (340 source files) passed. This
+was a local combined run, with PostgreSQL enabled and local LLM overrides
+excluded. The combined tree was verified byte-for-byte against merged main
+`0748e44`; these counts are not historical release-QA or model-evaluation scores.
+
+### Related completed work: refund eligibility concurrency
+
+**Status:** DONE — issue #13 closed by PR #14.
+
+The original race was reproduced on PostgreSQL 16.14 at READ COMMITTED using a
+controlled external order-status writer. Creation now refreshes authoritative
+order state under `SELECT FOR UPDATE`, retaining the lock through the outer
+commit. Same-key replay and active-refund uniqueness remain protected.
+
+- [Implementation](../app/tools/refunds.py) and [invariant scope](refund-concurrency.md).
+- [Four PostgreSQL regressions](../tests/test_refund_postgres_concurrency.py):
+  writer-first rejection with stale ORM state, lock lifetime through outer commit,
+  and same/different-key concurrent requests.
+- The invariant covers creation. It does not forbid arbitrary external status
+  changes after commit, and this path creates a request rather than a payment refund.
+
+### Durable PostgreSQL benchmark evidence
+
+- [Unmodified JSON report](evidence/postgres-application-benchmark-2026-10-27.json).
+- Source: [main CI run 40570806608](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40570806608),
+  attempt 1, commit `0748e44cf6b6c147d989052763954f449b2d64ce`.
+- Original [artifact 12764019320](https://github.com/negativexq/agentic-customer-service-platform/actions/runs/40570806608/artifacts/12764019320):
+  `postgres-benchmark-40570806608-1`, retained by CI for 14 days. The Git copy
+  remains available after artifact expiry; its bytes were not regenerated.
+- Recorded at `2026-10-27T19:41:23.860873+00:00`; schema version `1`.
+- JSON SHA-256: `53802e5615e858ba712783514a5b594f89c0ecc8e58629714da50b868727bfd0`.
+
+The successful benchmark step is evidence for this workload even while later
+jobs in that main CI run are pending. Full-run claims in the closure matrix
+refer to the already-completed green PR runs, not to a pending main run.
 
 ## Priority model
 
@@ -76,207 +135,126 @@ test pass rates.
 
 **Priority:** P0
 **Category:** Security / authorization
-**Status:** TODO — potential high authorization gap; requires confirmation
-**Classification:** Potential issue / requires audit
-**Estimated effort:** L
+**Status:** DONE — 2026-10-27; issue #16 CLOSED, PR #20 MERGED
+**Classification:** Confirmed authorization gap — fixed
 
-#### Problem
+#### Confirmed problem and resolution
 
-OIDC support-operator principals carry `tenant_id` and `customer_ids`.
-Agent/business request paths appear to validate a requested customer against
-`customer_ids`, while several operator UI surfaces may enforce only the
-`support_operator` role plus tenant scope. The potentially affected surfaces
-include:
+A valid OIDC operator with `customer_ids=[1]` could read customer 2's run,
+conversation, and memory projections in the same tenant, while `/customers/2`
+correctly returned 404. `customer_ids` is now an OIDC operator row-level
+customer authorization boundary, independently of tenant scope.
 
-- `/ui/agent-runs`
-- `/ui/agent-runs/{id}`
-- `/ui/conversations/{id}`
-- `/ui/policy-events/{id}`
-- `/ui/policy-audit/{conversation}`
-- `/ui/memory/{customer_id}`
+Run lists and conversations apply the allowlist before limits in both SQL and
+in-memory projection stores. Run detail, tool/RAG/trace projections, audit
+lookups, and memory reads enforce it too. Audit access uses the event's
+customer even when no matching run projection exists. Missing and unauthorized
+detail lookups share the 404 contract. Explicitly trusted static/demo operator
+behavior remains unchanged.
 
-The observed model must be confirmed before calling this a vulnerability. An
-operator whose allowed customers are `[12, 27]` may be denied for an agent
-interaction with customer `91`, while an operator UI lookup for customer `91`
-could succeed if the UI is only tenant-scoped.
+#### Completed acceptance and evidence
 
-#### Why it matters
+- [x] Allowed/denied customer access is consistent with direct business routes.
+- [x] Tenant isolation and anti-enumeration are preserved.
+- [x] Lists filter before limits; detail/audit/memory reads enforce scope.
+- [x] Service-level memory retrieval also checks the OIDC allowlist.
 
-Inconsistent authorization between agent interaction and operator projection
-can expose conversations, memory, policy events, or run metadata outside an
-operator's intended customer scope. Even when customer-facing anti-enumeration
-wording is correct, an over-broad trusted operator projection is a data-access
-boundary risk.
-
-#### Current behavior
-
-The review identified a possible difference between `customer_ids` enforcement
-in business paths and tenant-only enforcement in UI routes. The intended
-meaning of `customer_ids` is not yet established as either a row-level
-authorization boundary or an agent-interaction-only restriction.
-
-#### Target behavior
-
-Every path must enforce the documented authorization model consistently. If
-`customer_ids` is a row-level boundary, a support operator cannot read a
-conversation, run, memory record, policy event, or audit record for a customer
-outside that set. If operators are intentionally tenant-wide observers,
-customer-wide visibility must be explicit and tested rather than implied by a
-field named `customer_ids`.
-
-#### Scope
-
-- OIDC principal and scope semantics.
-- UI routes, projection repositories, and service-level access checks.
-- Conversation/run, memory, policy-event, and policy-audit lookups.
-- Tenant isolation and anti-enumeration behavior.
-
-#### Implementation direction
-
-First determine whether `customer_ids` is a true row-level authorization
-boundary. If it is, create one shared primitive such as
-`authorize_customer_access(principal, customer_id)` and enforce it at the
-repository/service boundary in addition to route checks. If it is not, rename
-or document the field semantics and add an explicit tenant-wide operator
-authorization model so future code cannot infer the wrong boundary.
-
-#### Acceptance criteria
-
-- No operator path can access a customer outside its intended authorization
-  scope.
-- Tenant scope remains enforced independently of customer scope.
-- Forbidden lookups do not leak existence, amount, status, memory, policy, or
-  run metadata through response differences or projections.
-- The chosen `customer_ids` semantics are documented in the principal/schema
-  contract.
-
-#### Tests and evidence required
-
-- Allowed and forbidden OIDC customer access.
-- Direct customer-ID, conversation, run, memory, policy-event, and audit
-  lookups.
-- Forbidden-customer enumeration and response-shape checks.
-- Cross-tenant access denial.
-- Regression evidence for both agent and operator paths.
+[Signed-token HTTP regressions](../tests/test_oidc_operator_ui_scope.py) cover
+both projection backends, restricted customers, cross-tenant reads, limit
+ordering, and audit/memory behavior. Discovery/JWKS use a mock transport; this
+is not a live external-IdP integration claim. Existing authorization and UI
+contracts also passed. See the closure matrix for the merged PR and full CI.
 
 ### 2. Production checkpoint backend must fail closed
 
 **Priority:** P0/P1
 **Category:** Reliability / correctness / deployment safety
-**Status:** TODO
-**Classification:** Potential production configuration gap; requires audit
-**Estimated effort:** S
+**Status:** DONE — 2026-10-27; issue #17 CLOSED, PR #21 MERGED
+**Classification:** Confirmed production configuration gap — fixed
 
-#### Problem
+#### Confirmed problem and resolution
 
-Checkpoint persistence is part of workflow correctness because pending
-confirmation, suspend/resume, browser refresh recovery, and backend restart
-recovery depend on it. The review raised concern that
-`APP_ENV=production` with `CHECKPOINT_BACKEND=memory` may still allow startup.
+Production previously accepted `CHECKPOINT_BACKEND=memory` and constructed a
+`MemoryCheckpointProvider`. Configuration validation and provider construction
+now both require PostgreSQL in production, including when settings are copied
+without validation. Supported URLs are `postgresql://` and
+`postgresql+psycopg://`. Production Compose explicitly selects `postgres` for
+setup and backend services. PostgreSQL initialization errors still abort
+startup without a memory fallback.
 
-#### Why it matters
+#### Completed acceptance and evidence
 
-An ephemeral checkpoint backend can silently lose a pending action or workflow
-boundary on process restart. That creates ambiguity around whether a customer
-has confirmed an action and can cause unsafe or confusing recovery behavior.
+- [x] Production memory configuration is rejected before requests are served.
+- [x] Non-PostgreSQL/unsupported driver URLs are rejected in production.
+- [x] Valid PostgreSQL provider construction remains supported.
+- [x] Development/test memory checkpoints remain explicitly available.
+- [x] Production setup/backend settings select the durable backend.
 
-#### Current behavior
-
-The configuration path must be audited to verify whether production startup
-rejects an in-memory checkpoint backend. Memory checkpoints remain appropriate
-for development/test environments where explicitly intended.
-
-#### Target behavior
-
-Production startup fails before serving traffic unless the checkpoint backend
-is persistent, expected to be PostgreSQL in the current deployment contract.
-
-#### Scope and implementation direction
-
-- Add/verify configuration validation at the startup boundary.
-- Keep development and test overrides available where the environment contract
-  explicitly permits them.
-- Add production Compose/topology validation and operator-facing failure text.
-- Document the invariant alongside deployment configuration.
-
-#### Acceptance criteria
-
-- `production + postgres` starts successfully.
-- `production + memory` fails deterministically before serving requests.
-- `development/test + memory` remains allowed only where intended.
-- The failure identifies the persistent-checkpoint requirement without exposing
-  secrets or internal stack traces.
-
-#### Tests and evidence required
-
-- Configuration unit tests for the three environment/backend combinations.
-- Production Compose validation.
-- Startup/readiness evidence proving the invalid combination cannot become
-  healthy.
-- Recovery regression for pending and suspended workflows.
+[Configuration/provider regressions](../tests/test_production_checkpoint_configuration.py)
+cover environment normalization, backend/URL rejection, accepted PostgreSQL
+providers, unvalidated programmatic settings, and development memory support.
+[Checkpoint regressions](../tests/test_checkpointing.py) and the green lifecycle
+CI provide recovery coverage. Evidence establishes the configuration/factory
+startup guard and reference integration behavior, not a live production IdP deployment.
 
 ### 3. Harden production network topology and port exposure
 
 **Priority:** P1
 **Category:** Security / deployment hardening
-**Status:** TODO
-**Classification:** Production topology hardening gap
-**Estimated effort:** M
+**Status:** DONE — 2026-10-27; issue #18 CLOSED, PR #22 MERGED
+**Classification:** Confirmed inherited host-publication gap — fixed
 
-#### Problem
+#### Confirmed problem and resolution
 
-The base Compose configuration publishes ports for infrastructure services
-including PostgreSQL, Qdrant HTTP, Qdrant gRPC, Jaeger, and OTLP. The
-production override hardens containers with read-only filesystems, dropped
-capabilities, `no-new-privileges`, resource limits, authentication, and
-persistent audit/projection storage, but it may not remove unnecessary host
-port exposure.
+The production overlay previously retained host publications for PostgreSQL,
+Qdrant and Jaeger, while the validator reported PASS. It now resets inherited
+host publications for database, vector, tracing, backend, and Collector services.
+Service discovery remains on the Compose networks. Frontend TCP/8080 is the
+public ingress; optional Prometheus TCP/9090 inspection is loopback-only.
 
-#### Why it matters
+The [topology validator](../scripts/validate_production_topology.py) renders the
+metrics profile as well and rejects publications from any service outside the
+frontend/Prometheus allowlist, including future unlisted services.
 
-Publishing internal service ports increases the reachable attack surface and
-can make deployment intent unclear. This repository-level issue does not prove
-internet exposure; external firewall/VPC controls are outside this audit.
+#### Completed acceptance and evidence
 
-#### Target behavior
+- [x] Production internal services have no published host ports.
+- [x] Frontend and optional metrics publication policy is explicit and checked.
+- [x] Unexpected services/public Prometheus bindings are rejected.
+- [x] Development/integration publications and internal service networks remain intact.
 
-Only intended ingress surfaces are published to the host. PostgreSQL, Qdrant,
-Jaeger, OTLP, and other internal services communicate over the Docker network
-unless a port is explicitly approved for the deployment contract.
-
-#### Scope and implementation direction
-
-- Review base and production Compose files together.
-- Define an exact approved host-port allowlist.
-- Remove or override forbidden `ports` entries in the production topology.
-- Preserve internal service discovery and health checks.
-- Extend the production topology validator to reject forbidden published
-  ports.
-
-#### Acceptance criteria
-
-- Rendered production Compose exposes only intentionally approved ports.
-- Forbidden database, vector-store, tracing, and OTLP ports are not published.
-- Backend-to-PostgreSQL/Qdrant connectivity remains functional on the internal
-  network.
-- Health/readiness checks continue to pass.
-
-#### Tests and evidence required
-
-- Rendered Compose configuration audit.
-- Validator tests for allowed and forbidden ports.
-- Integration health and internal-connectivity checks.
-- Documentation of the approved ingress surface.
+[Rendered-Compose regressions](../tests/test_production_network_topology.py)
+verify these rules. Existing overlay-value tests handle the Compose `!reset`
+tag; actual merge behavior is checked with Docker Compose. Green lifecycle,
+E2E, and metrics CI cover the reference integration topology.
+[Approved network policy](production-network-topology.md) documents the boundary;
+this is Compose configuration evidence, not a deployed firewall/VPC audit.
 
 ### 4. Align evaluation and README evidence semantics
 
 **Priority:** P1
 **Category:** Governance / evidence correctness
-**Status:** TODO
+**Status:** PARTIAL — README denominator wording resolved; artifact/output reconciliation remains open
 **Classification:** Confirmed documentation/evidence ambiguity
 **Estimated effort:** S
 
-#### Problem
+#### Completed scope and remaining work
+
+- [x] README separates semantic attempts, operational scenarios, resilience runs,
+  historical release-QA counts and real-LLM quality outcomes; it no longer labels
+  `110/110 deterministic` as an undifferentiated success rate.
+- [x] [Evaluation overview](evaluation-overview.md), [source-bound release evidence](release-evidence.md)
+  and [artifact retention policy](evaluation-artifact-policy.md) document distinct
+  scopes and historical artifact identity.
+- [ ] Finish current deterministic-run/output reconciliation and verify generated
+  evaluation artifacts versus intentionally absent upload inputs. The PostgreSQL
+  artifact below closes item 5 only, not this broader evaluation-evidence audit.
+
+The [current README evidence table](../README.md#evaluation-and-release-evidence)
+is already aligned in wording. The original ambiguity below is historical;
+remaining acceptance work must not repeat the completed README rewrite.
+
+#### Original problem and remaining audit scope
 
 Deterministic runner output may report `110 scenarios` and `96.4% overall`,
 while README wording such as `110/110 deterministic` can be read as 100%
@@ -332,56 +310,39 @@ runner/artifact and must not be invented or merged across runs.
 
 **Priority:** P1
 **Category:** Reliability / performance evidence
-**Status:** TODO
-**Classification:** Evidence gap
-**Estimated effort:** M
+**Status:** DONE — 2026-10-27; issue #19 CLOSED, PR #23 MERGED
+**Classification:** PostgreSQL application transaction evidence gap — closed
 
-#### Problem
+#### Confirmed problem and resolution
 
-`scripts/benchmark_postgres_capacity.py` can fall back to SQLite when
-`CAPACITY_DATABASE_URL` is absent. In that case, output is not evidence of
-PostgreSQL capacity. The benchmark also appears to exercise an isolated
-persistence/idempotency primitive rather than full agent throughput.
+CI previously invoked a persistence primitive without `CAPACITY_DATABASE_URL`,
+so it silently measured SQLite. The separate
+[application benchmark](../scripts/benchmark_postgres_application.py) now
+requires PostgreSQL and exercises real refund/idempotency/commit transactions
+in its own UUID-named schema. CI explicitly supplies the PostgreSQL URL and
+retains version-1 JSON evidence. The older SQLite/INSERT primitive remains
+clearly separate in the [capacity report](capacity-report.md).
 
-#### Why it matters
+#### Completed acceptance and evidence
 
-SQLite results cannot establish PostgreSQL locking, unique-constraint, or
-contention behavior. Naming a fallback result as PostgreSQL capacity can
-mislead release and deployment decisions.
+- [x] Missing/non-PostgreSQL configuration fails; there is no fallback in this mode.
+- [x] Same-key replay, competing different keys, and independent orders use real transactions.
+- [x] Actual effects, receipts, replay identities and error counts are checked.
+- [x] Failed invariants return nonzero; failure/bootstrap paths clean up their schema.
+- [x] Version, isolation, pool/workers, latency percentiles and throughput are recorded.
+- [x] CI artifact provenance and a durable report copy are retained in the closure evidence section.
 
-#### Target behavior
+[Benchmark regressions](../tests/test_postgres_application_benchmark.py) include
+actual PostgreSQL transactions, no-fallback behavior, bounded failure reports,
+and cleanup after invariant/bootstrap failure. Reproduce with
+`CAPACITY_DATABASE_URL=... make capacity-postgres-benchmark`.
 
-Correctness benchmarking and real PostgreSQL integration capacity evidence are
-separate. No result is named or documented as PostgreSQL capacity unless the
-database backend is actually PostgreSQL.
-
-#### Scope and implementation direction
-
-1. Keep or rename the persistence invariant benchmark for same-key behavior,
-   unique-key concurrency, and idempotency primitive correctness.
-2. Add a PostgreSQL integration concurrency benchmark using the real service,
-   unique constraints, locking, contention, and receipt/idempotency boundaries.
-3. Provide `CAPACITY_DATABASE_URL` from a dedicated PostgreSQL CI service or
-   explicit isolated environment.
-4. Record `database_backend` in every result and fail the PostgreSQL benchmark
-   when it is not actually using PostgreSQL.
-
-Do not claim this measures whole-platform production throughput unless the
-benchmark actually exercises that scope.
-
-#### Acceptance criteria
-
-- SQLite fallback is clearly named as a lightweight invariant benchmark.
-- PostgreSQL capacity runs fail closed when PostgreSQL is unavailable.
-- Results include backend, workload scope, concurrency, and contention context.
-- Documentation distinguishes persistence correctness from platform throughput.
-
-#### Tests and evidence required
-
-- CI job with isolated PostgreSQL.
-- Backend identity assertion in benchmark output.
-- Repeated-key, unique-key, lock/contention, and receipt semantics results.
-- Artifact review confirming no SQLite result is labeled PostgreSQL capacity.
+The [retained main-branch report](evidence/postgres-application-benchmark-2026-10-27.json)
+records PostgreSQL 16.14 / READ COMMITTED,
+1000 independent refunds and receipts with 8 workers, and one effect/receipt
+in each contention scenario. All invariants passed. It measures application
+transactions over the CI database connection, excluding HTTP, LLM, Qdrant and
+production-network latency; it is not whole-platform capacity or a production SLO.
 
 ### 6. Add structured decision compiler contracts
 
@@ -748,22 +709,24 @@ the task is to improve evidence about quality, not to lower thresholds globally.
 - Human-reviewed qualitative labels for contradiction/applicability cases.
 - No fabricated scores when a metric is not exposed.
 
-## Recommended execution order
+## Remaining execution order
 
-1. Confirm and, if necessary, fix OIDC operator customer-scope semantics.
-2. Enforce a persistent production checkpoint backend fail-closed.
-3. Harden production network exposure and the topology validator.
-4. Align README and evaluation evidence semantics.
-5. Add real PostgreSQL concurrency/capacity evidence.
-6. Harden repository governance.
-7. Structure compiler and revalidation contracts.
-8. Clean up frontend stale-request/state ownership boundaries.
-9. Benchmark graph compilation before considering a refactor.
-10. Reduce CI warning debt.
-11. Extend RAG semantic-quality evaluation.
+Completed items 1, 2, 3 and 5, and the related refund race, are closed with
+linked evidence above. Do not reopen them as implementation tasks without a
+new regression or a separately defined scope change.
 
-New agent features, additional tools, and multi-agent expansion should remain
-lower priority until the hardening work above is complete.
+1. Finish the remaining evaluation artifact/output alignment in item 4; preserve
+   the already-correct README denominator wording.
+2. Harden repository governance (item 8).
+3. Structure compiler and revalidation contracts (items 6 and 7).
+4. Address frontend stale-request/state ownership boundaries (item 9).
+5. Benchmark graph compilation before considering a refactor (item 10).
+6. Reduce CI warning debt (item 11).
+7. Extend RAG semantic-quality evaluation (item 12).
+
+New agent features, additional tools, and multi-agent expansion remain lower
+priority than this remaining hardening backlog. PostgreSQL transaction evidence
+does not close graph-performance, model-quality, governance or frontend-state work.
 
 ## Review labels and release discipline
 

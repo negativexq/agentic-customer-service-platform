@@ -1,0 +1,96 @@
+{
+  "benchmark": "postgresql_application_refund_idempotency_v1",
+  "database_backend": "postgresql",
+  "environment": {
+    "architecture": "x86_64",
+    "logical_cpus": 4,
+    "os": "Linux",
+    "python": "3.12.3"
+  },
+  "invariants": {
+    "competing_keys_one_effect_and_receipt": true,
+    "competing_keys_rejected": true,
+    "independent_all_succeeded": true,
+    "independent_effects_and_receipts": true,
+    "no_unexpected_errors": true,
+    "same_key_all_succeeded": true,
+    "same_key_one_effect_and_receipt": true
+  },
+  "isolation_level": "READ COMMITTED",
+  "operations": 1000,
+  "passed": true,
+  "pool": {
+    "max_overflow": 0,
+    "size": 8,
+    "timeout_seconds": 10
+  },
+  "privacy": {
+    "connection_url": false,
+    "provider_calls": 0,
+    "raw_user_content": false
+  },
+  "recorded_at": "2026-10-27T19:41:23.860873+00:00",
+  "scenarios": {
+    "different_keys_same_order": {
+      "attempts": 8,
+      "attempts_per_second": 253.605,
+      "business_effects": 1,
+      "effects_per_second": 31.701,
+      "elapsed_seconds": 0.031545,
+      "errors": {},
+      "latency_ms": {
+        "mean": 22.246,
+        "p50": 22.294,
+        "p95": 27.598,
+        "p99": 27.818
+      },
+      "receipts": 1,
+      "status_counts": {
+        "duplicate_rejected": 7,
+        "succeeded": 1
+      },
+      "unique_result_count": 1
+    },
+    "independent_orders": {
+      "attempts": 1000,
+      "attempts_per_second": 242.125,
+      "business_effects": 1000,
+      "effects_per_second": 242.125,
+      "elapsed_seconds": 4.130105,
+      "errors": {},
+      "latency_ms": {
+        "mean": 32.943,
+        "p50": 32.743,
+        "p95": 42.915,
+        "p99": 46.85
+      },
+      "receipts": 1000,
+      "status_counts": {
+        "succeeded": 1000
+      },
+      "unique_result_count": 1000
+    },
+    "same_key_replay": {
+      "attempts": 8,
+      "attempts_per_second": 102.992,
+      "business_effects": 1,
+      "effects_per_second": 12.874,
+      "elapsed_seconds": 0.077676,
+      "errors": {},
+      "latency_ms": {
+        "mean": 62.864,
+        "p50": 63.806,
+        "p95": 73.837,
+        "p99": 75.478
+      },
+      "receipts": 1,
+      "status_counts": {
+        "succeeded": 8
+      },
+      "unique_result_count": 1
+    }
+  },
+  "schema_version": 1,
+  "server_version": "16.14",
+  "workers": 8
+}
