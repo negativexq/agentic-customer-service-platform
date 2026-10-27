@@ -59,8 +59,21 @@ jobs:
         run: uv run --frozen pytest
       - name: Deterministic capacity benchmark
         run: uv run --frozen python scripts/run_capacity_benchmark.py --iterations 20 --workers 4
-      - name: Isolated persistence capacity benchmark
-        run: uv run --frozen python scripts/benchmark_postgres_capacity.py --operations 100 --workers 8
+      - name: Real PostgreSQL application capacity benchmark
+        env:
+          CAPACITY_DATABASE_URL: postgresql+psycopg://test:test@localhost:5432/concurrency_tests
+        run: >-
+          uv run --frozen python -m scripts.benchmark_postgres_application
+          --operations 1000 --workers 8
+          --output artifacts/benchmarks/postgres-application.json
+      - name: Upload PostgreSQL benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: postgres-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/benchmarks/postgres-application.json
+          if-no-files-found: warn
+          retention-days: 14
 
   frontend-quality:
     name: Frontend Quality
