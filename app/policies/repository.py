@@ -4,7 +4,7 @@ from collections import deque
 from collections.abc import Sequence
 from typing import Protocol
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -159,11 +159,15 @@ class SqlAlchemyPolicyAuditRepository:
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_AUDIT_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[PolicyAuditEvent]:
         return self._list(
             select(PolicyAuditRecord).where(
                 PolicyAuditRecord.agent_run_id == agent_run_id,
                 PolicyAuditRecord.tenant_id == tenant_id,
+                true()
+                if customer_ids is None
+                else PolicyAuditRecord.effective_customer_id.in_(customer_ids),
             ),
             limit,
         )
@@ -174,11 +178,15 @@ class SqlAlchemyPolicyAuditRepository:
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_AUDIT_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[PolicyAuditEvent]:
         return self._list(
             select(PolicyAuditRecord).where(
                 PolicyAuditRecord.conversation_id == conversation_id,
                 PolicyAuditRecord.tenant_id == tenant_id,
+                true()
+                if customer_ids is None
+                else PolicyAuditRecord.effective_customer_id.in_(customer_ids),
             ),
             limit,
         )

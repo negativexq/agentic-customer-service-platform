@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.auth.models import ActorType, Principal
+from app.auth.models import ActorType, Principal, PrincipalType
 from app.memory.compaction import compact_customer_memory
 from app.memory.models import MemoryRecord
 from app.memory.policy import evaluate_candidate
@@ -206,5 +206,7 @@ def _can_retrieve(record: MemoryRecord, customer_id: int, principal: Principal |
     if principal.actor_type == ActorType.CUSTOMER:
         return principal.customer_id == customer_id
     if principal.actor_type == ActorType.SUPPORT_OPERATOR:
-        return "support_operator" in principal.roles
+        return "support_operator" in principal.roles and (
+            principal.principal_type != PrincipalType.OIDC or customer_id in principal.customer_ids
+        )
     return False

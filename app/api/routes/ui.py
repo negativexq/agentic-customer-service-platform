@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_support_operator
-from app.auth.models import Principal
+from app.auth.dependencies import require_support_operator, resolve_customer_scope
+from app.auth.models import Principal, PrincipalType
 from app.core.config import LLMProvider, get_settings
 from app.core.database import get_db
 from app.health import RuntimeHealthService
@@ -43,11 +43,18 @@ def demo_scenario_projections() -> list[DemoScenarioView]:
     return demo_scenarios()
 
 
+def _customer_filter(principal: Principal) -> list[int] | None:
+    return principal.customer_ids if principal.principal_type == PrincipalType.OIDC else None
+
+
 def _run_or_404(
-    run_id: str, repository: AgentRunProjectionRepository, tenant_id: str = "default"
+    run_id: str, repository: AgentRunProjectionRepository, principal: Principal
 ) -> AgentRunView:
-    run = repository.get_by_run_id(run_id, tenant_id=tenant_id)
-    if run is None:
+    run = repository.get_by_run_id(run_id, tenant_id=principal.tenant_id or "default")
+    if run is None or (
+        principal.principal_type == PrincipalType.OIDC
+        and run.customer_id not in principal.customer_ids
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     return _bounded_operator_view(run)
 
@@ -61,11 +68,16 @@ def agent_runs(
 ) -> list[AgentRunView]:
     repository = build_agent_run_projection_repository(get_settings(), session)
     if customer_id is not None:
+        resolve_customer_scope(principal, customer_id)
         runs = repository.list_for_customer(
             customer_id, tenant_id=principal.tenant_id or "default", limit=limit
         )
     else:
-        runs = repository.list_recent(tenant_id=principal.tenant_id or "default", limit=limit)
+        runs = repository.list_recent(
+            tenant_id=principal.tenant_id or "default",
+            limit=limit,
+            customer_ids=_customer_filter(principal),
+        )
     return [_bounded_operator_view(run) for run in runs]
 
 
@@ -84,6 +96,7 @@ def conversation(
         conversation_id,
         tenant_id=principal.tenant_id or "default",
         limit=get_settings().agent_run_projection_query_limit,
+        customer_ids=_customer_filter(principal),
     )
     if not runs:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
@@ -110,7 +123,7 @@ def agent_run(
     return _run_or_404(
         agent_run_id,
         build_agent_run_projection_repository(get_settings(), session),
-        principal.tenant_id or "default",
+        principal,
     )
 
 
@@ -123,7 +136,7 @@ def tool_events(
     return _run_or_404(
         agent_run_id,
         build_agent_run_projection_repository(get_settings(), session),
-        principal.tenant_id or "default",
+        principal,
     ).tools
 
 
@@ -137,6 +150,7 @@ def policy_events(
         agent_run_id,
         tenant_id=principal.tenant_id or "default",
         limit=get_settings().policy_audit_query_limit,
+        customer_ids=_customer_filter(principal),
     )
     if not events:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy audit not found")
@@ -153,6 +167,7 @@ def policy_audit(
         conversation_id,
         tenant_id=principal.tenant_id or "default",
         limit=get_settings().policy_audit_query_limit,
+        customer_ids=_customer_filter(principal),
     )
     if not events:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy audit not found")
@@ -222,7 +237,7 @@ def rag_events(
     return _run_or_404(
         agent_run_id,
         build_agent_run_projection_repository(get_settings(), session),
-        principal.tenant_id or "default",
+        principal,
     ).rag_documents
 
 
@@ -235,7 +250,7 @@ def traces(
     return _run_or_404(
         agent_run_id,
         build_agent_run_projection_repository(get_settings(), session),
-        principal.tenant_id or "default",
+        principal,
     ).trace
 
 
@@ -247,6 +262,7 @@ def memory(
 ) -> list[MemoryView]:
     if customer_id <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid customer ID")
+    resolve_customer_scope(principal, customer_id)
     settings = get_settings()
     service = MemoryService(
         enabled=settings.memory_enabled,
