@@ -60,7 +60,9 @@ def execute_idempotent[T](
             )
             session.flush()
         return result
-    except IntegrityError:
+    except (IntegrityError, DuplicateActionError):
+        # A serialized writer may detect the prior effect before reaching INSERT.
+        # Replay only if this exact request has a committed receipt.
         existing = _get_receipt(session, scope, operation)
         if existing is None:
             raise

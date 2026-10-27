@@ -38,7 +38,7 @@ def request_refund(
         return RefundRequestResponse.model_validate(refund)
 
     def perform() -> tuple[RefundRequestResponse, int]:
-        validate_refund_request(session, request, tenant_id=tenant_id)
+        validate_refund_request(session, request, lock=True, tenant_id=tenant_id)
         refund = RefundRequest(
             customer_id=request.customer_id,
             tenant_id=tenant_id,
@@ -67,11 +67,21 @@ def request_refund(
 
 
 def validate_refund_request(
-    session: Session, request: RequestRefundInput, *, tenant_id: str = "default"
+    session: Session,
+    request: RequestRefundInput,
+    *,
+    lock: bool = False,
+    tenant_id: str = "default",
 ) -> None:
-    order = session.scalar(
-        select(Order).where(Order.id == request.order_id, Order.tenant_id == tenant_id)
+    query = (
+        select(Order)
+        .where(Order.id == request.order_id, Order.tenant_id == tenant_id)
+        .execution_options(populate_existing=True)
     )
+    if lock:
+        # Keep authoritative eligibility stable until the caller commits or rolls back.
+        query = query.with_for_update()
+    order = session.scalar(query)
     if order is None:
         raise ResourceNotFoundError("Order", request.order_id)
     if order.customer_id != request.customer_id:
