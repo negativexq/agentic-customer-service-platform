@@ -87,9 +87,9 @@ commit. Same-key replay and active-refund uniqueness remain protected.
 - Recorded at `2026-10-27T19:41:23.860873+00:00`; schema version `1`.
 - JSON SHA-256: `53802e5615e858ba712783514a5b594f89c0ecc8e58629714da50b868727bfd0`.
 
-The successful benchmark step is evidence for this workload even while later
-jobs in that main CI run are pending. Full-run claims in the closure matrix
-refer to the already-completed green PR runs, not to a pending main run.
+This snapshot proves the named transaction workload. The closure matrix
+separately links completed full PR CI runs; the benchmark JSON does not assert
+the outcome of unrelated later jobs.
 
 ## Priority model
 
@@ -256,10 +256,11 @@ remaining acceptance work must not repeat the completed README rewrite.
 
 #### Original problem and remaining audit scope
 
-Deterministic runner output may report `110 scenarios` and `96.4% overall`,
-while README wording such as `110/110 deterministic` can be read as 100%
-scenario success. Historical and current runs can also be conflated if the
-public summary does not identify the runner and scope of each number.
+The initial review cited `110 scenarios` and `96.4% overall` alongside README
+wording such as `110/110 deterministic`. Those are historical review inputs,
+not new measurements in this update. The README ambiguity is resolved; the
+remaining audit must map current runner outputs and upload expectations to
+named evidence without conflating historical and current runs.
 
 #### Why it matters
 
@@ -459,9 +460,11 @@ they are security-critical.
 
 #### Problem
 
-Technical CI quality is strong, but repository governance may lag behind it.
-The review reported that main protection and required checks were off, and the
-latest commit was unsigned.
+At the 2026-10-27 reconciliation, the GitHub branch API still reports
+`main.protected=false`; the required-check/force-push governance work remains
+open. The earlier unsigned-latest-commit observation is historical: merged
+main revision `0748e44` has a valid GitHub-verified signature. That individual
+signature does not establish an enforced commit-signing or release-tag policy.
 
 #### Why it matters
 
