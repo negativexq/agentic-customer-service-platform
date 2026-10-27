@@ -9,8 +9,9 @@ architecture. Completed controls below record their merged resolutions and evide
 unchecked items remain evidence gaps, architectural debt, governance work, or
 future optimization.
 
-**Last reconciled:** 2026-10-27, against merged main revision
-[`0748e44`](https://github.com/negativexq/agentic-customer-service-platform/commit/0748e44cf6b6c147d989052763954f449b2d64ce).
+**Last reconciled:** 2026-10-28, against merged main baseline
+[`c650a2b`](https://github.com/negativexq/agentic-customer-service-platform/commit/c650a2bacc4c22f8b6ac3fdede248b37721844bf),
+with warning-cleanup closure evidence recorded in item 11.
 DONE means the scoped fix is merged, its issue is closed, and the linked
 regressions passed; it is not a claim of unrestricted production certification.
 
@@ -35,7 +36,7 @@ boundaries; it should not replace them with more LLM-driven behavior.
 - [ ] P2 tool-owned revalidation strategy
 - [ ] P2/P3 frontend request/state correctness
 - [ ] P3 graph compile benchmark
-- [ ] P3 warning cleanup
+- [x] P3 warning cleanup — #27 / #28; zero-warning backend baseline
 - [ ] P3 RAG semantic evaluation expansion
 
 ## Closure evidence — 2026-10-27
@@ -618,49 +619,38 @@ architecture unchanged.
 
 **Priority:** P3
 **Category:** Maintainability / release engineering
-**Status:** TODO
-**Classification:** Confirmed signal-to-noise problem
-**Estimated effort:** M
+**Status:** DONE — warning cleanup, issue #27 / PR #28
+**Classification:** Confirmed warning debt — fixed
 
-#### Problem
+#### Confirmed problem and resolution
 
-The latest backend run reportedly emits roughly 11,000 warnings. Likely sources
-include `datetime.utcnow()` deprecations and TestClient/httpx deprecations.
+The baseline backend CI emitted 11780 warnings: 11779 calls to deprecated
+`datetime.utcnow()` through SQLAlchemy defaults/onupdate, plus one Starlette
+TestClient legacy-transport warning. Strict resource checking also exposed
+unit tests that relied on garbage collection to remove temporary port fixtures.
 
-#### Why it matters
+Models now use an explicit naive-UTC clock helper, preserving database column
+semantics, historical rows, serialized timestamp formats, and memory TTL
+comparisons. TestClient uses development-only `httpx2`; production HTTP clients
+remain on their existing dependencies. Smoke fixtures are closed explicitly,
+including constructor rejection and mocked cleanup paths.
 
-Warning volume hides new correctness and security warnings. Turning all current
-warnings into errors immediately would create a noisy, brittle migration rather
-than a useful release gate.
+#### Completed acceptance and evidence
 
-#### Target behavior
+- [x] Warning categories and before/after counts are recorded in the
+  [backend warning baseline](backend-warning-baseline.md).
+- [x] Full local backend suite: **1192 passed, 1 skipped, 0 warnings** with real
+  PostgreSQL enabled and `-W error` for every warning category.
+- [x] SQLite and PostgreSQL regressions verify insert/update defaults, UTC date
+  rollover, reload/JSON formats, historical values, and exact memory TTL expiry.
+  PostgreSQL connections deliberately use a non-UTC server timezone.
+- [x] Known deprecation, resource, and unraisable-exception warning categories
+  fail pytest/CI if reintroduced; no warning suppression was added.
+- [x] Lint, format, type checking, and dependency audit passed.
 
-Warning categories and counts are inventoried, safe migrations are completed,
-and CI maintains a small documented baseline. Only after the baseline is low
-should selected categories become warnings-as-errors.
-
-#### Scope and implementation direction
-
-1. Capture warnings by category and source.
-2. Migrate timezone handling safely, preserving serialized formats and boundary
-   semantics.
-3. Update deprecated test-client usage/dependencies where appropriate.
-4. Establish a baseline and trend check.
-5. Promote only selected, actionable categories to errors.
-
-#### Acceptance criteria
-
-- Warning inventory has reproducible category/count output.
-- High-volume known warnings are reduced without changing time semantics.
-- CI exposes regressions against the documented baseline.
-- New actionable warnings remain visible.
-
-#### Tests and evidence required
-
-- Full backend test warning report before and after.
-- Timezone/serialization regression tests.
-- HTTP client compatibility tests.
-- CI baseline check.
+The [timestamp regressions](../tests/test_model_timestamps.py), complete suite,
+and linked baseline provide the acceptance evidence. This closes backend test
+warning debt; GitHub Actions' own Node notices are a separate tooling concern.
 
 ### 12. Extend RAG semantic-quality evaluation
 
@@ -716,7 +706,7 @@ the task is to improve evidence about quality, not to lower thresholds globally.
 
 ## Remaining execution order
 
-Completed items 1, 2, 3 and 5, and the related refund race, are closed with
+Completed items 1, 2, 3, 5 and 11, and the related refund race, are closed with
 linked evidence above. Do not reopen them as implementation tasks without a
 new regression or a separately defined scope change.
 
@@ -726,8 +716,7 @@ new regression or a separately defined scope change.
 3. Structure compiler and revalidation contracts (items 6 and 7).
 4. Address frontend stale-request/state ownership boundaries (item 9).
 5. Benchmark graph compilation before considering a refactor (item 10).
-6. Reduce CI warning debt (item 11).
-7. Extend RAG semantic-quality evaluation (item 12).
+6. Extend RAG semantic-quality evaluation (item 12).
 
 New agent features, additional tools, and multi-agent expansion remain lower
 priority than this remaining hardening backlog. PostgreSQL transaction evidence

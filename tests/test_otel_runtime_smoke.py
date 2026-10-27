@@ -9,12 +9,15 @@ from scripts.e2e_authenticated_smoke import SmokeFailure
 from scripts.otel_runtime_smoke import RuntimeStack, backend_exit
 
 
-def test_runtime_stack_is_disposable_and_defers_periodic_exports() -> None:
+def test_runtime_stack_is_disposable_and_defers_periodic_exports(
+    request: pytest.FixtureRequest,
+) -> None:
     with pytest.raises(SmokeFailure, match="T5 disposable"):
         RuntimeStack("customer-service", "graceful")
     with pytest.raises(SmokeFailure, match="Unknown runtime"):
         RuntimeStack("t4d-metrics-t5-unit", "untrusted")
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     assert stack.environment["OTEL_BSP_SCHEDULE_DELAY"] == "60000"
     assert stack.environment["OTEL_METRIC_EXPORT_INTERVAL_MILLIS"] == "300000"
     assert stack.environment["OTEL_EXPORTER_OTLP_TRACES_TIMEOUT"] == "0.5"
@@ -24,10 +27,12 @@ def test_runtime_stack_is_disposable_and_defers_periodic_exports() -> None:
 
 @pytest.mark.parametrize("array", [True, False])
 def test_backend_exit_parses_supported_compose_json_forms(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
     array: bool,
 ) -> None:
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     row = {"State": "exited", "ExitCode": 0}
     monkeypatch.setattr(
         stack,
@@ -41,10 +46,12 @@ def test_backend_exit_parses_supported_compose_json_forms(
 
 @pytest.mark.parametrize("row", [{"State": "running", "ExitCode": 0}, {"State": "exited"}])
 def test_backend_exit_does_not_treat_running_or_unknown_exit_as_success(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
     row: dict[str, object],
 ) -> None:
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     monkeypatch.setattr(
         stack,
         "run",
@@ -54,10 +61,13 @@ def test_backend_exit_does_not_treat_running_or_unknown_exit_as_success(
         backend_exit(stack)
 
 
-def test_disabled_override_preserves_metric_opt_in_and_disposes_fixture() -> None:
+def test_disabled_override_preserves_metric_opt_in_and_disposes_fixture(
+    request: pytest.FixtureRequest,
+) -> None:
     from pathlib import Path
 
     stack = RuntimeStack("t4d-metrics-t5-unit", "disabled")
+    request.addfinalizer(stack.close_fixture)
     try:
         location = Path(stack.command[-1])
         assert location.is_file()
@@ -70,10 +80,13 @@ def test_disabled_override_preserves_metric_opt_in_and_disposes_fixture() -> Non
     assert not location.exists()
 
 
-def test_both_outage_fixture_only_adds_bounded_log_format() -> None:
+def test_both_outage_fixture_only_adds_bounded_log_format(
+    request: pytest.FixtureRequest,
+) -> None:
     from pathlib import Path
 
     stack = RuntimeStack("t4d-metrics-t5-unit", "both-outage")
+    request.addfinalizer(stack.close_fixture)
     try:
         backend = json.loads(Path(stack.command[-1]).read_text())["services"]["backend"]
         assert "environment" not in backend
@@ -88,6 +101,7 @@ def test_both_outage_fixture_only_adds_bounded_log_format() -> None:
 
 @pytest.mark.parametrize("failure", ["runtime", "cleanup"])
 def test_main_fails_boundedly_and_never_reports_success_if_cleanup_fails(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     failure: str,
@@ -97,6 +111,7 @@ def test_main_fails_boundedly_and_never_reports_success_if_cleanup_fails(
     from scripts import otel_runtime_smoke as module
 
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     closed: list[str] = []
     monkeypatch.setattr(sys, "argv", ["runtime"])
     monkeypatch.setattr(module, "RuntimeStack", lambda *args: stack)
@@ -214,10 +229,12 @@ def test_partial_bind_error_does_not_invent_container_port(error: str) -> None:
 
 
 def test_state_error_inspection_uses_only_project_container_and_safe_output(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     container = "a" * 64
     calls: list[list[str]] = []
     monkeypatch.setattr(
@@ -247,10 +264,13 @@ def test_state_error_inspection_uses_only_project_container_and_safe_output(
         stack.close_fixture()
 
 
-def test_smoke_port_override_is_minimal_localhost_only_and_cleaned() -> None:
+def test_smoke_port_override_is_minimal_localhost_only_and_cleaned(
+    request: pytest.FixtureRequest,
+) -> None:
     from pathlib import Path
 
     stack = RuntimeStack("t4d-metrics-t5-unit", "graceful")
+    request.addfinalizer(stack.close_fixture)
     path = Path(stack.command[-3])
     try:
         contents = path.read_text()
