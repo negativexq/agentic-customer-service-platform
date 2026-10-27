@@ -1,5 +1,6 @@
 services:
   db:
+    ports: !reset []
     init: true
     restart: unless-stopped
     stop_grace_period: 60s
@@ -44,6 +45,7 @@ services:
     command: ["alembic", "upgrade", "head"]
 
   backend:
+    ports: !reset []
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -99,6 +101,7 @@ services:
           memory: ${FRONTEND_MEMORY_LIMIT:-256M}
 
   qdrant:
+    ports: !reset []
     init: true
     restart: unless-stopped
     stop_grace_period: 45s
@@ -116,6 +119,7 @@ services:
           memory: ${QDRANT_MEMORY_LIMIT:-1G}
 
   jaeger:
+    ports: !reset []
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
@@ -136,3 +140,6 @@ services:
         limits:
           cpus: ${JAEGER_CPU_LIMIT:-0.5}
           memory: ${JAEGER_MEMORY_LIMIT:-512M}
+
+  otel-collector:
+    ports: !reset []
