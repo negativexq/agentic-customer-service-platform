@@ -50,7 +50,7 @@ export function MemoryPanel({
             <Badge tone="info">CUSTOMER STATE</Badge>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted">User-specific preferences and bounded context for contextual continuity.</p>
-          <div className="mt-2 text-[11px] text-muted">{retrievedCount} item{retrievedCount === 1 ? "" : "s"} used in run</div>
+          <div className="mt-2 text-xs text-muted">{retrievedCount} item{retrievedCount === 1 ? "" : "s"} used in run</div>
         </div>
         <div className="context-summary mt-3">
           <div><span className="field-label">Retrieved</span><div className="mt-1 text-xs text-main">{retrieved ? `✓ ${retrievedCount}` : "Not used"}</div></div>
@@ -78,11 +78,11 @@ export function MemoryPanel({
                   <div className="text-sm font-medium text-main">
                     {record.memory_type.replace(/_/g, " ")}
                   </div>
-                  <div className="mt-1 font-mono text-[11px] text-muted">
+                  <div className="mt-1 font-mono text-xs text-muted">
                     {record.normalized_key}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted">Source · {record.source.replace(/_/g, " ")} · provenance recorded</div>
-                  <div className="mt-1 text-[11px] text-muted">
+                  <div className="mt-1 text-xs text-muted">Source · {record.source.replace(/_/g, " ")} · provenance recorded</div>
+                  <div className="mt-1 text-xs text-muted">
                     Created {formatTimestamp(record.created_at)} · updated{" "}
                     {formatTimestamp(record.updated_at)} · expires {formatTimestamp(record.expires_at)}
                   </div>

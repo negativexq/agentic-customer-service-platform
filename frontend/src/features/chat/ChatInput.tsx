@@ -37,7 +37,7 @@ export function ChatInput({ busy, onSend }: Props) {
           {busy ? "Processing" : "Send"}
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-muted">Requests are evaluated by the existing agent workflow. This surface does not bypass policy or confirmation.</p>
+      <p className="mt-2 text-xs text-muted">Requests are evaluated by the existing agent workflow. This surface does not bypass policy or confirmation.</p>
     </form>
   );
 }

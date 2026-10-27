@@ -8,7 +8,13 @@ Unlike a typical tool-calling chatbot, the LLM never receives direct mutation au
 
 > **The LLM proposes. Deterministic software decides what may execute.**
 
-![Refund workflow held at a confirmation boundary](docs/demo/refund-happy-path.png)
+![Agent Playground — a refund request and its bounded decision flow](docs/assets/screenshots/playground-desktop.png)
+
+| Investigate a decision | Understand the architecture |
+| --- | --- |
+| ![Run investigation with outcome, decision flow, and evidence tabs](docs/assets/screenshots/investigation-desktop.png) | ![Reference architecture and execution authority boundaries](docs/assets/screenshots/architecture-desktop.png) |
+
+Actual browser captures from the local integration environment. [UI behavior and screenshot reproduction](docs/operator-ui-polish.md).
 
 ## What the platform does
 

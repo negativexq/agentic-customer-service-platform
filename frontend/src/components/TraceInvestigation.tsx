@@ -25,6 +25,7 @@ function clarificationRequired(run: AgentRun): boolean {
 
 function executionState(run: AgentRun): string {
   const semantics = deriveRunSemantics(run);
+  if (semantics.status === "recorded" && (run.status === "waiting_confirmation" || run.evidence.write_outcome.status === "pending_confirmation")) return "Awaiting confirmation";
   if (semantics.status === "needs_input") return "Not attempted";
   if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
   if (semantics.status === "completed") return "Completed";
@@ -38,6 +39,7 @@ function executionState(run: AgentRun): string {
 
 function authorityState(run: AgentRun): string {
   const semantics = deriveRunSemantics(run);
+  if (semantics.status === "recorded" && (run.status === "waiting_confirmation" || run.evidence.write_outcome.status === "pending_confirmation")) return "Confirmation required";
   if (semantics.authority === "read_access") return "Read access";
   if (semantics.authority === "controlled_execution") return "Granted through controlled path";
   if (semantics.authority === "confirmation_required") return "Confirmation required";

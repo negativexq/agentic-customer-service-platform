@@ -1,18 +1,18 @@
-import { ArrowLeft, CheckCircle2, Download, FileText, GitCompareArrows, LockKeyhole, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle2, Download, FileText, GitCompareArrows, LockKeyhole, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { AgentRun, MemoryRecord } from "../types";
-import { AgentLifecyclePanel, ConversationEvidence, DecisionCompilerCard, MemoryEvidenceCard, ProposalEvidenceCard, RagEvidenceCard, ScenarioSummaryHeader } from "./AgentEvidenceShowcase";
-import { DecisionExplanationCard, DecisionLifecycleSummary, EvidenceRelationshipGraph, InvestigationReportModal, OperationalTraceTimeline, TraceInvestigationHeader } from "./TraceInvestigation";
+import type { AgentRun, DemoScenario, MemoryRecord } from "../types";
+import { AgentLifecyclePanel, ConversationEvidence, DecisionCompilerCard, MemoryEvidenceCard, ProposalEvidenceCard, RagEvidenceCard } from "./AgentEvidenceShowcase";
+import { DecisionExplanationCard, DecisionLifecycleSummary, EvidenceRelationshipGraph, InvestigationReportModal, OperationalTraceTimeline } from "./TraceInvestigation";
 import { Badge, Card, DataRow, EmptyState, SectionHeader, StatusIndicator } from "./ui";
 import { buildTraceStages, TraceStageTimeline } from "./TraceTimeline";
 import { deriveRunSemantics } from "./runSemantics";
 
-type Props = { run: AgentRun | null; memoryRecords: MemoryRecord[]; availableRuns: AgentRun[]; loading: boolean; error: string | null; onBack: () => void };
+type Props = { run: AgentRun | null; demoScenario?: DemoScenario; memoryRecords: MemoryRecord[]; availableRuns: AgentRun[]; loading: boolean; error: string | null; onBack: () => void };
 
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "completed") return "success";
   if (status === "waiting_confirmation") return "warning";
-  if (status === "error") return "danger";
+  if (status === "error" || status === "blocked" || status === "failed_validation") return "danger";
   return "neutral";
 }
 
@@ -21,14 +21,15 @@ function humanize(value: string | null | undefined): string {
 }
 
 function operatorStatus(run: AgentRun): string {
-  const status = deriveRunSemantics(run).status;
+  const semanticStatus = deriveRunSemantics(run).status;
+  const status = semanticStatus === "recorded" ? run.status : semanticStatus;
   return status === "needs_input" ? "Clarification required" : status === "waiting_confirmation" ? "Awaiting confirmation" : status === "blocked" ? "Prevented" : status === "failed_validation" ? "Validation failed" : status === "suspended" ? "Suspended" : status === "replaced" ? "Replaced" : status === "completed" ? "Completed" : humanize(run.status);
 }
 
 function operatorExecution(run: AgentRun): string {
   const semantics = deriveRunSemantics(run);
   if (semantics.status === "needs_input") return "Not attempted";
-  if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
+  if (semantics.status === "waiting_confirmation" || run.status === "waiting_confirmation") return "Awaiting confirmation";
   if (semantics.status === "completed") return "Completed";
   if (semantics.status === "blocked") return "Prevented";
   if (semantics.status === "failed_validation") return "Failed validation";
@@ -36,7 +37,7 @@ function operatorExecution(run: AgentRun): string {
 }
 
 function FactRow({ label, available, detail }: { label: string; available: boolean; detail: string }) {
-  return <div className="investigation-fact"><span className={available ? "text-success" : "text-muted"}>{available ? <CheckCircle2 size={14} aria-hidden="true" /> : <ShieldAlert size={14} aria-hidden="true" />}</span><div><div className="text-xs font-medium text-main">{label}</div><div className="mt-1 text-[11px] leading-5 text-muted">{detail}</div></div></div>;
+  return <div className="investigation-fact"><span className={available ? "text-success" : "text-muted"}>{available ? <CheckCircle2 size={14} aria-hidden="true" /> : <ShieldAlert size={14} aria-hidden="true" />}</span><div><div className="text-xs font-medium text-main">{label}</div><div className="mt-1 text-xs leading-5 text-muted">{detail}</div></div></div>;
 }
 
 function escapeHtml(value: string): string {
@@ -89,12 +90,23 @@ function CompareRow({ label, value }: { label: string; value: string }) {
   return <div className="data-row"><span className="text-muted">{label}</span><span className="max-w-[60%] truncate text-right text-xs capitalize text-main">{value.replace(/_/g, " ")}</span></div>;
 }
 
-export function RunInvestigationPage({ run, memoryRecords, availableRuns, loading, error, onBack }: Props) {
+export function RunInvestigationPage({ run, demoScenario, memoryRecords, availableRuns, loading, error, onBack }: Props) {
   const [reportOpen, setReportOpen] = useState(() => new URLSearchParams(window.location.search).get("report") === "1");
-  const evidenceFocus = new URLSearchParams(window.location.search).get("focus") === "evidence";
-  const scenario = useMemo(() => run ? run.intent || run.request_type.replace(/_/g, " ") : "Run detail", [run]);
-  useEffect(() => { if (!run) return; const focus = new URLSearchParams(window.location.search).get("focus"); const selector = focus === "evidence" ? '[aria-label="Evidence relationship graph"]' : focus === "timeline" ? '[aria-label="Operational event timeline"]' : null; if (!selector) return; window.setTimeout(() => document.querySelector(selector)?.scrollIntoView({ block: "start" }), 0); }, [run]);
+  const [tab, setTab] = useState<"evidence" | "policy" | "execution" | "telemetry">(() => {
+    const query = new URLSearchParams(window.location.search);
+    const requested = query.get("tab");
+    return requested === "policy" || requested === "execution" || requested === "telemetry" ? requested : query.get("focus") === "timeline" ? "telemetry" : "evidence";
+  });
+  const selectTab = (next: typeof tab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState({}, "", url);
+  };
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const scenario = useMemo(() => run ? demoScenario?.title || run.intent || run.request_type.replace(/_/g, " ") : "Run detail", [run, demoScenario]);
+  useEffect(() => { if (!run) return; const focus = new URLSearchParams(window.location.search).get("focus"); const selector = focus === "evidence" ? '[aria-label="Evidence relationship graph"]' : focus === "timeline" ? '[aria-label="Operational trace timeline"]' : null; if (!selector) return; window.setTimeout(() => document.querySelector(selector)?.scrollIntoView({ block: "start" }), 0); }, [run]);
   if (loading) return <Card as="section" className="p-8"><div className="eyebrow">Run investigation</div><h1 className="section-title mt-2">Loading run projection…</h1></Card>;
   if (error || !run) return <Card as="section" className="p-8"><StatusIndicator label="Run unavailable" tone="danger" /><h1 className="section-title mt-3">Could not load this run</h1><p className="mt-2 text-sm text-muted">{error ?? "The backend returned no run projection."}</p><button type="button" className="button-primary mt-5" onClick={onBack}><ArrowLeft size={14} aria-hidden="true" />Back to console</button></Card>;
-  return <div className="space-y-5">{evidenceFocus && <EvidenceRelationshipGraph run={run} />}<section className="run-detail-header surface"><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" className="back-link" onClick={onBack}><ArrowLeft size={14} aria-hidden="true" />Back to Runs & traces</button><div className="flex flex-wrap gap-2"><button type="button" className="operator-action" onClick={() => setReportOpen(true)}><FileText size={14} aria-hidden="true" />View investigation report</button><button type="button" className="operator-action" onClick={() => exportInvestigationReport(run)}><Download size={14} aria-hidden="true" />Export investigation report</button></div></div><div className="mt-5 flex flex-wrap items-start justify-between gap-5"><div><div className="eyebrow">Run investigation</div><h1 className="mt-2 font-mono text-2xl font-semibold tracking-tight text-main">{run.run_id}</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"><span className="capitalize">{scenario}</span><span className="text-border">·</span><span>{new Date(run.started_at).toLocaleString()}</span><span className="text-border">·</span><span>customer #{run.customer_id}</span></div></div><StatusIndicator label={operatorStatus(run)} tone={statusTone(run.status)} /></div><div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4"><div className="run-detail-metric"><span className="field-label">Intent</span><strong>{run.intent || "Not recorded"}</strong></div><div className="run-detail-metric"><span className="field-label">Policy</span><strong>{run.policy[run.policy.length - 1]?.outcome?.replace(/_/g, " ") ?? run.evidence.compiler.status.replace(/_/g, " ")}</strong></div><div className="run-detail-metric"><span className="field-label">Trace</span><strong>{run.trace.length ? `${run.trace.length} events` : "Unavailable"}</strong></div><div className="run-detail-metric"><span className="field-label">Action</span><strong>{run.action_id ?? "Not recorded"}</strong></div></div></section><TraceInvestigationHeader run={run} /><DecisionLifecycleSummary run={run} /><ScenarioSummaryHeader run={run} /><DecisionContextSummary run={run} /><div className="grid gap-5 xl:grid-cols-2"><ConversationEvidence run={run} /><AgentLifecyclePanel run={run} /></div><div className="grid gap-5 xl:grid-cols-2">{!evidenceFocus && <DecisionExplanationCard run={run} />}{!evidenceFocus && <EvidenceRelationshipGraph run={run} />}</div><OperationalTraceTimeline run={run} /><div className="investigation-layout"><div className="space-y-5"><ProposalEvidenceCard run={run} proposal={run.proposal} /><RagEvidenceCard run={run} /></div><div className="space-y-5"><PolicyExplanation run={run} /><DecisionCompilerCard run={run} /><MemoryEvidenceCard run={run} records={memoryRecords} /><Card as="section" className="p-5"><SectionHeader eyebrow="Persistence" title="Run metadata" description="Safe identifiers returned by the operator projection." /><div className="divide-y divide-border/70"><DataRow label="Request ID" value={run.request_id} mono /><DataRow label="Conversation" value={run.conversation_id} mono /><DataRow label="Trace ID" value={run.trace_id ?? "Not recorded"} mono /><DataRow label="Failure category" value={humanize(run.failure_category)} /><DataRow label="Recovery action" value={humanize(run.recovery_action)} /></div></Card></div></div><CompareRuns current={run} runs={availableRuns} />{reportOpen && <InvestigationReportModal run={run} onClose={() => setReportOpen(false)} onExport={() => exportInvestigationReport(run)} />}</div>;
+  return <div className="space-y-5"><section className="run-detail-header surface"><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" className="back-link" onClick={onBack}><ArrowLeft size={14} aria-hidden="true" />Back to Runs & traces</button><div className="flex flex-wrap gap-2"><button type="button" className="operator-action" onClick={() => setReportOpen(true)}><FileText size={14} aria-hidden="true" />View investigation report</button><button type="button" className="operator-action" onClick={() => exportInvestigationReport(run)}><Download size={14} aria-hidden="true" />Export investigation report</button></div></div><div className="mt-5 flex flex-wrap items-start justify-between gap-5"><div><div className="eyebrow">Run investigation</div><h1 className="mt-2 text-3xl font-semibold tracking-tight text-main">{scenario.replace(/_/g, " ")} · {operatorStatus(run)}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-muted">{run.decision_reason ?? "Inspect the recorded decision, its supporting evidence, and execution authority."}</p><div className="run-id-copy"><code className="select-text" data-testid="investigation-run-id">{run.run_id}</code><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(run.run_id); setCopyState("copied"); } catch { setCopyState("failed"); } }} aria-label="Copy run ID"><Copy size={13} aria-hidden="true" />Copy ID</button><span role="status" aria-live="polite">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy unavailable; select the ID." : ""}</span></div><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"><span className="capitalize">{scenario}</span><span className="text-border">·</span><span>{new Date(run.started_at).toLocaleString()}</span><span className="text-border">·</span><span>customer #{run.customer_id}</span></div></div><StatusIndicator label={operatorStatus(run)} tone={statusTone(deriveRunSemantics(run).status === "recorded" ? run.status : deriveRunSemantics(run).status)} /></div></section><DecisionLifecycleSummary run={run} /><div className="investigation-tabs" role="tablist" aria-label="Investigation sections">{(["evidence", "policy", "execution", "telemetry"] as const).map((item) => <button type="button" role="tab" id={`tab-${item}`} aria-controls={`panel-${item}`} aria-selected={tab === item} tabIndex={tab === item ? 0 : -1} key={item} onClick={() => selectTab(item)} onKeyDown={(event) => { const tabs = ["evidence", "policy", "execution", "telemetry"] as const; const index = tabs.indexOf(item); const next = event.key === "ArrowRight" ? tabs[(index + 1) % tabs.length] : event.key === "ArrowLeft" ? tabs[(index + tabs.length - 1) % tabs.length] : event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[tabs.length - 1] : null; if (next) { event.preventDefault(); selectTab(next); document.getElementById(`tab-${next}`)?.focus(); } }}><span>{item.charAt(0).toUpperCase() + item.slice(1)}</span></button>)}</div><section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0} className="space-y-5">{tab === "evidence" && <><ConversationEvidence run={run} messages={demoScenario?.messages} /><EvidenceRelationshipGraph run={run} /><div className="grid gap-5 xl:grid-cols-2"><RagEvidenceCard run={run} /><MemoryEvidenceCard run={run} records={memoryRecords} /></div></>}{tab === "policy" && <><DecisionExplanationCard run={run} /><div className="grid gap-5 xl:grid-cols-2"><PolicyExplanation run={run} /><DecisionCompilerCard run={run} /></div><ProposalEvidenceCard run={run} proposal={run.proposal} /></>}{tab === "execution" && <><DecisionContextSummary run={run} /><AgentLifecyclePanel run={run} /><CompareRuns current={run} runs={availableRuns} /></>}{tab === "telemetry" && <><OperationalTraceTimeline run={run} /><Card as="section" className="p-5"><SectionHeader eyebrow="Persistence" title="Run metadata" description="Safe identifiers returned by the operator projection." /><div className="divide-y divide-border/70"><DataRow label="Request ID" value={run.request_id} mono /><DataRow label="Action ID" value={run.action_id ?? "Not recorded"} mono /><DataRow label="Duration" value={run.duration_ms > 0 ? `${run.duration_ms.toFixed(0)} ms` : run.run_id.startsWith("demo-") ? "Not applicable" : "Not recorded"} /><DataRow label="Conversation" value={run.conversation_id} mono /><DataRow label="Trace ID" value={run.trace_id ?? "Not recorded"} mono /><DataRow label="Failure category" value={humanize(run.failure_category)} /><DataRow label="Recovery action" value={humanize(run.recovery_action)} /></div></Card></>}</section>{reportOpen && <InvestigationReportModal run={run} onClose={() => setReportOpen(false)} onExport={() => exportInvestigationReport(run)} />}</div>;
 }

@@ -16,7 +16,7 @@ export function ToolExecutionCard({ tools }: { tools: ToolEvent[] }) {
       <div className="mt-3 space-y-2">
         {tools.map((tool) => { const status = projectedStatus(tool.status); return <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-void/20 px-3 py-2 text-xs" key={`${tool.name}-${tool.status}`}><span className="font-mono text-main">{tool.name}</span><span className="flex items-center gap-2"><Badge tone={status.tone}>{status.label}</Badge><span className="text-muted">{tool.duration_ms.toFixed(1)} ms</span></span></div>; })}
       </div>
-      <p className="mt-3 text-[11px] leading-5 text-muted">Tool arguments are intentionally omitted. Execution remains behind validation and authority checks.</p>
+      <p className="mt-3 text-xs leading-5 text-muted">Tool arguments are intentionally omitted. Execution remains behind validation and authority checks.</p>
     </Card>
   );
 }

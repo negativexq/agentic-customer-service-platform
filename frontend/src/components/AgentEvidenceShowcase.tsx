@@ -1,4 +1,4 @@
-import { ArrowDown, Brain, CheckCircle2, CircleAlert, CircleDot, FileText, LockKeyhole, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowDown, Brain, CheckCircle2, CircleAlert, CircleDot, FileText, LockKeyhole, MessageSquare, ShieldCheck, Bot } from "lucide-react";
 import type { AgentProposal, AgentRun, DemoConversationMessage, DemoMemoryEvidence, DemoScenario, MemoryRecord, MemoryUsage } from "../types";
 import { Badge, Card, EmptyState, SectionHeader, StatusIndicator } from "./ui";
 
@@ -63,17 +63,17 @@ export function ConversationEvidence({ run, request, response, messages = [] }: 
       <div className="conversation-evidence mt-4">
         {rows.map((row, index) => (
           <div data-testid={row.role === "customer" ? "conversation-request" : "agent-response"} className={`conversation-evidence-row conversation-evidence-${row.role}`} key={`${row.role}-${index}`}>
-            <div className="conversation-evidence-icon">{row.role === "customer" ? <MessageSquare size={15} aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}</div>
+            <div className="conversation-evidence-icon">{row.role === "customer" ? <MessageSquare size={15} aria-hidden="true" /> : <Bot size={15} aria-hidden="true" />}</div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-main">{row.label}</span><Badge tone={row.role === "customer" ? "neutral" : "info"}>{row.role === "customer" ? "request" : "bounded response"}</Badge>{"evidence_tags" in row && row.evidence_tags?.map((tag) => <Badge tone="neutral" key={tag}>{tag}</Badge>)}</div>
               <p className="mt-2 text-sm leading-6 text-main">{row.body}</p>
-              {"state" in row && row.state && <small className="mt-2 block text-[11px] text-muted">State: {displayStatus(row.state)}</small>}
-              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-[10px] text-muted">{new Date(row.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
+              {"state" in row && row.state && <small className="mt-2 block text-xs text-muted">State: {displayStatus(row.state)}</small>}
+              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-xs text-muted">{new Date(row.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-muted"><span>State</span><Badge tone={toneFor(run.status)}>{displayStatus(run.status)}</Badge><span>·</span><span>Intent {humanize(run.intent)}</span></div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted"><span>State</span><Badge tone={toneFor(run.status)}>{displayStatus(run.status)}</Badge><span>·</span><span>Intent {humanize(run.intent)}</span></div>
     </section>
   );
 }
@@ -136,7 +136,7 @@ export function RagEvidenceCard({ run }: { run: AgentRun }) {
 
 export function ProposalEvidenceCard({ run, proposal, confidence }: { run: AgentRun; proposal?: AgentProposal | null; confidence?: number | null }) {
   const metadata = run.provider_metadata;
-  return <Card as="section" className="p-5" aria-label="Model proposal"><SectionHeader eyebrow="Untrusted model output" title="LLM proposal" description="Semantic suggestion only; deterministic controls decide admissibility." action={<Badge tone="warning">Not execution authority</Badge>} />{proposal ? <div className="proposal-evidence-grid mt-4"><div><span className="field-label">Intent</span><strong>{humanize(proposal.intent)}</strong></div><div><span className="field-label">Suggested action</span><strong>{proposal.suggested_action || "Not recorded"}</strong></div><div><span className="field-label">Validation</span><strong>{humanize(proposal.validation)}</strong></div><div><span className="field-label">Provider</span><strong>{run.provider || "Not recorded"}</strong></div><div><span className="field-label">Model</span><strong>{run.model || metadata?.model || "Not recorded"}</strong></div><div><span className="field-label">Latency</span><strong>{metadata?.latency_ms !== null && metadata?.latency_ms !== undefined ? `${metadata.latency_ms} ms` : "Not recorded"}</strong></div><div><span className="field-label">Confidence</span><strong>{confidence !== null && confidence !== undefined ? confidence.toFixed(2) : "Not recorded"}</strong></div><div><span className="field-label">Evidence references</span><strong>{proposal.evidence_references.length || "Not recorded"}</strong></div></div> : <EmptyState title="No model proposal recorded" description="The current run projection does not contain a bounded proposal." icon={Sparkles} />}<div className="notice notice-warning mt-4"><Sparkles size={15} aria-hidden="true" /><span>Model output is untrusted until validated by deterministic controls.</span></div></Card>;
+  return <Card as="section" className="p-5" aria-label="Model proposal"><SectionHeader eyebrow="Untrusted model output" title="LLM proposal" description="Semantic suggestion only; deterministic controls decide admissibility." action={<Badge tone="warning">Not execution authority</Badge>} />{proposal ? <div className="proposal-evidence-grid mt-4"><div><span className="field-label">Intent</span><strong>{humanize(proposal.intent)}</strong></div><div><span className="field-label">Suggested action</span><strong>{proposal.suggested_action || "Not recorded"}</strong></div><div><span className="field-label">Validation</span><strong>{humanize(proposal.validation)}</strong></div><div><span className="field-label">Provider</span><strong>{run.provider || "Not recorded"}</strong></div><div><span className="field-label">Model</span><strong>{run.model || metadata?.model || "Not recorded"}</strong></div><div><span className="field-label">Latency</span><strong>{metadata?.latency_ms !== null && metadata?.latency_ms !== undefined ? `${metadata.latency_ms} ms` : "Not recorded"}</strong></div><div><span className="field-label">Confidence</span><strong>{confidence !== null && confidence !== undefined ? confidence.toFixed(2) : "Not recorded"}</strong></div><div><span className="field-label">Evidence references</span><strong>{proposal.evidence_references.length || "Not recorded"}</strong></div></div> : <EmptyState title="No model proposal recorded" description="The current run projection does not contain a bounded proposal." icon={Bot} />}<div className="notice notice-warning mt-4"><Bot size={15} aria-hidden="true" /><span>Model output is untrusted until validated by deterministic controls.</span></div></Card>;
 }
 
 export function DecisionCompilerCard({ run }: { run: AgentRun }) {

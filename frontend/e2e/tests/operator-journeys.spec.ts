@@ -95,9 +95,11 @@ test.describe.serial("operator journey evidence", () => {
 
   test("run investigation exposes lifecycle, evidence, decision, authority, and outcome", async ({ page }) => {
     await loginOperator(page, "/runs/demo-refund-memory-rag-20260823");
-    await expect(page.getByRole("heading", { name: "demo-refund-memory-rag-20260823" })).toBeVisible();
-    await expect(page.locator('[aria-label="Operational trace timeline"]')).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Awaiting confirmation");
     await expect(page.locator('[aria-label="Evidence relationship graph"]')).toBeVisible();
+    await page.getByRole("tab", { name: "Telemetry", exact: true }).click();
+    await expect(page.locator('[aria-label="Operational trace timeline"]')).toBeVisible();
+    await page.getByRole("tab", { name: "Evidence", exact: true }).click();
     await expect(page.getByText(/confirmation required/i).first()).toBeVisible();
     await expect(page.getByText("Awaiting confirmation", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "View investigation report" }).click();

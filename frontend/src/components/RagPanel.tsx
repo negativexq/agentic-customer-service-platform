@@ -76,7 +76,7 @@ export function RagPanel({
             <CheckCircle2 size={15} className="text-success" aria-hidden="true" />
             <div>
               <div className="text-xs font-medium text-main">Evidence retrieved</div>
-              <div className="mt-1 text-[11px] text-muted">
+              <div className="mt-1 text-xs text-muted">
                 Bounded document metadata supports grounding inspection; raw content is not exposed.
               </div>
             </div>
@@ -88,7 +88,7 @@ export function RagPanel({
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-main">{doc.title}</div>
                   <div className="mt-1 text-xs text-muted">Document section · {doc.section}</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[11px] text-info">
+                  <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs text-info">
                     <span>Citation [{doc.citation_id}]</span>
                     <span className="text-muted">Source {doc.source}</span>
                   </div>
