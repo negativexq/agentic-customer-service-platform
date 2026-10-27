@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from threading import RLock
 from typing import Protocol
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,11 @@ class AgentRunProjectionRepository(Protocol):
     def get_by_run_id(self, run_id: str, *, tenant_id: str = "default") -> AgentRunView | None: ...
 
     def list_recent(
-        self, *, tenant_id: str = "default", limit: int = DEFAULT_PROJECTION_QUERY_LIMIT
+        self,
+        *,
+        tenant_id: str = "default",
+        limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]: ...
 
     def list_for_customer(
@@ -50,6 +54,7 @@ class AgentRunProjectionRepository(Protocol):
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]: ...
 
 
@@ -87,11 +92,21 @@ class InMemoryAgentRunProjectionRepository:
             )
 
     def list_recent(
-        self, *, tenant_id: str = "default", limit: int = DEFAULT_PROJECTION_QUERY_LIMIT
+        self,
+        *,
+        tenant_id: str = "default",
+        limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]:
         with self._lock:
             return _sort_recent(
-                [item for item in self._projections.values() if item.tenant_id == tenant_id], limit
+                [
+                    item
+                    for item in self._projections.values()
+                    if item.tenant_id == tenant_id
+                    and (customer_ids is None or item.customer_id in customer_ids)
+                ],
+                limit,
             )
 
     def list_for_customer(
@@ -117,6 +132,7 @@ class InMemoryAgentRunProjectionRepository:
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]:
         with self._lock:
             matching = [
@@ -124,6 +140,7 @@ class InMemoryAgentRunProjectionRepository:
                 for projection in self._projections.values()
                 if projection.conversation_id == conversation_id
                 and projection.tenant_id == tenant_id
+                and (customer_ids is None or projection.customer_id in customer_ids)
             ]
             return _sort_recent(matching, limit)[::-1]
 
@@ -170,10 +187,19 @@ class SqlAlchemyAgentRunProjectionRepository:
         return _from_record(record) if record is not None else None
 
     def list_recent(
-        self, *, tenant_id: str = "default", limit: int = DEFAULT_PROJECTION_QUERY_LIMIT
+        self,
+        *,
+        tenant_id: str = "default",
+        limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]:
         return self._list(
-            select(AgentRunProjectionRecord).where(AgentRunProjectionRecord.tenant_id == tenant_id),
+            select(AgentRunProjectionRecord).where(
+                AgentRunProjectionRecord.tenant_id == tenant_id,
+                true()
+                if customer_ids is None
+                else AgentRunProjectionRecord.effective_customer_id.in_(customer_ids),
+            ),
             limit,
             newest_first=True,
         )
@@ -200,11 +226,15 @@ class SqlAlchemyAgentRunProjectionRepository:
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]:
         return self._list(
             select(AgentRunProjectionRecord).where(
                 AgentRunProjectionRecord.conversation_id == conversation_id,
                 AgentRunProjectionRecord.tenant_id == tenant_id,
+                true()
+                if customer_ids is None
+                else AgentRunProjectionRecord.effective_customer_id.in_(customer_ids),
             ),
             limit,
             newest_first=False,
