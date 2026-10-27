@@ -51,6 +51,10 @@ def main() -> int:
         if not services[service_name].get("healthcheck"):
             return _fail(f"service {service_name} lacks a healthcheck")
 
+    port_error = validate_published_ports(services)
+    if port_error is not None:
+        return _fail(port_error)
+
     if args.evidence_root is not None and not _check_local_evidence_root(args.evidence_root):
         return _fail("local evidence root is not an accessible directory")
 
@@ -78,6 +82,35 @@ def main() -> int:
     return 0
 
 
+def validate_published_ports(services: Mapping[str, object]) -> str | None:
+    """Only frontend ingress and loopback Prometheus inspection may be published."""
+    for name, service in services.items():
+        if name in {"frontend", "prometheus"}:
+            continue
+        if isinstance(service, Mapping) and service.get("ports"):
+            return f"internal service {name} publishes host ports"
+    frontend = services.get("frontend")
+    if not isinstance(frontend, Mapping):
+        return "frontend service is missing"
+    ports = frontend.get("ports", [])
+    if not isinstance(ports, list) or len(ports) != 1:
+        return "frontend must publish exactly one ingress port"
+    port = ports[0]
+    if not isinstance(port, Mapping) or port.get("target") != 8080 or port.get("protocol") != "tcp":
+        return "frontend may publish only its HTTP ingress"
+    prometheus = services.get("prometheus")
+    if isinstance(prometheus, Mapping):
+        for port in prometheus.get("ports", []):
+            if (
+                not isinstance(port, Mapping)
+                or port.get("host_ip") not in {"127.0.0.1", "::1"}
+                or port.get("target") != 9090
+                or port.get("protocol") != "tcp"
+            ):
+                return "Prometheus inspection port must be loopback-only TCP/9090"
+    return None
+
+
 def _render_compose() -> dict[str, object]:
     environment = os.environ.copy()
     environment.update(
@@ -95,6 +128,8 @@ def _render_compose() -> dict[str, object]:
         [
             "docker",
             "compose",
+            "--profile",
+            "metrics",
             "-f",
             "docker-compose.yml",
             "-f",

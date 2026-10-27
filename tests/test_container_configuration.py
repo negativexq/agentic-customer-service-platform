@@ -20,7 +20,10 @@ def test_backend_runtime_is_minimal_non_root_and_sigterm_aware() -> None:
 
 def test_compose_uses_readiness_and_production_resource_boundaries() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
-    production = yaml.safe_load((ROOT / "docker-compose.prod.yml").read_text())
+    # These assertions inspect overlay values; rendered merge semantics have separate tests.
+    production = yaml.safe_load(
+        (ROOT / "docker-compose.prod.yml").read_text().replace("!reset []", "[]")
+    )
     backend_healthcheck = " ".join(compose["services"]["backend"]["healthcheck"]["test"])
     backend = production["services"]["backend"]
     frontend = production["services"]["frontend"]
@@ -55,7 +58,10 @@ def test_frontend_config_applies_security_and_cache_boundaries() -> None:
 
 def test_compose_wires_demo_authentication_and_bootstrap_without_production_inheritance() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
-    production = yaml.safe_load((ROOT / "docker-compose.prod.yml").read_text())
+    # These assertions inspect overlay values; rendered merge semantics have separate tests.
+    production = yaml.safe_load(
+        (ROOT / "docker-compose.prod.yml").read_text().replace("!reset []", "[]")
+    )
 
     assert compose["services"]["backend"]["environment"]["AUTH_MODE"] == "local_demo"
     assert compose["services"]["backend"]["environment"]["AGENT_DECISION_CONTRACT_VERSION"] == (
