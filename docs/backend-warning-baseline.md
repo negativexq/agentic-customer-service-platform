@@ -1,6 +1,6 @@
 # Backend test warning baseline
 
-Recorded on 2026-10-28 against main baseline `c650a2b` and the warning-cleanup changes in issue [#27](https://github.com/negativexq/agentic-customer-service-platform/issues/27).
+Recorded on 2026-10-28 against main baseline `c650a2b` and the warning-cleanup changes tracked in issue [#27](https://github.com/negativexq/agentic-customer-service-platform/issues/27) / PR [#28](https://github.com/negativexq/agentic-customer-service-platform/pull/28).
 
 ## Before
 
@@ -21,6 +21,8 @@ The volume represents repeated calls to the same deprecated APIs. A stricter res
 - Pytest treats `DeprecationWarning`, `StarletteDeprecationWarning`, `ResourceWarning`, and `PytestUnraisableExceptionWarning` as errors. There are no new warning-suppression rules.
 
 ## After and reproduction
+
+[Unmodified local pytest output](evidence/backend-pytest-warnings-2026-10-28.txt) is retained in Git (SHA-256 `09f83dbd54fe792632609b4f07ad2c6d35eaab4f5583807ddc60ab71e1737e17`). It was captured from a clean test environment with local LLM overrides excluded, using the implementation committed in `db2dde562036d3d9b53be5e7b0f810a4e9bfd424`. The [PR checks](https://github.com/negativexq/agentic-customer-service-platform/pull/28/checks) provide independent CI verification.
 
 The full local run with real PostgreSQL enabled and **all warning categories promoted to errors** completed with **1192 passed, 1 skipped, 0 warnings**. The two additional cases are SQLite/PostgreSQL timestamp regressions. The skip is the existing optional production frontend-bundle check when no bundle has been built in the backend workspace.
 

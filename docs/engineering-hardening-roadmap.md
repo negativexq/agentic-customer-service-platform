@@ -36,7 +36,7 @@ boundaries; it should not replace them with more LLM-driven behavior.
 - [ ] P2 tool-owned revalidation strategy
 - [ ] P2/P3 frontend request/state correctness
 - [ ] P3 graph compile benchmark
-- [x] P3 warning cleanup — #27; zero-warning backend baseline
+- [x] P3 warning cleanup — #27 / #28; zero-warning backend baseline
 - [ ] P3 RAG semantic evaluation expansion
 
 ## Closure evidence — 2026-10-27
@@ -619,7 +619,7 @@ architecture unchanged.
 
 **Priority:** P3
 **Category:** Maintainability / release engineering
-**Status:** DONE — warning cleanup, issue #27
+**Status:** DONE — warning cleanup, issue #27 / PR #28
 **Classification:** Confirmed warning debt — fixed
 
 #### Confirmed problem and resolution
