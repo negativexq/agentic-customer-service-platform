@@ -28,6 +28,46 @@ PostgreSQL. The database benchmark creates and removes only its private
 `capacity_benchmark_effects` table; do not point it at an application database
 without an approved maintenance window.
 
+## Real PostgreSQL application evidence
+
+The required PostgreSQL workload is separate from the SQLite/INSERT primitive
+above. Run against a dedicated test database with schema creation permission:
+
+```bash
+CAPACITY_DATABASE_URL=postgresql+psycopg://user:password@localhost/test_db \
+  uv run --frozen python -m scripts.benchmark_postgres_application \
+  --operations 1000 --workers 8 \
+  --output artifacts/benchmarks/postgres-application.json
+```
+
+`make capacity-postgres-benchmark` runs the same tool with default workload
+settings. A missing/non-PostgreSQL URL is an error; there is no SQLite fallback.
+The tool creates a UUID-named schema, seeds synthetic delivered orders, runs the
+real `request_refund` / `execute_idempotent` / `commit_business_write` transaction
+path, and removes its schema on success or failure. It never reuses application
+tables or the older primitive benchmark's fixed table name.
+
+Three scenarios measure same-key replay, different keys competing for one order,
+and independent orders. They verify actual refund and receipt counts, replay
+result identity, expected duplicate rejection, and unexpected errors. Any failed
+invariant returns a nonzero exit. Failure reports omit driver exception payloads
+and connection URLs.
+
+The version-1 JSON report records PostgreSQL version/isolation, operations,
+workers/pool limits, Python/OS/architecture/CPU metadata, status/error counts,
+p50/p95/p99/mean transaction latency, elapsed time, attempts/sec and effects/sec.
+Transaction latency includes connection checkout, lock wait, and commit, but not
+time queued before a worker starts. Throughput includes scheduling and pool
+startup for each scenario. Bootstrap/seeding are excluded from workload timing.
+
+CI explicitly supplies `CAPACITY_DATABASE_URL` using its PostgreSQL service,
+runs 1000 independent operations with 8 workers, and retains sanitized JSON as
+`postgres-benchmark-<run>-<attempt>` for 14 days, including invariant failures.
+The artifact's workflow run identifies the tested commit. These measurements
+exercise application transactions over a local database connection; they do not
+include HTTP, LLM, Qdrant, or deployment-network latency, and are not production
+SLO or managed-database sizing evidence.
+
 ## Workloads
 
 The benchmark covers:

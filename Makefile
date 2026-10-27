@@ -1,4 +1,4 @@
-.PHONY: sync dev up down test lint typecheck migrate seed rag-ingest rag-reset eval eval-safety eval-resilience eval-rag-grounding eval-report eval-baseline d2d-dry-run verify-evidence observability-up observability-down frontend-install frontend-dev frontend-build frontend-test frontend-typecheck frontend-lint ci-backend ci-frontend security-audit docker-validate production-topology-validate production-config-validate recovery-validate capacity-benchmark capacity-db-benchmark capacity-load e2e-smoke
+.PHONY: sync dev up down test lint typecheck migrate seed rag-ingest rag-reset eval eval-safety eval-resilience eval-rag-grounding eval-report eval-baseline d2d-dry-run verify-evidence observability-up observability-down frontend-install frontend-dev frontend-build frontend-test frontend-typecheck frontend-lint ci-backend ci-frontend security-audit docker-validate production-topology-validate production-config-validate recovery-validate capacity-benchmark capacity-db-benchmark capacity-postgres-benchmark capacity-load e2e-smoke
 
 sync:
 	uv sync --frozen
@@ -113,6 +113,9 @@ capacity-benchmark:
 
 capacity-db-benchmark:
 	uv run --frozen python scripts/benchmark_postgres_capacity.py
+
+capacity-postgres-benchmark:
+	uv run --frozen python -m scripts.benchmark_postgres_application
 
 capacity-load:
 	uv run --frozen python scripts/load_test_capacity.py
