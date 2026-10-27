@@ -4,6 +4,7 @@ from sqlalchemy import ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.time import utc_now_naive
 from app.memory.schemas import (
     MemoryRedactionState,
     MemoryRetentionPolicy,
@@ -32,9 +33,9 @@ class MemoryRecord(Base):
     normalized_key: Mapped[str] = mapped_column(String(64), nullable=False)
     source: Mapped[MemorySource] = mapped_column(String(30), nullable=False)
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        default=utc_now_naive, onupdate=utc_now_naive, nullable=False
     )
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     status: Mapped[MemoryStatus] = mapped_column(

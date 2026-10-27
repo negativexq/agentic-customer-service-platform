@@ -33,11 +33,11 @@ from scripts.otel_metrics_delivery_smoke import (
 class RuntimeStack(MetricsStack):
     def __init__(self, project: str, scenario: str) -> None:
         expect(project.startswith("t4d-metrics-t5-"), "T5 disposable project prefix required.")
-        super().__init__(project)
         expect(
             scenario in {"graceful", "jaeger-outage", "both-outage", "disabled", "draining"},
             "Unknown runtime scenario.",
         )
+        super().__init__(project)
         self.environment.update(
             OTEL_BSP_SCHEDULE_DELAY="60000",
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT="0.5",

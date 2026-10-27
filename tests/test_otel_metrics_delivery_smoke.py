@@ -14,10 +14,12 @@ def test_delivery_runner_requires_disposable_project_namespace() -> None:
 
 
 def test_delivery_runner_pins_opt_in_destination_and_uses_ephemeral_ports(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("COMPOSE_OTEL_METRICS_ENDPOINT", "http://external.invalid:4317")
     stack = MetricsStack("t4d-metrics-unit-control")
+    request.addfinalizer(stack.close_fixture)
     assert stack.environment["OTEL_METRICS_ENABLED"] == "true"
     assert stack.environment["COMPOSE_OTEL_METRICS_ENDPOINT"] == "http://otel-collector:4317"
     assert stack.environment["PROMETHEUS_PORT"] == stack.environment["BACKEND_PORT"] == "0"

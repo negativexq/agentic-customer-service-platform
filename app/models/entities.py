@@ -16,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.time import utc_now_naive
 
 
 class OrderStatus(StrEnum):
@@ -67,7 +68,7 @@ class Tenant(Base):
     status: Mapped[TenantStatus] = mapped_column(
         String(20), nullable=False, default=TenantStatus.ACTIVE
     )
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
 
 
 class Customer(Base):
@@ -83,7 +84,7 @@ class Customer(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str] = mapped_column(String(320), index=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     orders: Mapped[list["Order"]] = relationship(back_populates="customer")
     tickets: Mapped[list["SupportTicket"]] = relationship(back_populates="customer")
     refund_requests: Mapped[list["RefundRequest"]] = relationship(back_populates="customer")
@@ -101,7 +102,7 @@ class Order(Base):
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True, nullable=False)
     status: Mapped[OrderStatus] = mapped_column(String(20), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     customer: Mapped[Customer] = relationship(back_populates="orders")
     tickets: Mapped[list["SupportTicket"]] = relationship(back_populates="order")
     refund_requests: Mapped[list["RefundRequest"]] = relationship(back_populates="order")
@@ -121,7 +122,7 @@ class SupportTicket(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[TicketStatus] = mapped_column(String(20), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     customer: Mapped[Customer] = relationship(back_populates="tickets")
     order: Mapped[Order | None] = relationship(back_populates="tickets")
 
@@ -148,7 +149,7 @@ class RefundRequest(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True, nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[RefundStatus] = mapped_column(String(20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     customer: Mapped[Customer] = relationship(back_populates="refund_requests")
     order: Mapped[Order] = relationship(back_populates="refund_requests")
 
@@ -168,7 +169,7 @@ class Escalation(Base):
     priority: Mapped[EscalationPriority] = mapped_column(String(20), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[EscalationStatus] = mapped_column(String(20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     customer: Mapped[Customer] = relationship(back_populates="escalations")
     ticket: Mapped[SupportTicket | None] = relationship()
     order: Mapped[Order | None] = relationship(back_populates="escalations")
@@ -197,7 +198,7 @@ class BusinessActionReceipt(Base):
     customer_id: Mapped[int] = mapped_column(index=True, nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     result_id: Mapped[int] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
 
 
 class PolicyAuditRecord(Base):
@@ -234,7 +235,7 @@ class PolicyAuditRecord(Base):
     confirmation_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
     revalidation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     execution_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
 
 
 class AgentRunProjectionRecord(Base):
