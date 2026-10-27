@@ -23,6 +23,22 @@ jobs:
     name: Backend Quality
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: concurrency_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d concurrency_tests"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg://test:test@localhost:5432/concurrency_tests
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
