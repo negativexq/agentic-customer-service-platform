@@ -3,12 +3,14 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
+from app.agent.compiler_contracts import CompilerReasonCode
 from app.agent.decision_compiler import (
     BusinessTargetResolver,
+    CompiledDecision,
     CompileStatus,
     DecisionCompiler,
 )
-from app.agent.schemas import AgentErrorCategory, SemanticDecision
+from app.agent.schemas import AgentErrorCategory, Intent, SemanticDecision
 from app.agent.semantic_grounding import (
     GroundingStatus,
     SemanticGrounding,
@@ -94,9 +96,8 @@ def make_compile_decision_node(
                 ),
                 "workflow_id": workflow_id,
             }
-        workflow_is_active = bool(
-            result.status == CompileStatus.CLARIFICATION_REQUIRED and result.missing_required_fields
-        )
+        workflow_fields = _workflow_input_fields(result)
+        workflow_is_active = bool(workflow_fields)
         validation_context: dict[str, object] = {
             "grounding_status": grounding.status.value,
             "grounding_reference_type": grounding.reference_type,
@@ -123,7 +124,7 @@ def make_compile_decision_node(
             "pending_workflow_decision": decision
             if result.status == CompileStatus.CLARIFICATION_REQUIRED
             else None,
-            "missing_required_fields": result.missing_required_fields,
+            "missing_required_fields": workflow_fields,
             "collected_entities": _collected_entities(decision),
             "workflow_active": workflow_is_active,
             "workflow_resume_status": None,
@@ -190,3 +191,29 @@ def _restored_grounding(state: AgentState, decision: SemanticDecision) -> Semant
         reference_type=reference_type,
         trusted_source=trusted_source,
     )
+
+
+def _workflow_input_fields(result: CompiledDecision) -> list[str]:
+    """Keep the current workflow input boundary, using compiler codes instead of copy.
+
+    The persisted AgentState key stays compatible with suspended checkpoints.
+    Other clarification metadata (memory, knowledge, contradictory requests) is
+    descriptive and does not create an incremental business workflow.
+    """
+    if result.status != CompileStatus.CLARIFICATION_REQUIRED:
+        return []
+    workflow_codes = {
+        CompilerReasonCode.ORDER_REQUIRED,
+        CompilerReasonCode.TICKET_REQUIRED,
+        CompilerReasonCode.REFUND_REASON_REQUIRED,
+        CompilerReasonCode.REFUND_REASON_UNSUPPORTED,
+        CompilerReasonCode.TICKET_DETAILS_REQUIRED,
+        CompilerReasonCode.ESCALATION_DETAILS_REQUIRED,
+    }
+    targeted_business_request = (
+        result.reason_code == CompilerReasonCode.TARGET_REQUIRED
+        and result.intent in {Intent.ORDER_CANCEL, Intent.REFUND_REQUEST, Intent.ORDER_LOOKUP}
+    )
+    if result.reason_code in workflow_codes or targeted_business_request:
+        return [field.value for field in result.clarification_fields]
+    return []

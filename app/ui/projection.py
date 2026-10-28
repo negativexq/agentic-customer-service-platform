@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import PurePath
 from time import perf_counter
 
+from app.agent.compiler_contracts import CompilerReasonCode
 from app.agent.schemas import AgentErrorCategory, AgentResponse
 from app.agent.state import AgentState
 from app.core.config import get_settings
@@ -411,6 +412,9 @@ def _decision_evidence(
             trusted_source=state.get("grounding_trusted_source"),
         ),
         compiler=UICompilerDecision(
+            reason_code=getattr(compile_result, "reason_code", CompilerReasonCode.NOT_RECORDED),
+            missing_fields=getattr(compile_result, "missing_fields", []),
+            clarification_fields=getattr(compile_result, "clarification_fields", []),
             status=compiler_status or "not_applicable",
             selected_tool=(
                 getattr(compile_result, "selected_tool", None)

@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.agent.compiler_contracts import CompilerField, CompilerReasonCode
 from app.agent.schemas import AgentProposal, ProviderRunMetadata
 from app.health import ComponentHealthStatus
 
@@ -137,6 +138,9 @@ class UIGroundingEvidence(BaseModel):
 
 
 class UICompilerDecision(BaseModel):
+    reason_code: CompilerReasonCode = CompilerReasonCode.NOT_RECORDED
+    missing_fields: list[CompilerField] = Field(default_factory=list, max_length=10)
+    clarification_fields: list[CompilerField] = Field(default_factory=list, max_length=10)
     status: str = "not_recorded"
     selected_tool: str | None = None
     requires_retrieval: bool = False
