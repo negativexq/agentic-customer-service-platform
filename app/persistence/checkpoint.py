@@ -35,6 +35,8 @@ CHECKPOINT_ALLOWED_MSGPACK_TYPES: tuple[tuple[str, str], ...] = (
     ("app.agent.schemas", "SemanticDecision"),
     ("app.agent.schemas", "SemanticTarget"),
     ("app.agent.decision_compiler", "CompiledDecision"),
+    ("app.agent.compiler_contracts", "CompilerReasonCode"),
+    ("app.agent.compiler_contracts", "CompilerField"),
     ("app.agent.decision_compiler", "CompileStatus"),
     # ExecutionContext persists the authenticated principal and its actor enum.
     ("app.auth.models", "ActorType"),

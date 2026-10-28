@@ -137,7 +137,7 @@ export type DecisionEvidence = {
   execution_status?: string;
   authority?: string;
   grounding: { status: string; reference_type: string | null; trusted_source: string | null };
-  compiler: { status: string; selected_tool: string | null; requires_retrieval: boolean; reason: string | null };
+  compiler: { reason_code?: string; missing_fields?: string[]; clarification_fields?: string[]; status: string; selected_tool: string | null; requires_retrieval: boolean; reason: string | null };
   target_validation: { status: string };
   confirmation: { status: string; required: boolean; action_id: string | null; risk_level: number | null };
   write_outcome: { status: string };

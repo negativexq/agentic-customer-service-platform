@@ -10,8 +10,8 @@ unchecked items remain evidence gaps, architectural debt, governance work, or
 future optimization.
 
 **Last reconciled:** 2026-10-28, against merged main baseline
-[`c650a2b`](https://github.com/negativexq/agentic-customer-service-platform/commit/c650a2bacc4c22f8b6ac3fdede248b37721844bf),
-with warning-cleanup closure evidence recorded in item 11.
+[`4175908`](https://github.com/negativexq/agentic-customer-service-platform/commit/4175908c354374ec5bceac28728c2d687e927111),
+with compiler-contract closure evidence in item 6 and warning-cleanup evidence in item 11.
 DONE means the scoped fix is merged, its issue is closed, and the linked
 regressions passed; it is not a claim of unrestricted production certification.
 
@@ -32,7 +32,7 @@ boundaries; it should not replace them with more LLM-driven behavior.
 - [x] P1 PostgreSQL benchmark evidence — #19 / #23
 - [x] P1 refund eligibility concurrency — #13 / #14 (related completed work)
 - [ ] P2 repository governance
-- [ ] P2 structured compiler contracts
+- [x] P2 structured compiler contracts — #29 / #30; typed reasons and clarification fields
 - [ ] P2 tool-owned revalidation strategy
 - [ ] P2/P3 frontend request/state correctness
 - [ ] P3 graph compile benchmark
@@ -352,55 +352,39 @@ production-network latency; it is not whole-platform capacity or a production SL
 
 **Priority:** P2
 **Category:** Correctness / maintainability
-**Status:** TODO
-**Classification:** Architectural debt
-**Estimated effort:** M
+**Status:** DONE — issue #29 / PR #30, structured compiler contracts
+**Classification:** Presentation-coupled workflow contract — fixed
 
-#### Problem
+#### Confirmed problem and resolution
 
-Some resumable workflow semantics appear to infer fields from human-readable
-reason strings, for example parsing `missing refund reason` to derive
-`missing_fields=["reason"]`.
+The compiler derived resumable fields by parsing English explanation strings in
+`_missing_required_fields(intent, reason)`. Each branch now emits a typed
+`reason_code`, `missing_fields`, and `clarification_fields` directly. Display
+copy no longer determines those values or workflow continuation.
 
-#### Why it matters
+Genuinely absent fields are distinguished from supplied values that need repair
+(e.g. an unsupported refund justification or an ungrounded order reference).
+The result model rejects unknown field/code values, duplicates, incompatible
+status/code pairs, and executable arguments on non-action outcomes.
 
-Presentation copy is not a stable machine contract. A wording change can
-silently alter workflow state, clarification behavior, or execution readiness.
+#### Completed acceptance and evidence
 
-#### Target behavior
+- [x] Every compiler-produced outcome has a finite, validated machine code.
+- [x] Workflow input lists come from structured metadata, without prose parsing.
+- [x] Provider schemas/prompts do not gain compiler-owned fields.
+- [x] Operator projections expose bounded metadata additively; historical views
+  keep `not_recorded` rather than inferring codes from old explanations.
+- [x] Old checkpoint field names are accepted at the persisted-input boundary;
+  strict serialization adds exactly the two new enum types.
+- [x] Wording-change regressions run before clarification construction. Restart,
+  explicit confirmation, replay/one-effect behavior, and SQL projections pass.
+- [x] Full local PostgreSQL-enabled suite: **1237 passed, 1 skipped, 0 warnings**;
+  Ruff, mypy, and frontend type checks pass.
 
-The compiler emits structured fields directly, including:
-
-- `reason_code`
-- `missing_fields`
-- `clarification_fields`
-
-Human-readable `reason` remains presentation-only. No workflow or execution
-control logic parses it.
-
-#### Scope and implementation direction
-
-- Audit compiler result schemas and all consumers.
-- Add typed fields while preserving bounded operator/customer projections.
-- Migrate workflow lifecycle, clarification, and projection consumers to the
-  structured fields.
-- Keep compatibility adapters only at external boundaries that require them.
-
-#### Acceptance criteria
-
-- No execution or workflow transition depends on parsing human-readable reason
-  text.
-- Missing-field and reason-code values are typed and validated.
-- Projection copy can change without changing workflow semantics.
-- Existing confirmation, revalidation, policy, and idempotency behavior is
-  unchanged.
-
-#### Tests and evidence required
-
-- Compiler contract tests for every decision state.
-- Missing-field and clarification regression tests.
-- Property/fixture tests with changed presentation wording.
-- Operator projection compatibility tests.
+See the [contract and compatibility documentation](structured-compiler-contracts.md)
+and [contract regressions](../tests/test_compiler_contracts.py). The existing
+workflow-state key remains compatible. This does not introduce new incremental
+follow-up parsers or transfer execution authority to the model/compiler.
 
 ### 7. Evaluate a tool-owned revalidation contract
 
@@ -706,14 +690,14 @@ the task is to improve evidence about quality, not to lower thresholds globally.
 
 ## Remaining execution order
 
-Completed items 1, 2, 3, 5 and 11, and the related refund race, are closed with
+Completed items 1, 2, 3, 5, 6 and 11, and the related refund race, are closed with
 linked evidence above. Do not reopen them as implementation tasks without a
 new regression or a separately defined scope change.
 
 1. Finish the remaining evaluation artifact/output alignment in item 4; preserve
    the already-correct README denominator wording.
 2. Harden repository governance (item 8).
-3. Structure compiler and revalidation contracts (items 6 and 7).
+3. Audit tool-owned revalidation contracts (item 7).
 4. Address frontend stale-request/state ownership boundaries (item 9).
 5. Benchmark graph compilation before considering a refactor (item 10).
 6. Extend RAG semantic-quality evaluation (item 12).

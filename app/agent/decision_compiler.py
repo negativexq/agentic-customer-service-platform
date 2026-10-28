@@ -1,4 +1,4 @@
-"""Deterministic compilation for the semantic_decision_v2 contract."""
+"""Deterministic compilation of semantic proposals into typed runtime decisions."""
 
 from __future__ import annotations
 
@@ -6,10 +6,11 @@ import re
 from enum import StrEnum
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.compiler_contracts import CompilerField, CompilerReasonCode
 from app.agent.schemas import (
     AgentRequestType,
     Intent,
@@ -38,6 +39,34 @@ class CompileStatus(StrEnum):
     COMPILE_REJECTED = "compile_rejected"
 
 
+COMPILER_REASON_STATUSES: Final[dict[CompilerReasonCode, CompileStatus]] = {
+    CompilerReasonCode.COMPILED_ACTION: CompileStatus.COMPILED_ACTION,
+    CompilerReasonCode.KNOWLEDGE_ONLY: CompileStatus.NO_ACTION,
+    CompilerReasonCode.MEMORY_ACTION: CompileStatus.NO_ACTION,
+    CompilerReasonCode.INVALID_ESCALATION_PRIORITY: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.TARGET_NOT_ALLOWED: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.UNROUTED_INTENT: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.UNSUPPORTED_ACTION: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.UNSUPPORTED_READ: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.WRONG_TARGET_TYPE: CompileStatus.COMPILE_REJECTED,
+    CompilerReasonCode.CONTRADICTORY_ACTION: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.ESCALATION_DETAILS_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.KNOWLEDGE_QUERY_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.LATEST_ORDER_NOT_GROUNDED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.MEMORY_CANDIDATE_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.MEMORY_KEY_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.ORDER_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.ORDER_UNRESOLVED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.REFUND_REASON_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.REFUND_REASON_UNSUPPORTED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.REQUEST_CLARIFICATION_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.TARGET_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.TICKET_DETAILS_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.TICKET_REQUEST_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+    CompilerReasonCode.TICKET_REQUIRED: CompileStatus.CLARIFICATION_REQUIRED,
+}
+
+
 class CompiledDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -55,7 +84,32 @@ class CompiledDecision(BaseModel):
     refund_reason_support_status: str = RefundReasonSupportStatus.NOT_APPLICABLE.value
     refund_reason_validation_invoked: bool = False
     compiler_clarification_cause: str | None = None
-    missing_required_fields: list[str] = Field(default_factory=list)
+    reason_code: CompilerReasonCode = CompilerReasonCode.NOT_RECORDED
+    missing_fields: list[CompilerField] = Field(default_factory=list, max_length=10)
+    clarification_fields: list[CompilerField] = Field(
+        default_factory=list,
+        max_length=10,
+        validation_alias=AliasChoices("clarification_fields", "missing_required_fields"),
+    )
+
+    @model_validator(mode="after")
+    def validate_contract(self) -> CompiledDecision:
+        for fields in (self.missing_fields, self.clarification_fields):
+            if len(fields) != len(set(fields)):
+                raise ValueError("compiler fields must be unique")
+        if not set(self.missing_fields) <= set(self.clarification_fields):
+            raise ValueError("missing fields must require clarification")
+        if self.status != CompileStatus.CLARIFICATION_REQUIRED and self.clarification_fields:
+            raise ValueError("only clarification results may request fields")
+        if self.status == CompileStatus.COMPILED_ACTION:
+            if not self.selected_tool:
+                raise ValueError("compiled actions require a selected tool")
+        elif self.selected_tool is not None or self.tool_arguments:
+            raise ValueError("non-action outcomes cannot carry executable arguments")
+        expected = COMPILER_REASON_STATUSES.get(self.reason_code)
+        if self.reason_code != CompilerReasonCode.NOT_RECORDED and expected != self.status:
+            raise ValueError("compiler reason code does not match outcome")
+        return self
 
 
 class BusinessTargetResolver:
@@ -235,7 +289,11 @@ class DecisionCompiler:
     ) -> CompiledDecision:
         route = SEMANTIC_INTENT_ROUTES.get(decision.intent)
         if route is None:
-            return self._rejected(decision, "Semantic intent has no compiler route.")
+            return self._rejected(
+                decision,
+                "Semantic intent has no compiler route.",
+                reason_code=CompilerReasonCode.UNROUTED_INTENT,
+            )
         # Knowledge-only requests never authorize a mutation.  A provider may
         # carry forward a conversational target while answering an FAQ; that
         # target is irrelevant to read-only compilation and must not turn a
@@ -250,13 +308,18 @@ class DecisionCompiler:
             return self._clarification(
                 decision,
                 "The request needs a specific, authorized target.",
+                reason_code=CompilerReasonCode.TARGET_REQUIRED,
+                clarification_fields=_target_fields(decision),
             )
         if route == "action":
             if decision.intent == Intent.ORDER_CANCEL and self._is_contradictory_cancel(
                 user_message
             ):
                 return self._clarification(
-                    decision, "The cancellation request is contradictory and needs clarification."
+                    decision,
+                    "The cancellation request is contradictory and needs clarification.",
+                    reason_code=CompilerReasonCode.CONTRADICTORY_ACTION,
+                    clarification_fields=(),
                 )
             return self._compile_action(
                 decision, context, user_message, restored_action=restored_action
@@ -267,7 +330,12 @@ class DecisionCompiler:
             return self._compile_knowledge_and_action(decision, context)
         if route == "memory":
             return self._compile_memory(decision)
-        return self._clarification(decision, "The request needs clarification.")
+        return self._clarification(
+            decision,
+            "The request needs clarification.",
+            reason_code=CompilerReasonCode.REQUEST_CLARIFICATION_REQUIRED,
+            clarification_fields=(),
+        )
 
     def _compile_action(
         self,
@@ -280,12 +348,21 @@ class DecisionCompiler:
         tool = ACTION_TOOLS[decision.intent]
         if decision.intent in {Intent.ORDER_CANCEL, Intent.REFUND_REQUEST}:
             if self._wrong_order_target(decision.target):
-                return self._rejected(decision, "Order action received a ticket target.")
+                return self._rejected(
+                    decision,
+                    "Order action received a ticket target.",
+                    reason_code=CompilerReasonCode.WRONG_TARGET_TYPE,
+                )
             order_id = self._order_target(
                 decision.target, context.effective_customer_id, context.tenant_id
             )
             if order_id is None:
-                return self._clarification(decision, "A specific order is required.")
+                return self._clarification(
+                    decision,
+                    "A specific order is required.",
+                    reason_code=CompilerReasonCode.ORDER_REQUIRED,
+                    clarification_fields=(CompilerField.ORDER_ID,),
+                )
             if decision.intent == Intent.ORDER_CANCEL:
                 return self._action(decision, context, tool, {"order_id": order_id})
             if not decision.reason:
@@ -294,6 +371,8 @@ class DecisionCompiler:
                     "A refund reason is required.",
                     refund_reason_support_status=RefundReasonSupportStatus.MISSING,
                     compiler_clarification_cause=CompilerClarificationCause.MISSING_REFUND_REASON,
+                    reason_code=CompilerReasonCode.REFUND_REASON_REQUIRED,
+                    clarification_fields=(CompilerField.REASON,),
                 )
             if not restored_action and not self._reason_is_user_supported(
                 decision.reason, user_message
@@ -304,6 +383,8 @@ class DecisionCompiler:
                     refund_reason_support_status=RefundReasonSupportStatus.UNSUPPORTED,
                     refund_reason_validation_invoked=True,
                     compiler_clarification_cause=CompilerClarificationCause.UNSUPPORTED_REFUND_REASON,
+                    reason_code=CompilerReasonCode.REFUND_REASON_UNSUPPORTED,
+                    clarification_fields=(CompilerField.REASON,),
                 )
             return self._action(
                 decision,
@@ -316,22 +397,37 @@ class DecisionCompiler:
         if decision.intent == Intent.TICKET_CREATE:
             if not decision.category or not decision.description:
                 return self._clarification(
-                    decision, "Ticket category and description are required."
+                    decision,
+                    "Ticket category and description are required.",
+                    reason_code=CompilerReasonCode.TICKET_DETAILS_REQUIRED,
+                    clarification_fields=_absent_fields(
+                        decision, (CompilerField.CATEGORY, CompilerField.DESCRIPTION)
+                    ),
                 )
             if user_message and not self._contains_ticket_request(user_message):
                 return self._clarification(
-                    decision, "The customer must explicitly request a support ticket."
+                    decision,
+                    "The customer must explicitly request a support ticket.",
+                    reason_code=CompilerReasonCode.TICKET_REQUEST_REQUIRED,
+                    clarification_fields=(),
                 )
             order_id = None
             if decision.target is not None:
                 if self._wrong_order_target(decision.target):
-                    return self._rejected(decision, "Ticket creation received a ticket target.")
+                    return self._rejected(
+                        decision,
+                        "Ticket creation received a ticket target.",
+                        reason_code=CompilerReasonCode.WRONG_TARGET_TYPE,
+                    )
                 order_id = self._order_target(
                     decision.target, context.effective_customer_id, context.tenant_id
                 )
                 if order_id is None:
                     return self._clarification(
-                        decision, "The referenced order could not be resolved."
+                        decision,
+                        "The referenced order could not be resolved.",
+                        reason_code=CompilerReasonCode.ORDER_UNRESOLVED,
+                        clarification_fields=(CompilerField.ORDER_ID,),
                     )
             return self._action(
                 decision,
@@ -345,11 +441,23 @@ class DecisionCompiler:
             )
         if decision.intent == Intent.HUMAN_ESCALATION:
             if not decision.reason or not decision.priority or not decision.summary:
-                return self._clarification(decision, "Escalation details are required.")
+                return self._clarification(
+                    decision,
+                    "Escalation details are required.",
+                    reason_code=CompilerReasonCode.ESCALATION_DETAILS_REQUIRED,
+                    clarification_fields=_absent_fields(
+                        decision,
+                        (CompilerField.REASON, CompilerField.PRIORITY, CompilerField.SUMMARY),
+                    ),
+                )
             try:
                 priority = EscalationPriority(decision.priority).value
             except ValueError:
-                return self._rejected(decision, "Unsupported escalation priority.")
+                return self._rejected(
+                    decision,
+                    "Unsupported escalation priority.",
+                    reason_code=CompilerReasonCode.INVALID_ESCALATION_PRIORITY,
+                )
             escalated_order_id: int | None = None
             ticket_id: int | None = None
             if decision.target is not None:
@@ -359,7 +467,10 @@ class DecisionCompiler:
                     )
                     if escalated_order_id is None:
                         return self._clarification(
-                            decision, "The referenced order could not be resolved."
+                            decision,
+                            "The referenced order could not be resolved.",
+                            reason_code=CompilerReasonCode.ORDER_UNRESOLVED,
+                            clarification_fields=(CompilerField.ORDER_ID,),
                         )
                 elif decision.target.type == "explicit_ticket":
                     ticket_id = decision.target.ticket_id
@@ -375,7 +486,11 @@ class DecisionCompiler:
                     "summary": decision.summary,
                 },
             )
-        return self._rejected(decision, "Executable semantic intent is unsupported.")
+        return self._rejected(
+            decision,
+            "Executable semantic intent is unsupported.",
+            reason_code=CompilerReasonCode.UNSUPPORTED_ACTION,
+        )
 
     def _compile_read(
         self, decision: SemanticDecision, context: ExecutionContext, user_message: str
@@ -383,45 +498,88 @@ class DecisionCompiler:
         tool = READ_TOOLS[decision.intent]
         if decision.intent == Intent.CUSTOMER_LOOKUP:
             if decision.target is not None:
-                return self._rejected(decision, "Customer lookup does not accept a target.")
+                return self._rejected(
+                    decision,
+                    "Customer lookup does not accept a target.",
+                    reason_code=CompilerReasonCode.TARGET_NOT_ALLOWED,
+                )
             return self._action(decision, context, tool, {})
         if decision.intent == Intent.ORDER_LIST:
             if decision.target is not None:
-                return self._rejected(decision, "Order list does not accept a target.")
+                return self._rejected(
+                    decision,
+                    "Order list does not accept a target.",
+                    reason_code=CompilerReasonCode.TARGET_NOT_ALLOWED,
+                )
             return self._action(decision, context, tool, {})
         if decision.intent == Intent.TICKET_LIST:
             if decision.target is not None:
-                return self._rejected(decision, "Ticket list does not accept a target.")
+                return self._rejected(
+                    decision,
+                    "Ticket list does not accept a target.",
+                    reason_code=CompilerReasonCode.TARGET_NOT_ALLOWED,
+                )
             return self._action(decision, context, tool, {})
         if decision.intent == Intent.ORDER_LOOKUP:
             if self._wrong_order_target(decision.target):
-                return self._rejected(decision, "Order lookup received a ticket target.")
+                return self._rejected(
+                    decision,
+                    "Order lookup received a ticket target.",
+                    reason_code=CompilerReasonCode.WRONG_TARGET_TYPE,
+                )
             if decision.target is not None and decision.target.type == "latest_order":
                 if not self._is_latest_order_request(user_message):
                     return self._clarification(
-                        decision, "A latest-order reference is not grounded in the current request."
+                        decision,
+                        "A latest-order reference is not grounded in the current request.",
+                        reason_code=CompilerReasonCode.LATEST_ORDER_NOT_GROUNDED,
+                        clarification_fields=(CompilerField.ORDER_ID,),
                     )
             order_id = self._order_target(
                 decision.target, context.effective_customer_id, context.tenant_id
             )
             if order_id is None:
-                return self._clarification(decision, "A specific order is required.")
+                return self._clarification(
+                    decision,
+                    "A specific order is required.",
+                    reason_code=CompilerReasonCode.ORDER_REQUIRED,
+                    clarification_fields=(CompilerField.ORDER_ID,),
+                )
             return self._action(decision, context, tool, {"order_id": order_id})
         if decision.intent == Intent.TICKET_LOOKUP:
             if decision.target is None or decision.target.type != "explicit_ticket":
                 if decision.target is not None:
-                    return self._rejected(decision, "Ticket lookup received a non-ticket target.")
-                return self._clarification(decision, "A specific ticket is required.")
+                    return self._rejected(
+                        decision,
+                        "Ticket lookup received a non-ticket target.",
+                        reason_code=CompilerReasonCode.WRONG_TARGET_TYPE,
+                    )
+                return self._clarification(
+                    decision,
+                    "A specific ticket is required.",
+                    reason_code=CompilerReasonCode.TICKET_REQUIRED,
+                    clarification_fields=(CompilerField.TICKET_ID,),
+                )
             return self._action(decision, context, tool, {"ticket_id": decision.target.ticket_id})
-        return self._rejected(decision, "Read semantic intent is unsupported.")
+        return self._rejected(
+            decision,
+            "Read semantic intent is unsupported.",
+            reason_code=CompilerReasonCode.UNSUPPORTED_READ,
+        )
 
     def _compile_knowledge(self, decision: SemanticDecision) -> CompiledDecision:
         if decision.clarification_required and not decision.knowledge_query:
-            return self._clarification(decision, "The knowledge request needs clarification.")
+            return self._clarification(
+                decision,
+                "The knowledge request needs clarification.",
+                reason_code=CompilerReasonCode.KNOWLEDGE_QUERY_REQUIRED,
+                clarification_fields=(CompilerField.KNOWLEDGE_QUERY,),
+            )
         return CompiledDecision(
             status=CompileStatus.NO_ACTION,
             intent=decision.intent,
             request_type=AgentRequestType.KNOWLEDGE_ONLY,
+            reason_code=CompilerReasonCode.KNOWLEDGE_ONLY,
             requires_retrieval=decision.requires_retrieval,
             knowledge_query=decision.knowledge_query,
             reason=decision.reason,
@@ -432,19 +590,27 @@ class DecisionCompiler:
     ) -> CompiledDecision:
         if self._wrong_order_target(decision.target):
             return self._rejected(
-                decision, "Knowledge-and-action request received a ticket target."
+                decision,
+                "Knowledge-and-action request received a ticket target.",
+                reason_code=CompilerReasonCode.WRONG_TARGET_TYPE,
             )
         order_id = self._order_target(
             decision.target, context.effective_customer_id, context.tenant_id
         )
         if order_id is None:
-            return self._clarification(decision, "A specific order is required.")
+            return self._clarification(
+                decision,
+                "A specific order is required.",
+                reason_code=CompilerReasonCode.ORDER_REQUIRED,
+                clarification_fields=(CompilerField.ORDER_ID,),
+            )
         if not decision.requires_retrieval or not decision.knowledge_query:
             knowledge_query = KNOWLEDGE_QUERIES[decision.intent]
         else:
             knowledge_query = decision.knowledge_query
         return CompiledDecision(
             status=CompileStatus.COMPILED_ACTION,
+            reason_code=CompilerReasonCode.COMPILED_ACTION,
             intent=decision.intent,
             request_type=AgentRequestType.KNOWLEDGE_AND_ACTION,
             selected_tool="get_order",
@@ -493,13 +659,24 @@ class DecisionCompiler:
 
     def _compile_memory(self, decision: SemanticDecision) -> CompiledDecision:
         if decision.intent == Intent.MEMORY_REMEMBER and decision.memory_candidate is None:
-            return self._clarification(decision, "A specific memory is required.")
+            return self._clarification(
+                decision,
+                "A specific memory is required.",
+                reason_code=CompilerReasonCode.MEMORY_CANDIDATE_REQUIRED,
+                clarification_fields=(CompilerField.MEMORY_CANDIDATE,),
+            )
         if decision.intent == Intent.MEMORY_FORGET and not decision.memory_key:
-            return self._clarification(decision, "A memory key is required.")
+            return self._clarification(
+                decision,
+                "A memory key is required.",
+                reason_code=CompilerReasonCode.MEMORY_KEY_REQUIRED,
+                clarification_fields=(CompilerField.MEMORY_KEY,),
+            )
         return CompiledDecision(
             status=CompileStatus.NO_ACTION,
             intent=decision.intent,
             request_type=AgentRequestType.MEMORY_ACTION,
+            reason_code=CompilerReasonCode.MEMORY_ACTION,
             memory_candidate=decision.memory_candidate,
             memory_key=decision.memory_key,
             reason=decision.reason,
@@ -530,6 +707,7 @@ class DecisionCompiler:
     ) -> CompiledDecision:
         return CompiledDecision(
             status=CompileStatus.COMPILED_ACTION,
+            reason_code=CompilerReasonCode.COMPILED_ACTION,
             intent=decision.intent,
             request_type=(
                 AgentRequestType.WRITE_ACTION
@@ -548,6 +726,8 @@ class DecisionCompiler:
         decision: SemanticDecision,
         reason: str,
         *,
+        reason_code: CompilerReasonCode,
+        clarification_fields: tuple[CompilerField, ...] = (),
         refund_reason_support_status: RefundReasonSupportStatus | None = None,
         refund_reason_validation_invoked: bool = False,
         compiler_clarification_cause: CompilerClarificationCause = CompilerClarificationCause.OTHER,
@@ -565,11 +745,15 @@ class DecisionCompiler:
             refund_reason_support_status=(refund_reason_support_status or status).value,
             refund_reason_validation_invoked=refund_reason_validation_invoked,
             compiler_clarification_cause=compiler_clarification_cause.value,
-            missing_required_fields=_missing_required_fields(decision.intent, reason),
+            reason_code=reason_code,
+            missing_fields=list(_absent_fields(decision, clarification_fields)),
+            clarification_fields=list(clarification_fields),
         )
 
     @staticmethod
-    def _rejected(decision: SemanticDecision, reason: str) -> CompiledDecision:
+    def _rejected(
+        decision: SemanticDecision, reason: str, *, reason_code: CompilerReasonCode
+    ) -> CompiledDecision:
         status = (
             RefundReasonSupportStatus.NOT_EVALUATED
             if decision.intent is Intent.REFUND_REQUEST
@@ -581,6 +765,7 @@ class DecisionCompiler:
             request_type=AgentRequestType.UNCLEAR,
             reason="The request could not be compiled safely.",
             rejection_reason=reason,
+            reason_code=reason_code,
             refund_reason_support_status=status.value,
         )
 
@@ -589,20 +774,36 @@ def all_semantic_intents_are_routed() -> bool:
     return set(SEMANTIC_INTENT_ROUTES) == set(Intent)
 
 
-def _missing_required_fields(intent: Intent, reason: str) -> list[str]:
-    """Map bounded compiler clarification reasons to resumable input fields."""
-
-    normalized = reason.casefold()
-    if intent in {Intent.ORDER_CANCEL, Intent.REFUND_REQUEST, Intent.ORDER_LOOKUP} and (
-        "specific" in normalized or "authorized target" in normalized
+def _target_fields(decision: SemanticDecision) -> tuple[CompilerField, ...]:
+    if decision.intent == Intent.TICKET_LOOKUP or (
+        decision.intent == Intent.HUMAN_ESCALATION
+        and decision.target is not None
+        and decision.target.type == "explicit_ticket"
     ):
-        return ["order_id"]
-    if intent is Intent.REFUND_REQUEST and "refund reason" in normalized:
-        return ["reason"]
-    if intent is Intent.HUMAN_ESCALATION and "escalation details" in normalized:
-        return ["reason", "priority", "summary"]
-    if intent is Intent.TICKET_CREATE and "category and description" in normalized:
-        return ["category", "description"]
-    if intent is Intent.TICKET_LOOKUP and "specific ticket" in normalized:
-        return ["ticket_id"]
-    return []
+        return (CompilerField.TICKET_ID,)
+    if decision.intent in {
+        Intent.ORDER_CANCEL,
+        Intent.REFUND_REQUEST,
+        Intent.ORDER_LOOKUP,
+        Intent.REFUND_ELIGIBILITY,
+        Intent.CANCELLATION_EXPLANATION,
+        Intent.TICKET_CREATE,
+        Intent.HUMAN_ESCALATION,
+    }:
+        return (CompilerField.ORDER_ID,)
+    return ()
+
+
+def _absent_fields(
+    decision: SemanticDecision, fields: tuple[CompilerField, ...]
+) -> tuple[CompilerField, ...]:
+    """Inspect typed inputs, never presentation copy, for genuinely absent values."""
+    return tuple(
+        field
+        for field in fields
+        if not (
+            getattr(decision.target, field.value, None)
+            if field in {CompilerField.ORDER_ID, CompilerField.TICKET_ID}
+            else getattr(decision, field.value, None)
+        )
+    )
