@@ -32,7 +32,7 @@ boundaries; it should not replace them with more LLM-driven behavior.
 - [x] P1 PostgreSQL benchmark evidence — #19 / #23
 - [x] P1 refund eligibility concurrency — #13 / #14 (related completed work)
 - [ ] P2 repository governance
-- [x] P2 structured compiler contracts — #29; typed reasons and clarification fields
+- [x] P2 structured compiler contracts — #29 / #30; typed reasons and clarification fields
 - [ ] P2 tool-owned revalidation strategy
 - [ ] P2/P3 frontend request/state correctness
 - [ ] P3 graph compile benchmark
@@ -352,7 +352,7 @@ production-network latency; it is not whole-platform capacity or a production SL
 
 **Priority:** P2
 **Category:** Correctness / maintainability
-**Status:** DONE — structured compiler contracts, issue #29
+**Status:** DONE — issue #29 / PR #30, structured compiler contracts
 **Classification:** Presentation-coupled workflow contract — fixed
 
 #### Confirmed problem and resolution

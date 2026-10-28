@@ -1,6 +1,6 @@
 # Structured compiler result contract
 
-Tracking: [issue #29](https://github.com/negativexq/agentic-customer-service-platform/issues/29).
+Tracking: [issue #29](https://github.com/negativexq/agentic-customer-service-platform/issues/29) / [PR #30](https://github.com/negativexq/agentic-customer-service-platform/pull/30).
 
 The compiler previously inferred resumable fields by searching its English explanation for phrases such as `specific`, `refund reason`, and `category and description`. The same explanation was both presentation copy and a workflow input. `_missing_required_fields(intent, reason)` has been removed.
 
@@ -50,3 +50,5 @@ The local full suite with real PostgreSQL enabled passed **1237 tests, 1 skipped
 - bounded operator projection and durable SQL projection round trips.
 
 The original compiler, grounding, workflow, checkpoint, authorization, revalidation, idempotency, and PostgreSQL refund regressions remain part of the complete suite. No model-quality or production-capacity score is inferred from these regression counts.
+
+The [unmodified local pytest output](evidence/compiler-contracts-pytest-2026-10-28.txt) is retained in Git; SHA-256 `54a93b65e3940470a17083d72edf6fd99bd0f37a0bc31261ea7ecb469f8c72ce`. It was captured with local LLM overrides excluded, against main baseline `4175908` plus implementation commit `d833769b501c4a9e2383ed2f2914c24ea26acded`. The [PR checks](https://github.com/negativexq/agentic-customer-service-platform/pull/30/checks) provide independent CI verification.
