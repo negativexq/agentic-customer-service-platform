@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import cast
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,8 @@ from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
 from app.resilience.errors import UnknownWriteOutcomeError
 from app.resilience.retry import run_with_retry
+from app.schemas.domain import EscalationResponse
+from app.services.conversations import lock_current_agent_turn, queue_for_human
 from app.services.idempotency import IdempotencyScope, commit_business_write
 from app.tools.base import ToolError
 
@@ -47,6 +50,8 @@ def make_human_escalation_node(
                 "tool_execution_status": "failed",
             }
         execution_started = False
+        expected_version = state.get("conversation_ownership_version")
+        resulting_version = expected_version
         try:
             arguments = definition.input_model.model_validate(state.get("tool_arguments", {}))
             requested_customer = getattr(arguments, "customer_id", None)
@@ -68,7 +73,13 @@ def make_human_escalation_node(
                 execution_started = True
 
             def attempt() -> object:
+                nonlocal resulting_version
                 try:
+                    conversation = (
+                        lock_current_agent_turn(session, context, expected_version)
+                        if expected_version is not None
+                        else None
+                    )
                     result = definition.execute(
                         session,
                         context,
@@ -79,6 +90,14 @@ def make_human_escalation_node(
                             tenant_id=context.tenant_id,
                         ),
                     )
+                    if conversation is not None:
+                        queue_for_human(
+                            session,
+                            conversation,
+                            escalation_id=cast(EscalationResponse, result).id,
+                            actor_id=context.principal.actor_id,
+                        )
+                        resulting_version = conversation.ownership_version
                     commit_business_write(session, "escalate_to_human")
                     return result
                 except Exception:
@@ -150,11 +169,15 @@ def make_human_escalation_node(
             # Keep post-commit audit failure outside the execution exception handlers so it
             # cannot be mistaken for a safely replayable business failure.
             record_execution_event(state, audit_repository, clock, status="success")
-        return {
+        update: AgentState = {
             "tool_result": serialise_result(result),
             "tool_execution_status": "executed",
             "error_category": None,
             "last_error": None,
         }
+        if resulting_version is not None:
+            # This run caused the transition, so its own reply is not stale.
+            update["conversation_ownership_version"] = resulting_version
+        return update
 
     return execute_human_escalation

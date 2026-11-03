@@ -55,6 +55,13 @@ class EscalationStatus(StrEnum):
     RESOLVED = "resolved"
 
 
+class ConversationOwner(StrEnum):
+    AI = "ai"
+    QUEUED = "queued"
+    HUMAN = "human"
+    CLOSED = "closed"
+
+
 class TenantStatus(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -154,9 +161,59 @@ class RefundRequest(Base):
     order: Mapped[Order] = relationship(back_populates="refund_requests")
 
 
+class Conversation(Base):
+    """Source of truth for who may respond; checkpoints are scoped per actor."""
+
+    __tablename__ = "conversations"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "customer_id", "conversation_id", name="uq_conversations_identity"
+        ),
+        Index("ix_conversations_tenant_owner_updated", "tenant_id", "owner", "updated_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(200), ForeignKey("tenants.id"), nullable=False)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), nullable=False)
+    conversation_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    owner: Mapped[ConversationOwner] = mapped_column(String(20), nullable=False)
+    assignee_actor_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    ownership_version: Mapped[int] = mapped_column(nullable=False, default=0)
+    ai_resumed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
+
+
+class ConversationOwnershipEvent(Base):
+    """Append-only transition history; it never contains message text."""
+
+    __tablename__ = "conversation_ownership_events"
+    __table_args__ = (
+        Index("ix_conversation_ownership_events_conversation", "conversation_pk", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(200), ForeignKey("tenants.id"), nullable=False)
+    conversation_pk: Mapped[int] = mapped_column(ForeignKey("conversations.id"), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    from_owner: Mapped[ConversationOwner] = mapped_column(String(20), nullable=False)
+    to_owner: Mapped[ConversationOwner] = mapped_column(String(20), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
+
+
 class Escalation(Base):
     __tablename__ = "escalations"
-    __table_args__ = (Index("ix_escalations_tenant_customer", "tenant_id", "customer_id"),)
+    __table_args__ = (
+        Index("ix_escalations_tenant_customer", "tenant_id", "customer_id"),
+        Index(
+            "uq_escalations_active_conversation",
+            "conversation_pk",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'assigned')"),
+            sqlite_where=text("status IN ('queued', 'assigned')"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tenant_id: Mapped[str] = mapped_column(
@@ -169,6 +226,12 @@ class Escalation(Base):
     priority: Mapped[EscalationPriority] = mapped_column(String(20), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[EscalationStatus] = mapped_column(String(20), nullable=False)
+    conversation_pk: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id"), nullable=True
+    )
+    assignee_actor_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    assigned_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     customer: Mapped[Customer] = relationship(back_populates="escalations")
     ticket: Mapped[SupportTicket | None] = relationship()

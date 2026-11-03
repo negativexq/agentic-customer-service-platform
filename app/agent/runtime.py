@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
 
@@ -30,6 +31,7 @@ from app.auth.models import ActorType, Principal
 from app.core.config import DecisionContractVersion, LLMProvider, Settings, get_settings
 from app.core.context import ExecutionContext
 from app.memory.service import MemoryService
+from app.models.entities import ConversationOwner
 from app.observability.metrics import get_metrics, record_agent_run_summary
 from app.observability.privacy import safe_exception_type
 from app.observability.tracing import span
@@ -54,10 +56,17 @@ from app.rag.interfaces import (
 from app.rag.retrieval.service import build_default_knowledge_service
 from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
+from app.services.conversations import begin_agent_turn, current_ownership
 from app.ui.projection import get_projection_store
 from app.ui.repository import AgentRunProjectionRepository, build_agent_run_projection_repository
+from app.ui.schemas import AgentRunView, UIMemoryUsage
 
 logger = logging.getLogger(__name__)
+
+HANDOFF_ACKNOWLEDGEMENT = (
+    "A support specialist is handling this conversation and will reply here as soon as one is "
+    "available."
+)
 
 
 class AgentRuntime:
@@ -143,6 +152,11 @@ class AgentRuntime:
     ) -> AgentResponse:
         execution_context = context or _legacy_execution_context(conversation_id, customer_id)
         self.reliability_controller.enforce_request_limits(execution_context)
+        turn = begin_agent_turn(session, execution_context)
+        if not turn.ai_may_respond:
+            response = _handoff_response(execution_context, turn.owner, execution_mode)
+            self._record_handoff_projection(session, execution_context, response)
+            return response
         conversation_id = execution_context.conversation_id
         customer_id = execution_context.effective_customer_id
         thread_id = checkpoint_thread_id(execution_context)
@@ -207,6 +221,8 @@ class AgentRuntime:
                                 "execution_context": execution_context,
                                 "conversation_id": conversation_id,
                                 "agent_run_id": agent_run_id,
+                                "conversation_ownership_version": turn.version,
+                                "conversation_ai_resumed_at": turn.ai_resumed_at,
                                 "messages": [{"role": "user", "content": message}],
                             },
                             config={
@@ -262,7 +278,12 @@ class AgentRuntime:
                     root_span.set_attribute("error.category", response.error_category.value)
                 else:
                     root_span.set_attribute("agent.status", "ok")
-                return response
+                return _apply_current_ownership(
+                    session,
+                    execution_context,
+                    response,
+                    expected_version=state.get("conversation_ownership_version", turn.version),
+                )
             except Exception as error:
                 classification = classify_runtime_error(error, source=RuntimeFailureSource.RUNTIME)
                 labels["status"] = "error"
@@ -286,6 +307,43 @@ class AgentRuntime:
                 )
                 if labels["status"] == "error":
                     metric.agent_errors_total.add(1, labels)
+
+    def _record_handoff_projection(
+        self, session: Session, context: ExecutionContext, response: AgentResponse
+    ) -> None:
+        """Keep the response's run ID resolvable; a gated turn stores no message text."""
+
+        try:
+            repository = self.projection_repository_override or (
+                build_agent_run_projection_repository(self.settings, session)
+            )
+            repository.upsert(
+                AgentRunView(
+                    run_id=response.agent_run_id,
+                    request_id=context.request_id,
+                    conversation_id=context.conversation_id,
+                    tenant_id=context.tenant_id,
+                    customer_id=context.effective_customer_id,
+                    actor_id=context.principal.actor_id,
+                    actor_type=context.principal.actor_type.value,
+                    roles=list(context.principal.roles),
+                    intent=response.intent.value,
+                    request_type=response.request_type.value,
+                    status="completed",
+                    started_at=datetime.now(UTC),
+                    duration_ms=0.0,
+                    memory=UIMemoryUsage(item_count=0),
+                    decision_reason=response.decision_reason,
+                    execution_mode=response.execution_mode.value,
+                )
+            )
+        except Exception as error:
+            # The projection is observational and must not fail the customer's turn.
+            session.rollback()
+            logger.warning(
+                "Handoff turn projection persistence failed.",
+                extra={"projection_error_type": type(error).__name__},
+            )
 
     def _provider_for_execution(
         self, requested_mode: AgentExecutionMode
@@ -320,6 +378,61 @@ class AgentRuntime:
             AgentExecutionMode.LIVE_PROPOSAL,
             None,
         )
+
+
+def _handoff_response(
+    context: ExecutionContext,
+    owner: ConversationOwner,
+    execution_mode: AgentExecutionMode,
+) -> AgentResponse:
+    return AgentResponse(
+        conversation_id=context.conversation_id,
+        agent_run_id=str(uuid4()),
+        message=HANDOFF_ACKNOWLEDGEMENT,
+        intent=Intent.HUMAN_ESCALATION,
+        request_type=AgentRequestType.ESCALATION,
+        decision_reason="conversation_handoff_active",
+        execution_mode=execution_mode,
+        conversation_owner=owner.value,
+    )
+
+
+def _apply_current_ownership(
+    session: Session,
+    context: ExecutionContext,
+    response: AgentResponse,
+    *,
+    expected_version: int,
+) -> AgentResponse:
+    """Withhold a reply if ownership moved during the run; its projection is already saved."""
+
+    try:
+        owner, version = current_ownership(session, context)
+    except Exception as error:
+        # The business result may already be committed, so this must not become a retryable
+        # failure. Without a confirmed owner the AI reply stays withheld.
+        session.rollback()
+        logger.warning(
+            "Conversation ownership check failed after an agent run.",
+            extra={"ownership_error_type": type(error).__name__},
+        )
+        return _withheld_response(response, ConversationOwner.QUEUED)
+    if version != expected_version:
+        return _withheld_response(response, owner)
+    return response.model_copy(update={"conversation_owner": owner.value})
+
+
+def _withheld_response(response: AgentResponse, owner: ConversationOwner) -> AgentResponse:
+    return response.model_copy(
+        update={
+            "message": HANDOFF_ACKNOWLEDGEMENT,
+            "decision_reason": "conversation_ownership_changed",
+            "tool_call": None,
+            "pending_action": None,
+            "citations": [],
+            "conversation_owner": owner.value,
+        }
+    )
 
 
 def _legacy_execution_context(

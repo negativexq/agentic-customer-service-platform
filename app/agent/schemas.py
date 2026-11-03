@@ -254,6 +254,7 @@ class AgentResponse(BaseModel):
     fallback_message: str | None = None
     proposal: AgentProposal | None = None
     provider_metadata: ProviderRunMetadata | None = None
+    conversation_owner: str = "ai"
 
 
 class AgentChatRequest(BaseModel):
