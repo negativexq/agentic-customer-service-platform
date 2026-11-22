@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_metrics_endpoint: str = ""
     otel_metric_export_interval_millis: int = Field(default=15000, ge=1000, le=300000)
     otel_metric_export_timeout_millis: int = Field(default=5000, ge=1, le=30000)
+    conversation_message_ttl_days: int = Field(default=365, gt=0, le=3650)
     memory_enabled: bool = True
     memory_max_context_items: int = Field(default=5, gt=0, le=20)
     memory_default_ttl_days: int = Field(default=365, ge=0)
@@ -109,6 +110,7 @@ class Settings(BaseSettings):
     auth_mode: AuthenticationMode = AuthenticationMode.DISABLED
     local_demo_auth_token: SecretStr | None = None
     local_demo_actor_id: str = Field(default="operator-local-demo", min_length=1, max_length=200)
+    local_demo_operator_name: str = Field(default="Demo operator", min_length=1, max_length=200)
     auth_tokens_json: SecretStr = SecretStr("{}")
     oidc_issuer: str | None = Field(default=None, min_length=1, max_length=500)
     oidc_audience: str | None = Field(default=None, min_length=1, max_length=500)
@@ -120,6 +122,8 @@ class Settings(BaseSettings):
     oidc_customer_scope_claim: str = Field(default="customer_ids", min_length=1, max_length=100)
     oidc_email_claim: str = Field(default="email", min_length=1, max_length=100)
     oidc_support_role: str = Field(default="support_operator", min_length=1, max_length=100)
+    oidc_name_claim: str = Field(default="name", min_length=1, max_length=100)
+    oidc_support_tenant_wide_role: str | None = Field(default=None, min_length=1, max_length=100)
     oidc_customer_role: str = Field(default="customer", min_length=1, max_length=100)
     oidc_service_role: str = Field(default="service", min_length=1, max_length=100)
     oidc_require_tenant: bool = True

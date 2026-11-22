@@ -11,6 +11,8 @@ describe("development backend proxy", () => {
     "/tickets/1",
     "/memories/1",
     "/escalations",
+    "/operator/conversations",
+    "/conversations/abc/messages",
     "/health",
     "/ready",
   ];

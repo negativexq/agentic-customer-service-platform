@@ -62,6 +62,18 @@ class ConversationOwner(StrEnum):
     CLOSED = "closed"
 
 
+class MessageSender(StrEnum):
+    CUSTOMER = "customer"
+    AI = "ai"
+    OPERATOR = "operator"
+    SYSTEM = "system"
+
+
+class MessageRedaction(StrEnum):
+    NOT_REQUIRED = "not_required"
+    REDACTED = "redacted"
+
+
 class TenantStatus(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -355,3 +367,32 @@ class AgentRunProjectionRecord(Base):
     trace: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(nullable=False)
     updated_at: Mapped[datetime] = mapped_column(nullable=False)
+
+
+class ConversationMessage(Base):
+    """Recorded transcript text after DLP redaction; display data, never an execution input."""
+
+    __tablename__ = "conversation_messages"
+    __table_args__ = (
+        UniqueConstraint("conversation_pk", "sequence", name="uq_conversation_messages_sequence"),
+        UniqueConstraint(
+            "conversation_pk", "client_message_id", name="uq_conversation_messages_client_id"
+        ),
+        Index("ix_conversation_messages_tenant_customer", "tenant_id", "customer_id"),
+        Index("ix_conversation_messages_expires", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(200), ForeignKey("tenants.id"), nullable=False)
+    conversation_pk: Mapped[int] = mapped_column(ForeignKey("conversations.id"), nullable=False)
+    customer_id: Mapped[int] = mapped_column(nullable=False)
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    sender_type: Mapped[MessageSender] = mapped_column(String(20), nullable=False)
+    sender_actor_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sender_display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    agent_run_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    client_message_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    redaction_state: Mapped[MessageRedaction] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)

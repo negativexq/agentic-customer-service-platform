@@ -10,15 +10,14 @@ import { DemoShowcase } from "../components/DemoShowcase";
 import { RunInvestigationPage } from "../components/RunInvestigationPage";
 import { SafetyDashboard } from "../components/SafetyDashboard";
 import { ConversationList } from "../features/conversations/ConversationList";
-import { ConversationThread } from "../features/conversations/ConversationThread";
-import { groupConversations, type ConversationSummary } from "../features/conversations/conversations";
+import { ConversationThread, type ThreadTarget } from "../features/conversations/ConversationThread";
 import { RunInspectorSheet } from "../features/conversations/RunInspectorSheet";
 import { MonitoringPage } from "../features/monitoring/MonitoringPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { RunsPage } from "../features/runs/RunsPage";
 import { ChatWindow } from "../features/chat/ChatWindow";
-import { queryClient, useChatMutation, useDemoScenarios, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
-import type { ConversationTurn, PlaygroundExecution, PlaygroundRequest } from "../types";
+import { queryClient, useChatMutation, useConversationAction, useDemoScenarios, useInbox, useOperatorConversation, useOperatorMe, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
+import type { ConversationTurn, OperatorConversation, PlaygroundExecution, PlaygroundRequest } from "../types";
 import { AppShell } from "./AppShell";
 import { CommandMenu } from "./CommandMenu";
 import { viewFromPath, viewPaths, type ConsoleView } from "./routes";
@@ -66,9 +65,10 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [locationPath, setLocationPath] = useState(() => window.location.pathname);
   const [view, setView] = useState<ConsoleView>(() => viewFromPath(window.location.pathname));
   const [searchOpen, setSearchOpen] = useState(false);
-  const [customerId, setCustomerId] = useState(1);
-  const [draftId, setDraftId] = useState<string | null>(() => newConversationId());
-  const [conversationId, setConversationId] = useState(() => draftId!);
+  const [target, setTarget] = useState<ThreadTarget | null>(null);
+  const [playgroundConversationId] = useState(() => newConversationId());
+  // Conversations this operator started as a test customer may keep sending as that customer.
+  const [testConversations, setTestConversations] = useState<Set<string>>(() => new Set());
   const [turnsByConversation, setTurnsByConversation] = useState<Record<string, ConversationTurn[]>>({});
   const [inspectRunId, setInspectRunId] = useState<string | null>(null);
   const [playgroundExecution, setPlaygroundExecution] = useState<PlaygroundExecution | null>(null);
@@ -81,6 +81,13 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const runsQuery = useRuns(true);
   const routeRun = useRun(routeRunId, scenarios.data, true);
   const inspectRun = useRun(inspectRunId, scenarios.data, true);
+  const inbox = useInbox(true);
+  const operatorMe = useOperatorMe(true);
+  const openConversation = useOperatorConversation(target?.kind === "conversation" ? target.id : null);
+  const conversationAction = useConversationAction();
+  const threadDetail = target?.kind === "conversation" ? openConversation.data : undefined;
+  const customerId = target?.kind === "draft" ? target.customerId : threadDetail?.customer_id ?? 1;
+  const conversationId = target?.kind === "draft" ? target.conversationId : threadDetail?.conversation_id ?? null;
   const memoryCustomer = routeRun.data?.customer_id ?? customerId;
   const memory = useMemory(memoryCustomer, true);
   const chat = useChatMutation();
@@ -112,25 +119,51 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     () => [...scenarioRuns, ...liveRuns.filter((run) => !scenarioRuns.some((recorded) => recorded.run_id === run.run_id))],
     [scenarioRuns, liveRuns],
   );
-  const conversations = useMemo(() => groupConversations(liveRuns), [liveRuns]);
-  const turns = turnsByConversation[conversationId] ?? [];
+  const conversationKey = conversationId ? `${customerId}:${conversationId}` : "";
+  const turns = turnsByConversation[conversationKey] ?? [];
 
-  const send = async (message: string) => {
+  // Open the most relevant conversation first; a sent test draft becomes its real conversation.
+  useEffect(() => {
+    const list = inbox.data;
+    if (!list) return;
+    if (target === null) {
+      const first = list.find((item) => item.owner === "queued") ?? list.find((item) => item.owner !== "closed") ?? list[0];
+      setTarget(first ? { kind: "conversation", id: first.id } : { kind: "draft", conversationId: newConversationId(), customerId: 1 });
+      return;
+    }
+    if (target.kind === "draft" && turnsByConversation[`${target.customerId}:${target.conversationId}`]?.length) {
+      const created = list.find((item) => item.conversation_id === target.conversationId && item.customer_id === target.customerId);
+      if (created) setTarget({ kind: "conversation", id: created.id });
+    }
+  }, [inbox.data, target, turnsByConversation]);
+
+  const sendAsCustomer = async (message: string) => {
+    if (!conversationId) return;
+    const key = conversationKey;
     try {
       const result = await chat.mutateAsync({ conversationId, customerId, message });
-      setTurnsByConversation((current) => ({ ...current, [conversationId]: [...(current[conversationId] ?? []), { request: message, response: result.response }] }));
-      if (conversationId === draftId) setDraftId(null);
+      setTurnsByConversation((current) => ({ ...current, [key]: [...(current[key] ?? []), { request: message, response: result.response }] }));
+      setTestConversations((current) => new Set(current).add(key));
     } catch {
       // The mutation error is rendered by the workspace.
     }
   };
 
+  const runAction = (action: "claim" | "release" | "resolve" | "reply", content?: string) => {
+    if (!threadDetail) return Promise.resolve();
+    const base = { id: threadDetail.id, version: threadDetail.ownership_version };
+    const input = action === "reply"
+      ? { ...base, action, content: content ?? "", clientMessageId: crypto.randomUUID() }
+      : { ...base, action };
+    return conversationAction.mutateAsync(input).then(() => undefined, () => undefined);
+  };
+
   const runPlayground = async (request: PlaygroundRequest) => {
     try {
-      const result = await chat.mutateAsync({ conversationId, customerId: request.customerId, message: request.message, executionMode: request.executionMode });
+      const result = await chat.mutateAsync({ conversationId: playgroundConversationId, customerId: request.customerId, message: request.message, executionMode: request.executionMode });
       setPlaygroundExecution({
         request,
-        requestPayload: { conversation_id: conversationId, customer_id: request.customerId, message: "[redacted from operator projection]", execution_mode: request.executionMode },
+        requestPayload: { conversation_id: playgroundConversationId, customer_id: request.customerId, message: "[redacted from operator projection]", execution_mode: request.executionMode },
         response: result.response,
         run: result.run,
       });
@@ -139,8 +172,8 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     }
   };
 
-  const selectConversation = (conversation: ConversationSummary) => { setConversationId(conversation.id); setCustomerId(conversation.customerId); chat.reset(); };
-  const startConversation = () => { const id = draftId ?? newConversationId(); setDraftId(id); setConversationId(id); chat.reset(); };
+  const selectConversation = (conversation: OperatorConversation) => { setTarget({ kind: "conversation", id: conversation.id }); chat.reset(); conversationAction.reset(); };
+  const startTestConversation = () => { setTarget({ kind: "draft", conversationId: newConversationId(), customerId: 1 }); chat.reset(); conversationAction.reset(); };
   const chatError = chat.error ? errorMessage(chat.error, "The operator API is unavailable.") : null;
 
   const detailLabel = routeRunId ?? null;
@@ -177,24 +210,36 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   } else if (view === "monitoring") {
     content = <MonitoringPage runs={liveRuns} health={health.data} loading={runsQuery.isPending} healthUnavailable={health.isError} onOpenRun={openRun} />;
   } else if (view === "workspace") {
-    const sessionRunIds = new Set(turns.map((turn) => turn.response.agent_run_id));
-    const history = (conversations.find((item) => item.id === conversationId)?.runs ?? []).filter((run) => !sessionRunIds.has(run.run_id));
-    const rail = <ConversationList conversations={conversations} selectedId={conversationId} draftId={draftId} onSelect={selectConversation} onNew={startConversation} />;
-    const thread = (
-      <ConversationThread
-        key={conversationId}
-        customerId={customerId}
-        conversationId={conversationId}
-        history={history}
-        turns={turns}
-        busy={chat.isPending}
-        error={chatError}
-        canChangeCustomer={history.length === 0 && turns.length === 0}
-        onCustomerChange={setCustomerId}
-        onSend={send}
-        onInspect={setInspectRunId}
+    const rail = (
+      <ConversationList
+        conversations={inbox.data ?? []}
+        loading={inbox.isPending}
+        selectedId={target?.kind === "conversation" ? target.id : null}
+        draftActive={target?.kind === "draft"}
+        onSelect={selectConversation}
+        onNewTest={startTestConversation}
       />
     );
+    const thread = target ? (
+      <ConversationThread
+        key={target.kind === "draft" ? target.conversationId : target.id}
+        target={target}
+        detail={threadDetail}
+        loading={openConversation.isPending && target.kind === "conversation"}
+        me={operatorMe.data}
+        localTurns={turns}
+        canSimulateCustomer={target.kind === "draft" || testConversations.has(conversationKey)}
+        busy={chat.isPending}
+        error={chatError}
+        actionPending={conversationAction.isPending}
+        actionError={conversationAction.error ? errorMessage(conversationAction.error, "The conversation could not be updated.") : null}
+        onCustomerChange={(id) => setTarget((current) => (current?.kind === "draft" ? { ...current, customerId: id } : current))}
+        onSendAsCustomer={sendAsCustomer}
+        onReply={(content) => runAction("reply", content)}
+        onAction={(action) => { void runAction(action); }}
+        onInspect={setInspectRunId}
+      />
+    ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading inbox…</div>;
     content = wide ? (
       <ResizablePanelGroup orientation="horizontal" className="workspace-panels h-[calc(100svh-3.5rem)] min-h-0" id="conversations-layout">
         <ResizablePanel defaultSize="26%" minSize="18%" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>

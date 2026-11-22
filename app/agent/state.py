@@ -91,6 +91,7 @@ class AgentState(TypedDict, total=False):
     memory_candidate: MemoryCandidate | None
     memory_key: str | None
     memory_operation_status: str | None
+    memory_written: dict[str, object] | None
     memory_policy_outcome: str | None
     failure_category: str | None
     degraded_components: list[str]

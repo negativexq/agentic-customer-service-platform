@@ -114,8 +114,14 @@ def claim_conversation(
     expected_version: int,
 ) -> Conversation:
     conversation = _locked_for_transition(session, tenant_id, conversation_pk, expected_version)
-    if conversation.owner != ConversationOwner.QUEUED:
+    if conversation.owner not in (ConversationOwner.QUEUED, ConversationOwner.AI):
         raise ConversationOwnershipChangedError()
+    # An operator may answer a queued handoff or proactively take over a live AI conversation.
+    reason_code = (
+        "operator_claimed"
+        if conversation.owner == ConversationOwner.QUEUED
+        else "operator_takeover"
+    )
     now = utc_now_naive()
     conversation.assignee_actor_id = actor_id
     _transition(
@@ -123,7 +129,7 @@ def claim_conversation(
         conversation,
         to_owner=ConversationOwner.HUMAN,
         actor_id=actor_id,
-        reason_code="operator_claimed",
+        reason_code=reason_code,
         now=now,
     )
     escalation = _active_escalation(session, conversation)

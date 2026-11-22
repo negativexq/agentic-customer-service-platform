@@ -8,6 +8,7 @@ from app.core.database import SessionLocal
 from app.memory.schemas import MemorySource, MemoryStatus, MemoryType
 from app.models import (
     Conversation,
+    ConversationMessage,
     ConversationOwnershipEvent,
     Customer,
     Escalation,
@@ -32,6 +33,7 @@ DEMO_MEMORY_PRIVATE_CONTENT = QA_MEMORY_SENTINEL
 
 def seed_into(session: Session) -> None:
     session.execute(delete(Escalation))
+    session.execute(delete(ConversationMessage))
     session.execute(delete(ConversationOwnershipEvent))
     session.execute(delete(Conversation))
     session.execute(delete(RefundRequest))

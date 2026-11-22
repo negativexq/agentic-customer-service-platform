@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 
 export const backendPathPattern =
-  "^/(agent|ui|customers|orders|tickets|memories|escalations)(?:/|$)|^/(health|ready)$";
+  "^/(agent|ui|operator|customers|orders|tickets|memories|escalations)(?:/|$)|^/conversations/|^/(health|ready)$";
 
 export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, "..", "");

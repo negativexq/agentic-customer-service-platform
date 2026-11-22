@@ -73,6 +73,10 @@ def make_memory_action_node(
                 )
             return {
                 "memory_operation_status": result.status,
+                # Stored content is already DLP-processed; operators see what was kept.
+                "memory_written": result.record.model_dump(mode="json")
+                if result.record is not None
+                else None,
                 "memory_policy_outcome": result.status,
                 "decision_reason": result.reason,
                 "security_signal": result.security_signal,

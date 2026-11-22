@@ -216,6 +216,13 @@ go into metric labels.
 
 ## 11. Delivery plan
 
+**Status:** H1–H4 ship together in one change. Every customer, AI, operator, and system message
+is recorded after value-level DLP redaction (whole messages are never dropped, unlike memory
+candidates), with `CONVERSATION_MESSAGE_TTL_DAYS` expiry and per-customer deletion through
+`DELETE /operator/customers/{id}/messages`. Operators may claim a queued handoff or take over a
+live AI conversation (`operator_takeover`). The customer polling route exists; the widget (H5)
+does not. Operator replies carry the operator display name from the OIDC `name` claim.
+
 Each package is a separate PR that keeps CI green. H1 alone delivers the core safety property.
 
 | Package | Scope | Depends on |

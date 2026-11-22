@@ -18,8 +18,12 @@ export const queryKeys = {
   runtimeConfig: ["runtime-config"] as const,
   runs: ["agent-runs"] as const,
   run: (runId: string) => ["agent-run", runId] as const,
+  runMemory: (runId: string) => ["agent-run-memory", runId] as const,
   demoScenarios: ["demo-scenarios"] as const,
   memory: (customerId: number) => ["memory", customerId] as const,
+  operatorMe: ["operator-me"] as const,
+  inbox: ["operator-conversations"] as const,
+  conversation: (id: number) => ["operator-conversation", id] as const,
 };
 
 export function useHealth(enabled: boolean) {
@@ -66,6 +70,52 @@ export function useChatMutation() {
       client.setQueryData<AgentRun[]>(queryKeys.runs, (current) => [run, ...(current ?? []).filter((item) => item.run_id !== run.run_id)]);
       void client.invalidateQueries({ queryKey: queryKeys.memory(input.customerId) });
       void client.invalidateQueries({ queryKey: queryKeys.health });
+      void client.invalidateQueries({ queryKey: queryKeys.inbox });
+      void client.invalidateQueries({ queryKey: ["operator-conversation"] });
     },
+  });
+}
+
+export function useOperatorMe(enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.operatorMe, queryFn: api.operatorMe, enabled, staleTime: Infinity });
+}
+
+/** The inbox and the open conversation poll so operators watch conversations live. */
+export function useInbox(enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.inbox, queryFn: api.operatorConversations, enabled, refetchInterval: 4_000, staleTime: 2_000 });
+}
+
+export function useOperatorConversation(id: number | null) {
+  return useQuery({
+    queryKey: queryKeys.conversation(id ?? 0),
+    queryFn: () => api.operatorConversation(id!),
+    enabled: id !== null,
+    refetchInterval: 2_000,
+    staleTime: 1_000,
+  });
+}
+
+export function useConversationAction() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; version: number } & ({ action: "claim" | "release" | "resolve" } | { action: "reply"; content: string; clientMessageId: string })) =>
+      input.action === "reply"
+        ? api.operatorReply(input.id, input.content, input.version, input.clientMessageId)
+        : api.operatorTransition(input.id, input.action, input.version),
+    onSuccess: (detail) => {
+      client.setQueryData(queryKeys.conversation(detail.id), detail);
+      void client.invalidateQueries({ queryKey: queryKeys.inbox });
+    },
+    onSettled: (_data, _error, input) => { void client.invalidateQueries({ queryKey: queryKeys.conversation(input.id) }); },
+  });
+}
+
+/** Memory content is resolved live, so deleted or expired memories are never shown from old runs. */
+export function useRunMemory(runId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.runMemory(runId ?? ""),
+    queryFn: () => api.runMemory(runId as string),
+    enabled: Boolean(runId),
+    staleTime: 10_000,
   });
 }

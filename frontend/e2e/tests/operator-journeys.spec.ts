@@ -5,6 +5,7 @@ import {
   captureJourney,
   loginOperator,
   openScenario,
+  startTestConversation,
   submitWorkspaceMessage,
   waitForRunCompletion,
 } from "../helpers/operator";
@@ -21,8 +22,8 @@ test.describe.serial("operator journey evidence", () => {
     await assertNoExecution(page);
     await captureJourney(page, "01-refund-journey.png");
 
-    await loginOperator(page, "/");
-    await page.getByTestId("customer-scope").selectOption("1");
+    await loginOperator(page, "/workspace");
+    await startTestConversation(page, "1");
     const proposed = await submitWorkspaceMessage(
       page,
       "I want a refund for order 1 because it arrived damaged.",
@@ -52,8 +53,8 @@ test.describe.serial("operator journey evidence", () => {
   });
 
   test("confirmation replay creates one business effect", async ({ page }) => {
-    await loginOperator(page, "/");
-    await page.getByTestId("customer-scope").selectOption("2");
+    await loginOperator(page, "/workspace");
+    await startTestConversation(page, "2");
     const proposed = await submitWorkspaceMessage(page, "Cancel order 3");
     expect(proposed.pending_action?.status).toBe("pending");
     expect(proposed.tool_call).toBeNull();
@@ -79,8 +80,8 @@ test.describe.serial("operator journey evidence", () => {
   });
 
   test("knowledge answer exposes citations and accepted grounding", async ({ page }) => {
-    await loginOperator(page, "/");
-    await page.getByTestId("customer-scope").selectOption("1");
+    await loginOperator(page, "/workspace");
+    await startTestConversation(page, "1");
     const answer = await submitWorkspaceMessage(page, "What is the refund policy for damaged products?");
     expect(answer.tool_call).toBeNull();
     await page.getByTestId("agent-response").last().getByRole("button", { name: /Inspect run/ }).click();

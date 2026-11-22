@@ -229,6 +229,7 @@ def _load_context(state: AgentState) -> AgentState:
         "memory_candidate": None,
         "memory_key": None,
         "memory_operation_status": None,
+        "memory_written": None,
         "memory_policy_outcome": None,
         "memory_security_signal": None,
         "memory_summary_requested": False,

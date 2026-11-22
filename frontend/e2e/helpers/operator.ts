@@ -20,6 +20,11 @@ export async function loginOperator(page: Page, path = "/overview"): Promise<voi
   await expect(page.getByText("Authenticated", { exact: true })).toBeVisible();
 }
 
+export async function startTestConversation(page: Page, customerId = "1"): Promise<void> {
+  await page.getByRole("button", { name: "New test conversation" }).click();
+  await page.getByTestId("customer-scope").selectOption(customerId);
+}
+
 export async function openScenario(page: Page, scenario: string, focus?: string): Promise<void> {
   const query = new URLSearchParams({ scenario, compact: "1" });
   if (focus) query.set("focus", focus);

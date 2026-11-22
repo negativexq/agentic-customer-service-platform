@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test } from "../fixtures/operator";
-import { loginOperator } from "../helpers/operator";
+import { loginOperator, startTestConversation, submitWorkspaceMessage } from "../helpers/operator";
 
 const capture = async (page: import("@playwright/test").Page, name: string) => {
   if (process.env.UI_POLISH_SCREENSHOTS !== "1") return;
@@ -29,13 +29,29 @@ test("navigation survives reload and browser history", async ({ page }) => {
   await expect(page.getByTestId("unified-chat")).toBeVisible();
 });
 
-test("conversations stay a plain chat and open debugging on demand", async ({ page }) => {
+test("operator watches a conversation live, takes over, replies, and hands it back", async ({ page }) => {
   await loginOperator(page, "/workspace");
   await expect(page.getByRole("navigation", { name: "Conversation list" })).toBeVisible();
-  await expect(page.getByTestId("decision-boundary")).toHaveCount(0);
-  await page.getByRole("tab", { name: /Past/ }).click();
-  await page.getByRole("tab", { name: /Active/ }).click();
-  await expect(page.getByText("New conversation", { exact: true })).toBeVisible();
+  await startTestConversation(page, "1");
+  await submitWorkspaceMessage(page, "Where is my order 1?");
+
+  await expect(page.getByTestId("conversation-handler")).toContainText("AI assistant is replying");
+  await page.getByRole("button", { name: "Take over" }).first().click();
+  await expect(page.getByTestId("conversation-handler")).toContainText("You are replying");
+  await expect(page.getByText(/joined the conversation/)).toBeVisible();
+
+  await page.getByTestId("operator-reply").fill("Hi, an operator here. Checking your order now.");
+  await page.getByTestId("send-operator-reply").click();
+  await expect(page.getByTestId("operator-message").last()).toContainText("Checking your order now.");
+
+  await page.getByRole("button", { name: "Inspect run" }).first().click();
+  await expect(page.getByTestId("run-context")).toHaveCount(0);
+  await page.getByRole("tab", { name: /Context/ }).click();
+  await expect(page.getByTestId("run-context")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Return to AI" }).click();
+  await expect(page.getByTestId("conversation-handler")).toContainText("AI assistant is replying");
 });
 
 test("scenario presets populate requests and disclose settings without executing", async ({ page }) => {

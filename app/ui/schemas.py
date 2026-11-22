@@ -101,7 +101,23 @@ class UIAnswerGrounding(BaseModel):
     accepted: bool = False
 
 
+class UIMemoryItem(BaseModel):
+    """A memory reference. Projections never persist memory text; operators resolve it live
+    from the governed memory store, so deletion and retention still apply."""
+
+    memory_id: int | None = None
+    key: str
+    memory_type: str
+    content: str | None = None
+    status: str | None = None
+    source: str | None = None
+    redaction_state: str | None = None
+
+
 class UIMemoryUsage(BaseModel):
+    read_items: list[UIMemoryItem] = Field(default_factory=list)
+    written_item: UIMemoryItem | None = None
+    write_status: str | None = None
     item_count: int
     keys: list[str] = Field(default_factory=list)
     types: list[str] = Field(default_factory=list)

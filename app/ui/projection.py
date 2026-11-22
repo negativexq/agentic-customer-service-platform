@@ -22,6 +22,7 @@ from app.ui.schemas import (
     UIConfirmationLifecycle,
     UIDecisionEvidence,
     UIGroundingEvidence,
+    UIMemoryItem,
     UIMemoryUsage,
     UIPolicyEvent,
     UIRagDocument,
@@ -185,12 +186,23 @@ class UIProjectionStore(InMemoryAgentRunProjectionRepository):
                             section=_safe_text(chunk.get("section"), "Unknown section"),
                             source=_safe_rag_source(chunk.get("source"), title),
                             score=score,
+                            chunk_id=_optional_text(chunk.get("chunk_id")),
+                            document_version=_optional_text(chunk.get("document_version")),
+                            citation_preview=_preview(chunk.get("content")),
                         )
                     )
         memory = state.get("memory_context")
         memory_items = memory if isinstance(memory, list) else []
         memory_count = len(memory_items)
+        written = state.get("memory_written")
         memory_view = UIMemoryUsage(
+            read_items=[
+                item
+                for item in (_memory_item(entry) for entry in memory_items[:10])
+                if item is not None
+            ],
+            written_item=_memory_item(written) if isinstance(written, dict) else None,
+            write_status=_optional_text(state.get("memory_operation_status")),
             item_count=memory_count,
             keys=sorted(
                 str(item.get("normalized_key"))
@@ -649,3 +661,34 @@ _projection_store = UIProjectionStore(max_runs=get_settings().agent_run_projecti
 
 def get_projection_store() -> UIProjectionStore:
     return _projection_store
+
+
+_PREVIEW_CHARS = 800
+
+
+def _optional_text(value: object) -> str | None:
+    return str(value)[:200] if isinstance(value, (str, int)) and str(value) else None
+
+
+def _preview(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = " ".join(value.split())
+    return text if len(text) <= _PREVIEW_CHARS else f"{text[:_PREVIEW_CHARS].rstrip()}…"
+
+
+def _memory_item(entry: object) -> UIMemoryItem | None:
+    if not isinstance(entry, dict):
+        return None
+    if entry.get("sensitivity_level") == "restricted":
+        return None
+    key, memory_id = entry.get("normalized_key"), entry.get("id")
+    if not isinstance(key, str):
+        return None
+    return UIMemoryItem(
+        memory_id=memory_id if isinstance(memory_id, int) else None,
+        key=key,
+        memory_type=str(entry.get("memory_type") or "unknown"),
+        source=_optional_text(entry.get("source")),
+        redaction_state=_optional_text(entry.get("redaction_state")),
+    )

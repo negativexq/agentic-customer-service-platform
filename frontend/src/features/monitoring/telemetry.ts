@@ -16,11 +16,14 @@ export type TelemetrySnapshot = {
   inputTokens: number;
   outputTokens: number;
   costUsd: number | null;
-  timeline: { at: string; label: string; latency: number; tokensIn: number; tokensOut: number; failed: boolean }[];
+  timeline: TimelinePoint[];
   outcomes: { label: string; count: number }[];
   models: { model: string; calls: number; avgLatency: number; tokens: number; errors: number }[];
   stages: { stage: TraceStage; avgMs: number; samples: number }[];
 };
+
+export type TimelineOutcome = "succeeded" | "failed" | "escalated";
+export type TimelinePoint = { at: string; label: string; latency: number; tokensIn: number; tokensOut: number; failed: boolean; model: string; outcome: TimelineOutcome };
 
 export function percentile(values: number[], p: number): number | null {
   if (values.length === 0) return null;
@@ -85,6 +88,8 @@ export function deriveTelemetry(allRuns: AgentRun[]): TelemetrySnapshot {
       tokensIn: run.provider_metadata?.input_tokens ?? 0,
       tokensOut: run.provider_metadata?.output_tokens ?? 0,
       failed: failed.includes(run),
+      model: run.provider_metadata?.model ?? run.model ?? "unknown",
+      outcome: failed.includes(run) ? "failed" : run.intent === "human_escalation" ? "escalated" : "succeeded",
     })),
     outcomes: [...outcomeCounts].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
     models: [...modelStats].map(([model, stat]) => ({ model, calls: stat.calls, avgLatency: stat.latency / stat.calls, tokens: stat.tokens, errors: stat.errors })).sort((a, b) => b.calls - a.calls),

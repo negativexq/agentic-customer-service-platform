@@ -40,7 +40,7 @@ export function MemoryPanel({
         <Brain size={15} aria-hidden="true" />
         <span>
           Memory can enrich context but cannot authorize actions or bypass validation and
-          confirmation. Memory content is intentionally hidden from the operator projection.
+          confirmation. Stored content is shown after DLP; restricted data is never kept.
         </span>
       </div>
       <div className="mt-4">

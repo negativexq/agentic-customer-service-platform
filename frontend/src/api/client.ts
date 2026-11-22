@@ -1,4 +1,4 @@
-import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, RuntimeConfig } from "../types";
+import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, MemoryUsage, RuntimeConfig, OperatorConversation, OperatorConversationDetail, OperatorIdentity } from "../types";
 import {
   createConfiguredAuthProvider,
   type AuthProvider,
@@ -98,9 +98,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ conversation_id: conversationId, customer_id: customerId, message, execution_mode: executionMode }),
     }),
+  runMemory: (runId: string) => request<MemoryUsage>(`/ui/agent-runs/${runId}/memory`),
   run: (runId: string) => requestProjection<AgentRun>(`/ui/agent-runs/${runId}`),
   conversation: (conversationId: string) => request<ConversationView>(`/ui/conversations/${conversationId}`),
   memory: (customerId: number) => request<MemoryRecord[]>(`/ui/memory/${customerId}`),
   health: () => request<Health>("/ui/system-health"),
   runtimeConfig: () => request<RuntimeConfig>("/ui/runtime-config"),
+  operatorMe: () => request<OperatorIdentity>("/operator/me"),
+  operatorConversations: () => request<OperatorConversation[]>("/operator/conversations?limit=200"),
+  operatorConversation: (id: number) => request<OperatorConversationDetail>(`/operator/conversations/${id}`),
+  operatorTransition: (id: number, action: "claim" | "release" | "resolve", expectedVersion: number) =>
+    request<OperatorConversationDetail>(`/operator/conversations/${id}/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ expected_version: expectedVersion }),
+    }),
+  operatorReply: (id: number, content: string, expectedVersion: number, clientMessageId: string) =>
+    request<OperatorConversationDetail>(`/operator/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content, expected_version: expectedVersion, client_message_id: clientMessageId }),
+    }),
 };

@@ -62,7 +62,12 @@ export type AnswerGrounding = {
   accepted: boolean;
 };
 
+export type MemoryItem = { memory_id?: number | null; key: string; memory_type: string; content?: string | null; status?: string | null; source?: string | null; redaction_state?: string | null };
+
 export type MemoryUsage = {
+  read_items?: MemoryItem[];
+  written_item?: MemoryItem | null;
+  write_status?: string | null;
   item_count: number;
   keys: string[];
   types: string[];
@@ -285,3 +290,35 @@ export type PlaygroundHistoryItem = {
   scenario: string;
   orderId: string;
 };
+
+export type ConversationOwner = "ai" | "queued" | "human" | "closed";
+
+export type RecordedMessage = {
+  sequence: number;
+  sender_type: "customer" | "ai" | "operator" | "system";
+  sender_name: string | null;
+  sent_by_me: boolean;
+  content: string;
+  redacted: boolean;
+  agent_run_id: string | null;
+  created_at: string;
+};
+
+export type OperatorConversation = {
+  id: number;
+  conversation_id: string;
+  customer_id: number;
+  customer_name: string;
+  owner: ConversationOwner;
+  assigned_to_me: boolean;
+  assignee_name: string | null;
+  ownership_version: number;
+  created_at: string;
+  updated_at: string;
+  last_message: RecordedMessage | null;
+  escalation: { priority: string; reason: string; summary: string; status: string; created_at: string | null } | null;
+};
+
+export type OperatorConversationDetail = OperatorConversation & { messages: RecordedMessage[] };
+
+export type OperatorIdentity = { actor_id: string; display_name: string };
