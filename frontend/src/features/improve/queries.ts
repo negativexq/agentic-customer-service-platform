@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "../../api/client";
-import type { ErrorLog, Gap, MonitorInput, PerformanceView, QualityView, ReviewStatus, Scenario, SimulationRun } from "./types";
+import type { ErrorLog, Gap, MonitorInput, MonitorPreview, PerformanceView, QualityView, ReviewStatus, Scenario, SimulationRun } from "./types";
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
 
@@ -11,6 +11,7 @@ export const improveApi = {
   quality: (days: number) => request<QualityView>(`/ui/quality?days=${days}`),
   createMonitor: (input: MonitorInput) => request<{ key: string }>("/ui/quality/monitors", json("POST", input)),
   updateMonitor: (id: number, input: MonitorInput) => request<{ key: string }>(`/ui/quality/monitors/${id}`, json("PUT", input)),
+  previewMonitor: (input: { phrases: string[]; sender_type: string; days: number }) => request<MonitorPreview>("/ui/quality/monitors/preview", json("POST", input)),
   deleteMonitor: (id: number) => request<void>(`/ui/quality/monitors/${id}`, json("DELETE")),
   review: (monitorKey: string, conversationPk: number, status: ReviewStatus, note = "") =>
     request<void>("/ui/quality/reviews", json("POST", { monitor_key: monitorKey, conversation_pk: conversationPk, status, note })),

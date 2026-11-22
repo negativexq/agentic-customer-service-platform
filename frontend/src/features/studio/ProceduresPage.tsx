@@ -4,6 +4,7 @@ import { Input } from "@/components/primitives/input";
 import { Skeleton } from "@/components/primitives/skeleton";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
+import { ProcedureSimulations } from "../improve/ProcedureSimulations";
 import { useProcedures } from "./queries";
 import type { ProcedureStepKind, ProcedureView } from "./types";
 
@@ -122,7 +123,12 @@ export function ProceduresPage({ initialIntent, onOpenAction, onOpenGuidance, on
           )}
         </aside>
         <div className="min-w-0 p-4 sm:p-6">
-          {current ? <ProcedureDetail key={current.intent} procedure={current} onOpenAction={onOpenAction} onOpenGuidance={onOpenGuidance} onOpenKnowledge={onOpenKnowledge} />
+          {current ? (
+            <div className="grid gap-6">
+              <ProcedureDetail key={current.intent} procedure={current} onOpenAction={onOpenAction} onOpenGuidance={onOpenGuidance} onOpenKnowledge={onOpenKnowledge} />
+              <ProcedureSimulations key={`sim-${current.intent}`} intent={current.intent} />
+            </div>
+          )
             : procedures.isError ? <p className="text-sm text-muted-foreground">Procedures could not be loaded.</p> : null}
         </div>
       </div>

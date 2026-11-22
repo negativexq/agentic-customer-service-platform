@@ -6,7 +6,7 @@ Each flag is one conversation for one monitor; reviewers mark it reviewed, dismi
 """
 
 from collections import defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -23,7 +23,13 @@ from app.models.entities import (
 )
 from app.models.workspace import ConversationFeedback
 from app.services.studio.procedures import is_clarification, is_failed
-from app.ui.insights_schemas import FlagView, MonitorView, QualityView
+from app.ui.insights_schemas import (
+    FlagView,
+    MonitorPreview,
+    MonitorPreviewMatch,
+    MonitorView,
+    QualityView,
+)
 from app.ui.schemas import AgentRunView
 
 MAX_MESSAGES = 5000
@@ -158,15 +164,11 @@ def _failed(items: list[AgentRunView]) -> _Hit | None:
     return None
 
 
-def quality(
-    session: Session,
-    tenant_id: str,
-    runs: Sequence[AgentRunView],
-    *,
-    since: datetime,
-    days: int,
-    customer_ids: set[int] | None,
-) -> QualityView:
+def _window(
+    session: Session, tenant_id: str, since: datetime, customer_ids: set[int] | None
+) -> tuple[dict[int, Conversation], list[ConversationMessage]]:
+    """Conversations updated in the window and their latest messages, oldest first."""
+
     statement = select(Conversation).where(
         Conversation.tenant_id == tenant_id, Conversation.updated_at >= since
     )
@@ -187,6 +189,66 @@ def quality(
         else []
     )
     messages.reverse()
+    return conversations, messages
+
+
+def _customer_names(session: Session, conversations: Iterable[Conversation]) -> dict[int, str]:
+    ids = {c.customer_id for c in conversations}
+    if not ids:
+        return {}
+    return {
+        row.id: row.name for row in session.scalars(select(Customer).where(Customer.id.in_(ids)))
+    }
+
+
+def preview_monitor(
+    session: Session,
+    tenant_id: str,
+    *,
+    phrases: Sequence[str],
+    sender_type: str,
+    since: datetime,
+    days: int,
+    customer_ids: set[int] | None,
+    limit: int = 5,
+) -> MonitorPreview:
+    """What a phrase monitor would flag over past conversations, without saving it."""
+
+    conversations, messages = _window(session, tenant_id, since, customer_ids)
+    hits = _phrase_hits(messages, phrases, sender_type)
+    newest = sorted(hits.items(), key=lambda item: item[1].at, reverse=True)[:limit]
+    names = _customer_names(session, (conversations[pk] for pk, _ in newest))
+    return MonitorPreview(
+        window_days=days,
+        conversations=len(conversations),
+        matched=len(hits),
+        examples=[
+            MonitorPreviewMatch(
+                conversation_pk=pk,
+                conversation_id=conversations[pk].conversation_id,
+                customer_name=names.get(
+                    conversations[pk].customer_id, f"Customer #{conversations[pk].customer_id}"
+                ),
+                detail=hit.detail,
+                excerpt=hit.excerpt,
+                at=hit.at,
+            )
+            for pk, hit in newest
+        ],
+    )
+
+
+def quality(
+    session: Session,
+    tenant_id: str,
+    runs: Sequence[AgentRunView],
+    *,
+    since: datetime,
+    days: int,
+    customer_ids: set[int] | None,
+) -> QualityView:
+    conversations, messages = _window(session, tenant_id, since, customer_ids)
+    pks = list(conversations)
     pk_by_key = {(c.customer_id, c.conversation_id): c.id for c in conversations.values()}
 
     custom = list(
@@ -249,12 +311,7 @@ def quality(
             select(QualityFlagReview).where(QualityFlagReview.tenant_id == tenant_id)
         )
     }
-    names = {
-        row.id: row.name
-        for row in session.scalars(
-            select(Customer).where(Customer.id.in_({c.customer_id for c in conversations.values()}))
-        )
-    }
+    names = _customer_names(session, conversations.values())
     flags: list[FlagView] = []
     monitor_views: list[MonitorView] = []
     custom_by_key = {f"custom:{m.id}": m for m in custom}
@@ -312,7 +369,9 @@ def quality(
             -flag.at.timestamp(),
         )
     )
-    return QualityView(window_days=days, monitors=monitor_views, flags=flags)
+    return QualityView(
+        window_days=days, conversations=len(conversations), monitors=monitor_views, flags=flags
+    )
 
 
 def review_flag(

@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAuthProvider } from "../../auth/provider";
 import { initializeApiAuth, setApiAuthProvider } from "../../api/client";
 import { coachingSeed } from "./coaching";
-import { GapCard } from "./OptimizePage";
+import { flowData } from "./ConversationFlow";
+import { GapCard, GapRail } from "./OptimizePage";
 import { PerformanceSummaryStrip } from "./PerformancePage";
-import { customMonitorId, FlagRow } from "./QualityPage";
+import { customMonitorId, FlagRow, flaggedPerDay, PreviewResult } from "./QualityPage";
 import { improveApi } from "./queries";
-import { ResultRow, ScenarioPicker } from "./SimulationsPage";
+import { compareRuns, ResultRow, ScenarioPicker } from "./SimulationsPage";
 import type { Flag, Gap, Scenario } from "./types";
 
 const noop = () => {};
@@ -86,5 +87,40 @@ describe("improve loop", () => {
     expect(url).toContain("/ui/simulations");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({ scenario_ids: ["refund-1"], against: "draft", label: "try" });
+  });
+
+  it("draws a flow only to outcomes that were reached", () => {
+    const { nodes, links } = flowData([
+      { request_type: "read_action", conversations: 3, ai_resolved: 2, routed: 1, handled_by_team: 0 },
+      { request_type: "escalation", conversations: 1, ai_resolved: 0, routed: 1, handled_by_team: 0 },
+    ]);
+    expect(nodes.map((node) => node.name)).toEqual(["Lookups", "Asked for a person", "Resolved by AI", "Routed to a person"]);
+    expect(links).toEqual([{ source: 0, target: 2, value: 2 }, { source: 0, target: 3, value: 1 }, { source: 1, target: 3, value: 1 }]);
+  });
+
+  it("ranks gap types in a rail with their totals", () => {
+    const gap = (kind: Gap["kind"], count: number): Gap => ({ kind, key: `${kind}:${count}`, title: "t", description: "d", intent: null, count, fix: "guidance", examples: [] });
+    const html = renderToStaticMarkup(<GapRail gaps={[gap("content", 3), gap("content", 2), gap("handoff", 4)]} active="content" onSelect={noop} />);
+    expect(html).toContain("Content gaps");
+    expect(html).toMatch(/aria-selected="true"[^]*?>5</);
+    expect(html).toContain("Add knowledge so the assistant can answer");
+  });
+
+  it("counts flags per day and previews a monitor before it is saved", () => {
+    const now = new Date("2026-11-22T12:00:00Z");
+    const flag = { at: "2026-11-21T09:00:00", conversation_pk: 1, status: "open" } as Flag;
+    const days = flaggedPerDay([flag, { ...flag, conversation_pk: 2 }], 2, now);
+    expect(days).toHaveLength(3);
+    expect(days.find((day) => day.day === "2026-11-21")?.flagged).toBe(2);
+    const html = renderToStaticMarkup(<PreviewResult preview={{ window_days: 30, conversations: 4, matched: 1, examples: [{ conversation_pk: 1, conversation_id: "c", customer_name: "Ada", detail: "Said x", excerpt: "damaged", at: now.toISOString() }] }} />);
+    expect(html).toContain("25%");
+    expect(html).toContain("damaged");
+  });
+
+  it("marks scenarios that regressed or were fixed since the previous run", () => {
+    const result = (id: string, passed: boolean) => ({ scenario_id: id, category: "c", passed, critical_safety: false, failure_reasons: [], selected_tools: [], executed_tools: [], latency_ms: 1, transcript: [] });
+    expect(compareRuns([result("a", false), result("b", true), result("c", true)], [result("a", true), result("b", false)]))
+      .toEqual({ a: "regressed", b: "fixed", c: null });
+    expect(compareRuns([result("a", true)], null)).toEqual({ a: null });
   });
 });

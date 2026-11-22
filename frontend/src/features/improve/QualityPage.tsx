@@ -1,5 +1,7 @@
 import { Compass, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Bar, BarChart, XAxis } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/primitives/chart";
 import { Badge } from "@/components/primitives/badge";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/primitives/input";
@@ -12,8 +14,8 @@ import type { GuidanceSeed } from "../studio/GuidancePage";
 import { formatRelative } from "../runs/runPresentation";
 import { coachingSeed } from "./coaching";
 import { improveApi, useQuality, useQualityMutation } from "./queries";
-import { EmptyNote, Section, WindowPicker } from "./shared";
-import type { Flag, Monitor, MonitorInput, MonitorSender, ReviewStatus } from "./types";
+import { EmptyNote, percent, Section, WindowPicker } from "./shared";
+import type { Flag, Monitor, MonitorInput, MonitorPreview, MonitorSender, ReviewStatus } from "./types";
 
 const severityTone: Record<string, string> = { high: "bg-danger", medium: "bg-warning", low: "bg-muted-foreground/60" };
 const statusLabel: Record<ReviewStatus, string> = { open: "Needs review", reviewed: "Reviewed", dismissed: "Dismissed", coached: "Coached" };
@@ -76,15 +78,78 @@ export function FlagRow({ flag, busy, onReview, onCoach, onOpenConversation, onO
   );
 }
 
+const flaggedConfig = { flagged: { label: "Flagged", color: "var(--chart-1)" } } satisfies ChartConfig;
+
+export function flaggedPerDay(flags: Flag[], days: number, now = new Date()) {
+  const buckets = new Map<string, number>();
+  for (let offset = days; offset >= 0; offset -= 1) {
+    const day = new Date(now.getTime() - offset * 86_400_000);
+    buckets.set(day.toISOString().slice(0, 10), 0);
+  }
+  flags.forEach((flag) => { const key = flag.at.slice(0, 10); if (buckets.has(key)) buckets.set(key, buckets.get(key)! + 1); });
+  return [...buckets].map(([day, flagged]) => ({ day, flagged, label: new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) }));
+}
+
+export function MonitorOverview({ flags, conversations, days }: { flags: Flag[]; conversations: number; days: number }) {
+  const flaggedConversations = new Set(flags.map((flag) => flag.conversation_pk)).size;
+  const open = flags.filter((flag) => flag.status === "open").length;
+  return (
+    <div className="grid gap-0 border-b border-border sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+      <dl className="grid grid-cols-3 gap-3 px-4 py-3 sm:grid-cols-1 sm:border-r sm:border-border">
+        <div><dt className="text-xs text-muted-foreground">Flagged rate</dt><dd className="font-mono text-xl tabular-nums text-foreground">{conversations ? percent(flaggedConversations / conversations) : "—"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Conversations flagged</dt><dd className="font-mono text-sm tabular-nums text-foreground">{flaggedConversations} <span className="text-muted-foreground">of {conversations}</span></dd></div>
+        <div><dt className="text-xs text-muted-foreground">Needs review</dt><dd className="font-mono text-sm tabular-nums text-foreground">{open}</dd></div>
+      </dl>
+      <ChartContainer config={flaggedConfig} className="aspect-auto h-36 w-full p-2" aria-label={`Flags per day over ${days} days`}>
+        <BarChart data={flaggedPerDay(flags, days)} margin={{ left: 8, right: 8, top: 8 }}>
+          <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} />
+          <ChartTooltip isAnimationActive={false} cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltipContent />} />
+          <Bar dataKey="flagged" fill="var(--color-flagged)" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+        </BarChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
+export function PreviewResult({ preview }: { preview: MonitorPreview }) {
+  return (
+    <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3" aria-live="polite">
+      <p className="text-sm text-foreground">
+        Would flag <span className="font-mono tabular-nums">{preview.matched}</span> of <span className="font-mono tabular-nums">{preview.conversations}</span> conversations
+        {preview.conversations ? ` (${percent(preview.matched / preview.conversations)})` : ""} from the last {preview.window_days} days.
+      </p>
+      {preview.examples.length > 0 && (
+        <ul className="grid gap-1.5">
+          {preview.examples.map((example) => (
+            <li key={example.conversation_pk} className="grid gap-0.5 text-xs">
+              <span className="text-muted-foreground">{example.customer_name} · {formatRelative(example.at)}</span>
+              {example.excerpt && <span className="line-clamp-2 border-l-2 border-border pl-2 text-foreground">{example.excerpt}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const blankMonitor: MonitorInput = { name: "", description: "", sender_type: "customer", phrases: [], severity: "medium", enabled: true };
 
-function MonitorSheet({ editing, onClose }: { editing: { id: number | null; input: MonitorInput } | null; onClose: () => void }) {
+function MonitorSheet({ editing, days, onClose }: { editing: { id: number | null; input: MonitorInput } | null; days: number; onClose: () => void }) {
   const [form, setForm] = useState<MonitorInput>(editing?.input ?? blankMonitor);
   const [phrases, setPhrases] = useState((editing?.input.phrases ?? []).join("\n"));
   const save = useQualityMutation((input: MonitorInput) => (editing?.id ? improveApi.updateMonitor(editing.id, input) : improveApi.createMonitor(input)));
   const remove = useQualityMutation((id: number) => improveApi.deleteMonitor(id));
+  const [preview, setPreview] = useState<{ key: string; result: MonitorPreview } | null>(null);
+  const [testing, setTesting] = useState(false);
   const list = phrases.split("\n").map((value) => value.trim()).filter(Boolean);
   const error = save.error ?? remove.error;
+  const previewKey = `${form.sender_type}|${list.join("|")}`;
+  const test = () => {
+    setTesting(true);
+    improveApi.previewMonitor({ phrases: list, sender_type: form.sender_type, days })
+      .then((result) => setPreview({ key: previewKey, result }), () => setPreview(null))
+      .finally(() => setTesting(false));
+  };
   const submit = () => save.mutate({ ...form, phrases: list }, { onSuccess: onClose });
 
   return (
@@ -128,6 +193,12 @@ function MonitorSheet({ editing, onClose }: { editing: { id: number | null; inpu
             <input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} className="size-4 accent-primary" />
             Monitor is on
           </label>
+          <div className="grid gap-2">
+            <Button type="button" variant="outline" size="sm" className="w-fit" disabled={list.length === 0 || testing} onClick={test}>
+              {testing ? "Testing…" : `Test on the last ${days} days`}
+            </Button>
+            {preview && preview.key === previewKey && <PreviewResult preview={preview.result} />}
+          </div>
           {error && <p role="alert" className="text-sm text-danger">{error instanceof ApiError ? error.message : "The monitor could not be saved."}</p>}
         </form>
         <SheetFooter className="flex-row justify-between">
@@ -191,6 +262,7 @@ export function QualityPage({ onCoach, onOpenConversation, onOpenRun }: { onCoac
             </div>
           }>
           {query.isError && <p role="alert" className="px-4 py-3 text-sm text-danger">Quality data is unavailable.</p>}
+          {query.data && <MonitorOverview flags={(query.data.flags).filter((flag) => !monitorKey || flag.monitor_key === monitorKey)} conversations={query.data.conversations} days={days} />}
           {!query.data ? <Skeleton className="m-4 h-40" /> : flags.length === 0 ? <EmptyNote>{status === "open" ? "Nothing left to review. Switch to All to see past decisions." : "No conversations were flagged in this window."}</EmptyNote> : (
             <ul className="divide-y divide-border">
               {flags.map((flag) => (
@@ -204,7 +276,7 @@ export function QualityPage({ onCoach, onOpenConversation, onOpenRun }: { onCoac
           )}
         </Section>
       </div>
-      <MonitorSheet key={editing ? `${editing.id ?? "new"}` : "closed"} editing={editing} onClose={() => setEditing(null)} />
+      <MonitorSheet key={editing ? `${editing.id ?? "new"}` : "closed"} editing={editing} days={days} onClose={() => setEditing(null)} />
     </div>
   );
 }

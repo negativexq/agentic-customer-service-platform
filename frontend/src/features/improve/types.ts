@@ -7,6 +7,7 @@ export type PerformanceView = {
     ai_runs: number; failed_runs: number;
   };
   daily: { day: string; conversations: number; ai_resolved: number; handed_off: number; csat_average: number | null }[];
+  flows: { request_type: string; conversations: number; ai_resolved: number; routed: number; handled_by_team: number }[];
   topics: { intent: string; runs: number; conversations: number; handoffs: number; clarifications: number; failures: number; handoff_rate: number | null; csat_average: number | null }[];
 };
 
@@ -34,7 +35,7 @@ export type Flag = {
   monitor_key: string; monitor_name: string; severity: string; conversation_pk: number; conversation_id: string; customer_id: number;
   customer_name: string; detail: string; excerpt: string | null; at: string; status: ReviewStatus; note: string; run_id: string | null; intent: string | null;
 };
-export type QualityView = { window_days: number; monitors: Monitor[]; flags: Flag[] };
+export type QualityView = { window_days: number; conversations: number; monitors: Monitor[]; flags: Flag[] };
 export type MonitorInput = { name: string; description: string; sender_type: MonitorSender; phrases: string[]; severity: "low" | "medium" | "high"; enabled: boolean };
 
 export type Scenario = {
@@ -49,4 +50,9 @@ export type SimulationResult = {
 export type SimulationRun = {
   id: number; label: string; against: "published" | "draft"; config_version: number | null; started_by: string; started_at: string;
   finished_at: string | null; scenario_count: number; passed_count: number; results: SimulationResult[] | null;
+};
+
+export type MonitorPreview = {
+  window_days: number; conversations: number; matched: number;
+  examples: { conversation_pk: number; conversation_id: string; customer_name: string; detail: string; excerpt: string | null; at: string }[];
 };

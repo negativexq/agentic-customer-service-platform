@@ -19,6 +19,8 @@ from app.ui.insights_schemas import (
     ErrorLogView,
     GapView,
     MonitorInput,
+    MonitorPreview,
+    MonitorPreviewInput,
     PerformanceView,
     QualityView,
     ReviewInput,
@@ -102,6 +104,23 @@ def _clean_phrases(phrases: list[str]) -> list[str]:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Add at least one phrase."
         )
     return list(dict.fromkeys(cleaned))
+
+
+@router.post("/quality/monitors/preview", response_model=MonitorPreview)
+def preview_monitor(
+    payload: MonitorPreviewInput,
+    principal: Principal = Depends(require_support_operator),
+    session: Session = Depends(get_db),
+) -> MonitorPreview:
+    return quality.preview_monitor(
+        session,
+        _tenant(principal),
+        phrases=_clean_phrases(payload.phrases),
+        sender_type=payload.sender_type,
+        since=utc_now_naive() - timedelta(days=payload.days),
+        days=payload.days,
+        customer_ids=_scope(principal),
+    )
 
 
 @router.post("/quality/monitors", status_code=status.HTTP_201_CREATED)

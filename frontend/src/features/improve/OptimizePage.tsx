@@ -7,16 +7,18 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import type { GuidanceSeed } from "../studio/GuidancePage";
 import { formatRelative, humanize } from "../runs/runPresentation";
 import { coachingSeed } from "./coaching";
-import { useGaps } from "./queries";
-import { EmptyNote, WindowPicker } from "./shared";
+import { ConversationFlow } from "./ConversationFlow";
+import { useGaps, usePerformance } from "./queries";
+import { EmptyNote, percent, rating, Section, WindowPicker } from "./shared";
 import type { Gap, GapFix, GapKind } from "./types";
 
-const kinds: Record<GapKind, { label: string; icon: LucideIcon }> = {
-  content: { label: "Missing content", icon: BookOpen },
-  clarification: { label: "Needed clarification", icon: MessageCircleQuestion },
-  action: { label: "Couldn't act", icon: Zap },
-  handoff: { label: "Handed to a person", icon: UserRound },
+const kinds: Record<GapKind, { label: string; rail: string; pitch: string; icon: LucideIcon }> = {
+  content: { label: "Missing content", rail: "Content gaps", pitch: "Add knowledge so the assistant can answer these questions itself.", icon: BookOpen },
+  clarification: { label: "Needed clarification", rail: "Clarification gaps", pitch: "Tell the assistant what to ask for, or what it may assume.", icon: MessageCircleQuestion },
+  action: { label: "Couldn't act", rail: "Action gaps", pitch: "Requests the assistant understood but had no way to carry out.", icon: Zap },
+  handoff: { label: "Handed to a person", rail: "Handoff reasons", pitch: "Why conversations reached your team instead of being resolved.", icon: UserRound },
 };
+const kindOrder: GapKind[] = ["content", "clarification", "action", "handoff"];
 
 const fixes: Record<GapFix, { label: string; icon: LucideIcon }> = {
   knowledge: { label: "Add knowledge", icon: BookOpen },
@@ -81,32 +83,70 @@ export function GapCard({ gap, onFix, onCoach, onOpenConversation, onOpenRun }: 
   );
 }
 
+export function GapRail({ gaps, active, onSelect }: { gaps: Gap[]; active: GapKind; onSelect: (kind: GapKind) => void }) {
+  return (
+    <div role="tablist" aria-label="Gap type" aria-orientation="vertical" className="grid content-start gap-2">
+      {kindOrder.map((kind) => {
+        const items = gaps.filter((gap) => gap.kind === kind);
+        const total = items.reduce((sum, gap) => sum + gap.count, 0);
+        const selected = active === kind;
+        const Icon = kinds[kind].icon;
+        return (
+          <button key={kind} type="button" role="tab" aria-selected={selected} onClick={() => onSelect(kind)}
+            className={`grid gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${selected ? "border-primary/40 bg-primary/10" : "border-border bg-card hover:bg-muted/40"}`}>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="size-3.5" aria-hidden />{kinds[kind].rail}</span>
+            {selected && <span className="text-sm font-medium text-foreground">{kinds[kind].pitch}</span>}
+            <span className="flex items-end justify-between gap-3">
+              <span className="grid">
+                <span className="font-mono text-2xl font-medium tabular-nums text-foreground">{total}</span>
+                <span className="text-xs text-muted-foreground">{kind === "handoff" ? "conversations handed off" : "times it happened"}</span>
+              </span>
+              <span className="text-right text-xs text-muted-foreground"><span className="font-mono tabular-nums text-foreground">{items.length}</span> to review</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function OptimizePage(handlers: GapHandlers) {
   const [days, setDays] = useState(30);
-  const [kind, setKind] = useState<GapKind | "all">("all");
+  const [chosen, setChosen] = useState<GapKind | null>(null);
   const query = useGaps(days);
-  const gaps = (query.data ?? []).filter((gap) => kind === "all" || gap.kind === kind);
-  const counts = (query.data ?? []).reduce<Record<string, number>>((total, gap) => ({ ...total, [gap.kind]: (total[gap.kind] ?? 0) + gap.count }), {});
+  const performance = usePerformance(days);
+  const all = query.data ?? [];
+  const kind = chosen ?? kindOrder.find((value) => all.some((gap) => gap.kind === value)) ?? "content";
+  const gaps = all.filter((gap) => gap.kind === kind);
+  const summary = performance.data?.summary;
 
   return (
     <div className="min-w-0">
-      <PageHeader title="Optimize" description="Where the assistant fell short, grouped and ranked by how often it happened. Each gap links to the place that fixes it."
-        actions={<WindowPicker value={days} onChange={setDays} />}>
-        <div role="radiogroup" aria-label="Gap type" className="flex flex-wrap gap-1.5">
-          {(["all", ...Object.keys(kinds)] as (GapKind | "all")[]).map((value) => (
-            <button key={value} type="button" role="radio" aria-checked={kind === value} onClick={() => setKind(value)}
-              className={`h-7 rounded-md border px-2.5 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${kind === value ? "border-foreground/20 bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
-              {value === "all" ? "All gaps" : kinds[value].label}
-              {value !== "all" && counts[value] ? <span className="ml-1.5 font-mono tabular-nums">{counts[value]}</span> : null}
-            </button>
-          ))}
-        </div>
-      </PageHeader>
-      <div className="grid gap-3 p-4 sm:p-6">
+      <PageHeader title="Optimize" description="Where the assistant fell short, ranked by how often it happened. Each gap links to the place that fixes it."
+        actions={<>
+          {summary && (
+            <dl className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1"><dt className="text-muted-foreground">Resolution rate</dt><dd className="font-mono tabular-nums text-success">{percent(summary.ai_resolution_rate)}</dd></div>
+              <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1"><dt className="text-muted-foreground">CSAT</dt><dd className="font-mono tabular-nums text-foreground">{rating(summary.csat_average)}</dd></div>
+            </dl>
+          )}
+          <WindowPicker value={days} onChange={setDays} />
+        </>} />
+      <div className="grid gap-4 p-4 sm:p-6">
         {query.isError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">Gaps are unavailable. Check that the operator API is running.</p>}
-        {query.isPending ? [0, 1, 2].map((index) => <Skeleton key={index} className="h-36 w-full rounded-xl" />)
-          : gaps.length === 0 ? <div className="rounded-xl border border-dashed border-border"><EmptyNote>No gaps of this kind in the last {days} days.</EmptyNote></div>
-          : gaps.map((gap) => <GapCard key={gap.key} gap={gap} {...handlers} />)}
+        <Section title="Where conversations end" description="By the kind of request the assistant recognised first.">
+          {!performance.data ? <Skeleton className="m-4 h-56" />
+            : performance.data.flows.length === 0 ? <EmptyNote>No conversations in the last {days} days.</EmptyNote>
+            : <div className="px-2"><ConversationFlow flows={performance.data.flows} /></div>}
+        </Section>
+        <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
+          {query.isPending ? <Skeleton className="h-80 w-full rounded-xl" /> : <GapRail gaps={all} active={kind} onSelect={setChosen} />}
+          <div role="tabpanel" aria-label={kinds[kind].rail} className="grid content-start gap-3">
+            {query.isPending ? [0, 1].map((index) => <Skeleton key={index} className="h-36 w-full rounded-xl" />)
+              : gaps.length === 0 ? <div className="rounded-xl border border-dashed border-border"><EmptyNote>No {kinds[kind].rail.toLowerCase()} in the last {days} days.</EmptyNote></div>
+              : gaps.map((gap) => <GapCard key={gap.key} gap={gap} {...handlers} />)}
+          </div>
+        </div>
       </div>
     </div>
   );

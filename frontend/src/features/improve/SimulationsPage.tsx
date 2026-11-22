@@ -11,13 +11,25 @@ import { useRunSimulation, useScenarios, useSimulation, useSimulations } from ".
 import { EmptyNote, Section } from "./shared";
 import type { Scenario, SimulationResult, SimulationRun } from "./types";
 
-export function ResultRow({ result, open, onToggle }: { result: SimulationResult; open: boolean; onToggle: () => void }) {
+export type ResultChange = "regressed" | "fixed" | null;
+
+export function compareRuns(current: SimulationResult[], previous: SimulationResult[] | null | undefined): Record<string, ResultChange> {
+  const before = new Map((previous ?? []).map((result) => [result.scenario_id, result.passed]));
+  return Object.fromEntries(current.map((result) => {
+    const was = before.get(result.scenario_id);
+    return [result.scenario_id, was === undefined || was === result.passed ? null : result.passed ? "fixed" : "regressed"];
+  }));
+}
+
+export function ResultRow({ result, open, onToggle, change = null }: { result: SimulationResult; open: boolean; onToggle: () => void; change?: ResultChange }) {
   return (
     <li>
       <button type="button" onClick={onToggle} aria-expanded={open}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
         {result.passed ? <CheckCircle2 className="size-4 shrink-0 text-success" aria-label="Passed" /> : <XCircle className="size-4 shrink-0 text-danger" aria-label="Failed" />}
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{result.scenario_id}</span>
+        {change === "regressed" && <span className="rounded bg-danger/10 px-1.5 py-0.5 text-[11px] text-danger">Newly failing</span>}
+        {change === "fixed" && <span className="rounded bg-success/10 px-1.5 py-0.5 text-[11px] text-success">Fixed</span>}
         {result.critical_safety && <ShieldAlert className="size-3.5 shrink-0 text-warning" aria-label="Safety-critical" />}
         <span className="shrink-0 text-xs text-muted-foreground">{humanize(result.category)}</span>
       </button>
@@ -46,17 +58,28 @@ export function ResultRow({ result, open, onToggle }: { result: SimulationResult
   );
 }
 
-function RunResults({ run }: { run: SimulationRun }) {
+function RunResults({ run, previous }: { run: SimulationRun; previous: SimulationRun | null }) {
   const [open, setOpen] = useState<string | null>(null);
   const [failedOnly, setFailedOnly] = useState(run.passed_count < run.scenario_count);
-  const results = (run.results ?? []).filter((result) => !failedOnly || !result.passed);
+  const changes = compareRuns(run.results ?? [], previous?.results);
+  const regressed = Object.values(changes).filter((change) => change === "regressed").length;
+  const fixed = Object.values(changes).filter((change) => change === "fixed").length;
+  const results = (run.results ?? []).filter((result) => !failedOnly || !result.passed || changes[result.scenario_id]);
   return (
     <Section title={run.label || `Simulation ${run.id}`}
       description={`${run.passed_count} of ${run.scenario_count} passed against ${run.against === "draft" ? "the draft" : `published v${run.config_version ?? "default"}`}`}
       actions={<label className="flex items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={failedOnly} onChange={(event) => setFailedOnly(event.target.checked)} className="size-3.5 accent-primary" />Failed only</label>}>
+      {previous && (regressed > 0 || fixed > 0) && (
+        <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+          Compared with {previous.label || `simulation ${previous.id}`}:{" "}
+          {regressed > 0 && <span className="text-danger">{regressed} newly failing</span>}
+          {regressed > 0 && fixed > 0 && ", "}
+          {fixed > 0 && <span className="text-success">{fixed} fixed</span>}
+        </p>
+      )}
       {results.length === 0 ? <EmptyNote>{failedOnly ? "Every scenario passed." : "No results recorded."}</EmptyNote> : (
         <ul className="divide-y divide-border">
-          {results.map((result) => <ResultRow key={result.scenario_id} result={result} open={open === result.scenario_id} onToggle={() => setOpen((current) => (current === result.scenario_id ? null : result.scenario_id))} />)}
+          {results.map((result) => <ResultRow key={result.scenario_id} result={result} change={changes[result.scenario_id]} open={open === result.scenario_id} onToggle={() => setOpen((current) => (current === result.scenario_id ? null : result.scenario_id))} />)}
         </ul>
       )}
     </Section>
@@ -118,6 +141,9 @@ export function SimulationsPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const shownId = activeId ?? runs.data?.[0]?.id ?? null;
   const active = useSimulation(shownId);
+  const shownIndex = runs.data?.findIndex((item) => item.id === shownId) ?? -1;
+  const previousId = shownIndex >= 0 ? runs.data?.[shownIndex + 1]?.id ?? null : null;
+  const previous = useSimulation(previousId);
   const error = runSimulation.error instanceof ApiError
     ? runSimulation.error.status === 409 ? "There is no draft to test. Change something in Train first, or run against published." : runSimulation.error.message
     : runSimulation.error ? "The simulation could not run." : null;
@@ -175,7 +201,7 @@ export function SimulationsPage() {
         <div className="min-w-0">
           {shownId === null ? <div className="rounded-xl border border-dashed border-border"><EmptyNote>Pick scenarios and run a simulation to see each transcript here.</EmptyNote></div>
             : !active.data ? <Skeleton className="h-80 w-full rounded-xl" />
-            : <RunResults key={active.data.id} run={active.data} />}
+            : <RunResults key={active.data.id} run={active.data} previous={previous.data ?? null} />}
         </div>
       </div>
     </div>

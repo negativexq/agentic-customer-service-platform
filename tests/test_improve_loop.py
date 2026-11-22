@@ -94,6 +94,9 @@ def test_performance_counts_ai_resolution_handoffs_and_csat(
     topics = {row["intent"]: row for row in body["topics"]}
     assert topics["human_escalation"]["handoffs"] == 1
     assert topics["order_list"]["handoff_rate"] == 0.0
+    flows = {row["request_type"]: row for row in body["flows"]}
+    assert flows["read_action"]["ai_resolved"] == 1
+    assert flows["escalation"]["routed"] == 1
 
 
 def test_gaps_surface_unknown_requests_handoff_reasons_and_disabled_actions(
@@ -160,6 +163,18 @@ def test_quality_monitors_flag_conversations_and_reviews_stick(
     }
     assert after[("frustration", "qa-angry")]["status"] == "coached"
     assert after[("frustration", "qa-angry")]["note"] == "Added guidance"
+
+    assert view["conversations"] >= 2
+    preview = client.post(
+        "/ui/quality/monitors/preview", json={"phrases": ["useless"], "sender_type": "customer"}
+    ).json()
+    assert preview["matched"] == 1
+    assert preview["examples"][0]["conversation_id"] == "qa-angry"
+    assert preview["conversations"] == view["conversations"]
+    nothing = client.post(
+        "/ui/quality/monitors/preview", json={"phrases": ["useless"], "sender_type": "ai"}
+    ).json()
+    assert nothing["matched"] == 0
 
     monitor_id = int(key.split(":")[1])
     assert client.delete(f"/ui/quality/monitors/{monitor_id}").status_code == 204

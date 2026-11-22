@@ -21,12 +21,13 @@ from app.models.entities import (
     MessageSender,
 )
 from app.models.workspace import ConversationFeedback
-from app.services.studio.procedures import is_clarification, is_failed
+from app.services.studio.procedures import PROCEDURES, is_clarification, is_failed
 from app.ui.insights_schemas import (
     DailyPoint,
     ErrorCategory,
     ErrorLogView,
     ErrorRow,
+    FlowRow,
     GapExample,
     GapView,
     PerformanceSummary,
@@ -34,6 +35,8 @@ from app.ui.insights_schemas import (
     TopicRow,
 )
 from app.ui.schemas import AgentRunView
+
+REQUEST_TYPES = {procedure.intent: procedure.request_type for procedure in PROCEDURES}
 
 KNOWLEDGE_INTENTS = {
     "refund_policy",
@@ -166,6 +169,25 @@ def performance(
         )
     topics.sort(key=lambda row: (-row.runs, row.intent))
 
+    flows: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"conversations": 0, "ai_resolved": 0, "routed": 0, "handled_by_team": 0}
+    )
+    for conversation in conversations:
+        own = runs_by_conversation.get((conversation.customer_id, conversation.conversation_id))
+        if own:
+            first = min(own, key=lambda run: run.started_at)
+            kind = REQUEST_TYPES.get(first.intent, "other")
+        else:
+            kind = "not_seen_by_ai"
+        row = flows[kind]
+        row["conversations"] += 1
+        if conversation.id in ai_resolved:
+            row["ai_resolved"] += 1
+        elif conversation.id in handed and own:
+            row["routed"] += 1
+        elif conversation.id in handed:
+            row["handled_by_team"] += 1
+
     all_ratings = list(ratings.values())
     return PerformanceView(
         summary=PerformanceSummary(
@@ -195,6 +217,10 @@ def performance(
             for day, values in daily.items()
         ],
         topics=topics,
+        flows=[
+            FlowRow(request_type=kind, **values)
+            for kind, values in sorted(flows.items(), key=lambda item: -item[1]["conversations"])
+        ],
     )
 
 

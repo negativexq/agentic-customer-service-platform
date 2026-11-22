@@ -40,10 +40,21 @@ class TopicRow(BaseModel):
     csat_average: float | None
 
 
+class FlowRow(BaseModel):
+    """Where conversations of one request type ended up."""
+
+    request_type: str
+    conversations: int
+    ai_resolved: int
+    routed: int
+    handled_by_team: int
+
+
 class PerformanceView(BaseModel):
     summary: PerformanceSummary
     daily: list[DailyPoint]
     topics: list[TopicRow]
+    flows: list[FlowRow] = Field(default_factory=list)
 
 
 GapKind = Literal["content", "clarification", "action", "handoff"]
@@ -131,6 +142,7 @@ class FlagView(BaseModel):
 
 class QualityView(BaseModel):
     window_days: int
+    conversations: int = 0
     monitors: list[MonitorView]
     flags: list[FlagView]
 
@@ -142,6 +154,28 @@ class MonitorInput(BaseModel):
     phrases: list[str] = Field(min_length=1, max_length=30)
     severity: Literal["low", "medium", "high"] = "medium"
     enabled: bool = True
+
+
+class MonitorPreviewInput(BaseModel):
+    sender_type: MonitorSender = "customer"
+    phrases: list[str] = Field(min_length=1, max_length=30)
+    days: int = Field(default=30, ge=1, le=90)
+
+
+class MonitorPreviewMatch(BaseModel):
+    conversation_pk: int
+    conversation_id: str
+    customer_name: str
+    detail: str
+    excerpt: str | None
+    at: datetime
+
+
+class MonitorPreview(BaseModel):
+    window_days: int
+    conversations: int
+    matched: int
+    examples: list[MonitorPreviewMatch]
 
 
 class ReviewInput(BaseModel):
