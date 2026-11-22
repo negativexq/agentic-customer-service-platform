@@ -24,6 +24,7 @@ type Props = {
   onReply: (message: string) => Promise<void>;
   onAction: (action: "claim" | "release" | "resolve") => void;
   onInspect: (runId: string) => void;
+  onInspectConversation: () => void;
 };
 
 const testCustomers = [
@@ -105,7 +106,7 @@ function ActionButton({ children, onClick, disabled, primary = false }: { childr
 }
 
 export function ConversationThread(props: Props) {
-  const { target, detail, loading, me, localTurns, canSimulateCustomer, busy, error, actionPending, actionError, onCustomerChange, onSendAsCustomer, onReply, onAction, onInspect } = props;
+  const { target, detail, loading, me, localTurns, canSimulateCustomer, busy, error, actionPending, actionError, onCustomerChange, onSendAsCustomer, onReply, onAction, onInspect, onInspectConversation } = props;
   const [message, setMessage] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const draft = target.kind === "draft";
@@ -170,6 +171,7 @@ export function ConversationThread(props: Props) {
             )}
             <span className="ml-auto flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-success" aria-hidden="true" />Live</span>
+              <ActionButton disabled={false} onClick={onInspectConversation}><Bug className="size-3.5" aria-hidden="true" />Debug</ActionButton>
               {detail && (detail.owner === "ai" || detail.owner === "queued") && (
                 <ActionButton primary={detail.owner === "queued"} disabled={actionPending} onClick={() => onAction("claim")}><Hand className="size-3.5" aria-hidden="true" />Take over</ActionButton>
               )}

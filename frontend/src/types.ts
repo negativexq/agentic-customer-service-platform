@@ -322,3 +322,16 @@ export type OperatorConversation = {
 export type OperatorConversationDetail = OperatorConversation & { messages: RecordedMessage[] };
 
 export type OperatorIdentity = { actor_id: string; display_name: string };
+
+export type OperatorSettings = {
+  actor_id: string;
+  display_name: string;
+  sign_in_method: string;
+  tenant_id: string;
+  roles: string[];
+  customer_scope: "tenant" | "assigned_customers";
+  scoped_customer_count: number | null;
+  message_retention_days: number;
+  memory_retention_days: number;
+  support_context_retention_days: number;
+};

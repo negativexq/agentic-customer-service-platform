@@ -2,7 +2,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/primitives/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/primitives/dropdown-menu";
-import { applyTheme, readThemePreference, resolveTheme, storeThemePreference, watchSystemTheme, type ThemePreference } from "@/lib/theme";
+import { applyTheme, readThemePreference, resolveTheme, storeThemePreference, themeChangeEvent, watchSystemTheme, type ThemePreference } from "@/lib/theme";
 
 const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Light", icon: Sun },
@@ -13,6 +13,12 @@ const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 export function ThemeToggle() {
   const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
   useEffect(() => (preference === "system" ? watchSystemTheme(() => applyTheme("system")) : undefined), [preference]);
+  // Stay in sync when the theme is changed from Settings or the command menu.
+  useEffect(() => {
+    const sync = () => setPreference(readThemePreference());
+    window.addEventListener(themeChangeEvent, sync);
+    return () => window.removeEventListener(themeChangeEvent, sync);
+  }, []);
   const Icon = resolveTheme(preference) === "dark" ? Moon : Sun;
   return (
     <DropdownMenu>

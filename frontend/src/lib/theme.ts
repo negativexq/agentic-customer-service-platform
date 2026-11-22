@@ -1,6 +1,7 @@
 export type ThemePreference = "light" | "dark" | "system";
 
 const storageKey = "agentops-theme";
+export const themeChangeEvent = "agentops-theme-change";
 const media = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 export function readThemePreference(): ThemePreference {
@@ -32,6 +33,7 @@ export function storeThemePreference(preference: ThemePreference): void {
     // The choice still applies for this page view.
   }
   applyTheme(preference);
+  window.dispatchEvent(new CustomEvent(themeChangeEvent, { detail: preference }));
 }
 
 export function watchSystemTheme(onChange: () => void): () => void {

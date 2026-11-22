@@ -1,4 +1,4 @@
-import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, MemoryUsage, RuntimeConfig, OperatorConversation, OperatorConversationDetail, OperatorIdentity } from "../types";
+import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, MemoryUsage, RuntimeConfig, OperatorConversation, OperatorConversationDetail, OperatorIdentity, OperatorSettings } from "../types";
 import {
   createConfiguredAuthProvider,
   type AuthProvider,
@@ -105,6 +105,7 @@ export const api = {
   health: () => request<Health>("/ui/system-health"),
   runtimeConfig: () => request<RuntimeConfig>("/ui/runtime-config"),
   operatorMe: () => request<OperatorIdentity>("/operator/me"),
+  operatorSettings: () => request<OperatorSettings>("/operator/settings"),
   operatorConversations: () => request<OperatorConversation[]>("/operator/conversations?limit=200"),
   operatorConversation: (id: number) => request<OperatorConversationDetail>(`/operator/conversations/${id}`),
   operatorTransition: (id: number, action: "claim" | "release" | "resolve", expectedVersion: number) =>

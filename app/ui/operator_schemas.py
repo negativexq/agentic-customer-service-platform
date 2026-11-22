@@ -8,6 +8,21 @@ class OperatorIdentityView(BaseModel):
     display_name: str
 
 
+class OperatorSettingsView(BaseModel):
+    """Read-only workspace settings an operator may see. Never carries secrets or claims."""
+
+    actor_id: str
+    display_name: str
+    sign_in_method: str
+    tenant_id: str
+    roles: list[str]
+    customer_scope: str
+    scoped_customer_count: int | None
+    message_retention_days: int
+    memory_retention_days: int
+    support_context_retention_days: int
+
+
 class ConversationMessageView(BaseModel):
     sequence: int
     sender_type: str

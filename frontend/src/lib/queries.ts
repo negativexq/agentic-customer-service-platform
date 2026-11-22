@@ -1,5 +1,6 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../api/client";
+import { liveUpdateIntervals, usePreferences } from "./preferences";
 import type { AgentExecutionMode, AgentRun, DemoScenario } from "../types";
 
 export const queryClient = new QueryClient({
@@ -19,6 +20,7 @@ export const queryKeys = {
   runs: ["agent-runs"] as const,
   run: (runId: string) => ["agent-run", runId] as const,
   runMemory: (runId: string) => ["agent-run-memory", runId] as const,
+  conversationRuns: (conversationId: string) => ["conversation-runs", conversationId] as const,
   demoScenarios: ["demo-scenarios"] as const,
   memory: (customerId: number) => ["memory", customerId] as const,
   operatorMe: ["operator-me"] as const,
@@ -82,16 +84,20 @@ export function useOperatorMe(enabled: boolean) {
 
 /** The inbox and the open conversation poll so operators watch conversations live. */
 export function useInbox(enabled: boolean) {
-  return useQuery({ queryKey: queryKeys.inbox, queryFn: api.operatorConversations, enabled, refetchInterval: 4_000, staleTime: 2_000 });
+  const { liveUpdates } = usePreferences();
+  const interval = liveUpdateIntervals[liveUpdates].inbox;
+  return useQuery({ queryKey: queryKeys.inbox, queryFn: api.operatorConversations, enabled, refetchInterval: interval, staleTime: interval / 2 });
 }
 
 export function useOperatorConversation(id: number | null) {
+  const { liveUpdates } = usePreferences();
+  const interval = liveUpdateIntervals[liveUpdates].conversation;
   return useQuery({
     queryKey: queryKeys.conversation(id ?? 0),
     queryFn: () => api.operatorConversation(id!),
     enabled: id !== null,
-    refetchInterval: 2_000,
-    staleTime: 1_000,
+    refetchInterval: interval,
+    staleTime: interval / 2,
   });
 }
 
@@ -118,4 +124,19 @@ export function useRunMemory(runId: string | null) {
     enabled: Boolean(runId),
     staleTime: 10_000,
   });
+}
+
+/** Every agent run in one conversation, for the conversation debug view. Polls while it is open. */
+export function useConversationRuns(conversationId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.conversationRuns(conversationId ?? ""),
+    queryFn: () => api.conversation(conversationId as string),
+    enabled: enabled && Boolean(conversationId),
+    refetchInterval: 5_000,
+    retry: false,
+  });
+}
+
+export function useOperatorSettings(enabled: boolean) {
+  return useQuery({ queryKey: ["operator-settings"], queryFn: api.operatorSettings, enabled, staleTime: 60_000 });
 }

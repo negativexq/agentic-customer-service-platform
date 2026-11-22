@@ -12,15 +12,18 @@ import { SafetyDashboard } from "../components/SafetyDashboard";
 import { ConversationList } from "../features/conversations/ConversationList";
 import { ConversationThread, type ThreadTarget } from "../features/conversations/ConversationThread";
 import { RunInspectorSheet } from "../features/conversations/RunInspectorSheet";
+import { ConversationInspectorSheet } from "../features/conversations/ConversationInspectorSheet";
 import { MonitoringPage } from "../features/monitoring/MonitoringPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { RunsPage } from "../features/runs/RunsPage";
 import { ChatWindow } from "../features/chat/ChatWindow";
-import { queryClient, useChatMutation, useConversationAction, useDemoScenarios, useInbox, useOperatorConversation, useOperatorMe, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
+import { queryClient, useChatMutation, useConversationAction, useConversationRuns, useDemoScenarios, useInbox, useOperatorConversation, useOperatorMe, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
 import type { ConversationTurn, OperatorConversation, PlaygroundExecution, PlaygroundRequest } from "../types";
 import { AppShell } from "./AppShell";
 import { CommandMenu } from "./CommandMenu";
 import { viewFromPath, viewPaths, type ConsoleView } from "./routes";
+import { readPreferences } from "@/lib/preferences";
+import { SettingsPage } from "../features/settings/SettingsPage";
 
 function AuthBoundary({ snapshot }: { snapshot: AuthSnapshot }) {
   const loading = snapshot.status === "loading";
@@ -71,6 +74,8 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [testConversations, setTestConversations] = useState<Set<string>>(() => new Set());
   const [turnsByConversation, setTurnsByConversation] = useState<Record<string, ConversationTurn[]>>({});
   const [inspectRunId, setInspectRunId] = useState<string | null>(null);
+  const [conversationDebugOpen, setConversationDebugOpen] = useState(false);
+  const [monitoringConversation, setMonitoringConversation] = useState("all");
   const [playgroundExecution, setPlaygroundExecution] = useState<PlaygroundExecution | null>(null);
   const wide = useWideLayout();
 
@@ -91,6 +96,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const memoryCustomer = routeRun.data?.customer_id ?? customerId;
   const memory = useMemory(memoryCustomer, true);
   const chat = useChatMutation();
+  const conversationRuns = useConversationRuns(conversationId, conversationDebugOpen);
 
   // Any 401 from a query or mutation sends the operator back to the auth boundary.
   useEffect(() => {
@@ -127,7 +133,9 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     const list = inbox.data;
     if (!list) return;
     if (target === null) {
-      const first = list.find((item) => item.owner === "queued") ?? list.find((item) => item.owner !== "closed") ?? list[0];
+      const byRecent = [...list].sort((x, y) => y.updated_at.localeCompare(x.updated_at));
+      const waiting = readPreferences().openWaitingFirst ? byRecent.find((item) => item.owner === "queued") : undefined;
+      const first = waiting ?? byRecent.find((item) => item.owner !== "closed") ?? byRecent[0];
       setTarget(first ? { kind: "conversation", id: first.id } : { kind: "draft", conversationId: newConversationId(), customerId: 1 });
       return;
     }
@@ -207,8 +215,10 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     );
   } else if (view === "traces") {
     content = <RunsPage runs={allRuns} loading={runsQuery.isPending} error={runsQuery.error ? errorMessage(runsQuery.error, "Runs are unavailable.") : null} onOpenRun={openRun} />;
+  } else if (view === "settings") {
+    content = <SettingsPage runtimeConfig={runtimeConfig.data} health={health.data} />;
   } else if (view === "monitoring") {
-    content = <MonitoringPage runs={liveRuns} health={health.data} loading={runsQuery.isPending} healthUnavailable={health.isError} onOpenRun={openRun} />;
+    content = <MonitoringPage key={monitoringConversation} initialConversation={monitoringConversation} runs={liveRuns} health={health.data} loading={runsQuery.isPending} healthUnavailable={health.isError} onOpenRun={openRun} />;
   } else if (view === "workspace") {
     const rail = (
       <ConversationList
@@ -238,6 +248,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         onReply={(content) => runAction("reply", content)}
         onAction={(action) => { void runAction(action); }}
         onInspect={setInspectRunId}
+        onInspectConversation={() => setConversationDebugOpen(true)}
       />
     ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading inbox…</div>;
     content = wide ? (
@@ -294,6 +305,16 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         memoryRecords={inspectRun.data?.customer_id === memoryCustomer ? memory.data ?? [] : []}
         onClose={() => setInspectRunId(null)}
         onOpenInvestigation={(runId) => { setInspectRunId(null); openRun(runId); }}
+      />
+      <ConversationInspectorSheet
+        open={conversationDebugOpen && target?.kind === "conversation"}
+        conversationId={conversationId}
+        customerName={threadDetail?.customer_name ?? "Customer"}
+        runs={conversationRuns.data?.runs ?? (conversationRuns.isError ? [] : undefined)}
+        loading={conversationRuns.isPending}
+        onClose={() => setConversationDebugOpen(false)}
+        onOpenRun={setInspectRunId}
+        onOpenMonitoring={(id) => { setConversationDebugOpen(false); setMonitoringConversation(id); navigateToView("monitoring"); }}
       />
       <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} runs={liveRuns} onNavigate={navigateToView} onOpenRun={openRun} />
     </>

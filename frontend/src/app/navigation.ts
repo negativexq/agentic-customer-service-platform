@@ -1,4 +1,4 @@
-import { Activity, Beaker, BookOpen, Gauge, LayoutDashboard, MessagesSquare, Network, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, Beaker, BookOpen, Gauge, LayoutDashboard, MessagesSquare, Network, Settings, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
 import type { ConsoleView } from "./routes";
 
 export type NavItem = { view: ConsoleView; label: string; icon: LucideIcon; shortcut?: string };
@@ -28,5 +28,9 @@ export const navigation: NavGroup[] = [
       { view: "chat", label: "Chat and activity", icon: BookOpen },
       { view: "architecture", label: "Architecture", icon: Network },
     ],
+  },
+  {
+    label: "Workspace",
+    items: [{ view: "settings", label: "Settings", icon: Settings }],
   },
 ];

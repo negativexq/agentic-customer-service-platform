@@ -2,6 +2,7 @@ import { FlaskConical, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/primitives/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/primitives/tooltip";
+import { usePreferences } from "@/lib/preferences";
 import type { OperatorConversation } from "../../types";
 import { formatRelative, toneDot } from "../runs/runPresentation";
 import { handler, inboxFilters, initials, matchesFilter, previewText, type InboxFilter } from "./conversations";
@@ -18,7 +19,8 @@ type Props = {
 const priorityTone: Record<string, string> = { urgent: "text-danger", high: "text-danger", medium: "text-warning", low: "text-muted-foreground" };
 
 export function ConversationList({ conversations, loading, selectedId, draftActive, onSelect, onNewTest }: Props) {
-  const [filter, setFilter] = useState<InboxFilter>("all");
+  const preferences = usePreferences();
+  const [filter, setFilter] = useState<InboxFilter>(preferences.defaultInboxView);
   const [query, setQuery] = useState("");
   const counts = useMemo(
     () => Object.fromEntries(inboxFilters.map((item) => [item.id, conversations.filter((c) => matchesFilter(c, item.id)).length])) as Record<InboxFilter, number>,
@@ -29,9 +31,9 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
     return conversations
       .filter((item) => matchesFilter(item, filter))
       .filter((item) => !needle || [item.customer_name, item.conversation_id, item.last_message?.content].some((value) => value?.toLowerCase().includes(needle)))
-      // Waiting customers first, then most recent activity.
-      .sort((a, b) => Number(b.owner === "queued") - Number(a.owner === "queued") || b.updated_at.localeCompare(a.updated_at));
-  }, [conversations, filter, query]);
+      // Waiting customers first (unless turned off in Settings), then most recent activity.
+      .sort((a, b) => (preferences.openWaitingFirst ? Number(b.owner === "queued") - Number(a.owner === "queued") : 0) || b.updated_at.localeCompare(a.updated_at));
+  }, [conversations, filter, query, preferences.openWaitingFirst]);
 
   return (
     <nav aria-label="Conversation list" className="flex h-full min-h-0 flex-col">

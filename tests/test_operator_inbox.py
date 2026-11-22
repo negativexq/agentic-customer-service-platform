@@ -380,3 +380,11 @@ def _chat_projection(client: TestClient) -> str:
         return str(_chat(client, "inbox-memory", "Orders?")["agent_run_id"])
     finally:
         app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+def test_operator_settings_are_read_only_and_secret_free(client: TestClient) -> None:
+    body = client.get("/operator/settings").json()
+    assert body["display_name"]
+    assert body["customer_scope"] == "tenant"
+    assert body["message_retention_days"] == get_settings().conversation_message_ttl_days
+    assert not {"email", "subject", "credential_id"} & set(body)

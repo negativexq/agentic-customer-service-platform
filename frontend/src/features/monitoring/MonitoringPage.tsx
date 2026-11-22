@@ -103,10 +103,11 @@ type MonitoringPageProps = {
   loading: boolean;
   healthUnavailable: boolean;
   onOpenRun: (runId: string) => void;
+  initialConversation?: string;
 };
 
-export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailable, onOpenRun }: MonitoringPageProps) {
-  const [conversation, setConversation] = useState("all");
+export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailable, onOpenRun, initialConversation = "all" }: MonitoringPageProps) {
+  const [conversation, setConversation] = useState(initialConversation);
   const conversationOptions = useMemo(() => {
     const counts = new Map<string, { count: number; last: string; customer: number }>();
     for (const run of allRuns) {

@@ -13,6 +13,7 @@ from app.auth.dependencies import (
 )
 from app.auth.models import Principal
 from app.auth.scope import operator_customer_filter, operator_may_access
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.time import utc_now_naive
 from app.models.entities import (
@@ -45,6 +46,7 @@ from app.ui.operator_schemas import (
     OperatorConversationView,
     OperatorIdentityView,
     OperatorReplyCommand,
+    OperatorSettingsView,
     OwnershipCommand,
 )
 
@@ -190,6 +192,26 @@ def operator_identity(
     principal: Principal = Depends(require_support_operator),
 ) -> OperatorIdentityView:
     return OperatorIdentityView(actor_id=principal.actor_id, display_name=_operator_name(principal))
+
+
+@router.get("/operator/settings", response_model=OperatorSettingsView)
+def operator_settings(
+    principal: Principal = Depends(require_support_operator),
+) -> OperatorSettingsView:
+    settings = get_settings()
+    scope = operator_customer_filter(principal)
+    return OperatorSettingsView(
+        actor_id=principal.actor_id,
+        display_name=_operator_name(principal),
+        sign_in_method=principal.principal_type.value,
+        tenant_id=principal.tenant_id or "default",
+        roles=list(principal.roles),
+        customer_scope="tenant" if scope is None else "assigned_customers",
+        scoped_customer_count=None if scope is None else len(scope),
+        message_retention_days=settings.conversation_message_ttl_days,
+        memory_retention_days=settings.memory_default_ttl_days,
+        support_context_retention_days=settings.memory_support_context_ttl_days,
+    )
 
 
 @router.get("/operator/conversations", response_model=list[OperatorConversationView])
