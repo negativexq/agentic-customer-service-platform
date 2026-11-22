@@ -154,7 +154,7 @@ export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailab
               ))}
             </SelectContent>
           </Select>
-          {conversation !== "all" && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setConversation("all")}>Clear</button>}
+          {conversation !== "all" && <button type="button" className="inline-flex min-h-7 items-center rounded px-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none" onClick={() => setConversation("all")}>Clear</button>}
         </div>
       </PageHeader>
       <div className="grid min-w-0 gap-4 p-4 sm:p-6">
@@ -244,7 +244,7 @@ export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailab
                           <TableCell className="max-w-[180px] px-4">
                             <button
                               type="button"
-                              className="block max-w-full truncate font-mono text-xs text-muted-foreground hover:text-foreground"
+                              className="-my-1 block min-h-7 max-w-full truncate rounded font-mono text-xs leading-7 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none pointer-coarse:min-h-9 pointer-coarse:leading-9"
                               title={`Show only ${run.conversation_id}`}
                               onClick={(event) => { event.stopPropagation(); setConversation(run.conversation_id); }}
                             >

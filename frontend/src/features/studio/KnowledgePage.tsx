@@ -207,7 +207,7 @@ export function KnowledgePage({ initialDocument }: { initialDocument: string | n
             </nav>
           )}
           {archivedCount > 0 && (
-            <button type="button" className="justify-self-start px-3 text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowArchived(!showArchived)}>
+            <button type="button" className="inline-flex min-h-8 items-center justify-self-start rounded-md px-3 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none" onClick={() => setShowArchived(!showArchived)}>
               {showArchived ? "Hide archived" : `Show archived (${archivedCount})`}
             </button>
           )}

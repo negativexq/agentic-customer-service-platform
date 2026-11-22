@@ -55,7 +55,7 @@ export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpe
                   <span className="text-sm text-muted-foreground">{step.detail}</span>
                   {step.operator_note && <span className="text-xs text-warning">{step.operator_note}</span>}
                   {step.action && (
-                    <button type="button" onClick={() => onOpenAction(step.action!)} className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-accent">
+                    <button type="button" onClick={() => onOpenAction(step.action!)} className="mt-1 inline-flex min-h-6 w-fit items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-mono pointer-coarse:min-h-9 text-[11px] text-foreground hover:bg-accent">
                       <Wrench className="size-3" aria-hidden="true" />{step.action}
                     </button>
                   )}
@@ -71,7 +71,7 @@ export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpe
           <h3 className="text-sm font-medium text-foreground">Knowledge</h3>
           {procedure.knowledge.length === 0 ? <p className="text-sm text-muted-foreground">Does not search the knowledge base.</p> : (
             <div className="flex flex-wrap gap-1.5">
-              {procedure.knowledge.map((id) => <button key={id} type="button" onClick={() => onOpenKnowledge(id)} className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent">{humanize(id)}</button>)}
+              {procedure.knowledge.map((id) => <button key={id} type="button" onClick={() => onOpenKnowledge(id)} className="min-h-7 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent pointer-coarse:min-h-9">{humanize(id)}</button>)}
             </div>
           )}
         </section>

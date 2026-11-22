@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/primitives/resizable";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/primitives/sheet";
 import { TooltipProvider } from "@/components/primitives/tooltip";
 import { ApiError, getApiAuthSnapshot, initializeApiAuth } from "../api/client";
 import type { AuthSnapshot } from "../auth/provider";
@@ -89,6 +90,9 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [inspectRunId, setInspectRunId] = useState<string | null>(null);
   const [conversationDebugOpen, setConversationDebugOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(() => window.localStorage.getItem("agentops-context-panel") !== "closed");
+  // Narrow screens show one pane at a time (list or thread) and customer details in a sheet.
+  const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
+  const [contextSheetOpen, setContextSheetOpen] = useState(false);
   const [monitoringConversation, setMonitoringConversation] = useState("all");
   const [guidanceSeed, setGuidanceSeed] = useState<GuidanceSeed | null>(null);
   const [playgroundExecution, setPlaygroundExecution] = useState<PlaygroundExecution | null>(null);
@@ -196,8 +200,8 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     }
   };
 
-  const selectConversation = (conversation: OperatorConversation) => { setTarget({ kind: "conversation", id: conversation.id }); chat.reset(); conversationAction.reset(); };
-  const startTestConversation = () => { setTarget({ kind: "draft", conversationId: newConversationId(), customerId: 1 }); chat.reset(); conversationAction.reset(); };
+  const selectConversation = (conversation: OperatorConversation) => { setTarget({ kind: "conversation", id: conversation.id }); setMobilePane("thread"); chat.reset(); conversationAction.reset(); };
+  const startTestConversation = () => { setTarget({ kind: "draft", conversationId: newConversationId(), customerId: 1 }); setMobilePane("thread"); chat.reset(); conversationAction.reset(); };
   const chatError = chat.error ? errorMessage(chat.error, "The operator API is unavailable.") : null;
 
   const detailLabel = routeRunId ?? null;
@@ -205,7 +209,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
 
   const searchParam = (name: string) => new URLSearchParams(locationSearch).get(name);
   const coach = (seed: GuidanceSeed) => { setInspectRunId(null); setGuidanceSeed(seed); navigateToView("guidance"); };
-  const showConversation = (pk: number) => { setTarget({ kind: "conversation", id: pk }); chat.reset(); conversationAction.reset(); navigateToView("workspace"); };
+  const showConversation = (pk: number) => { setTarget({ kind: "conversation", id: pk }); setMobilePane("thread"); setContextSheetOpen(false); chat.reset(); conversationAction.reset(); navigateToView("workspace"); };
   const openProcedure = (intent: string) => navigate(`/procedures?intent=${encodeURIComponent(intent)}`);
   let content: React.ReactNode;
   if (routeRunId) {
@@ -298,8 +302,11 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         onAction={(action) => { void runAction(action); }}
         onInspect={setInspectRunId}
         onInspectConversation={() => setConversationDebugOpen(true)}
-        contextOpen={contextOpen}
-        onToggleContext={() => setContextOpen((open) => { window.localStorage.setItem("agentops-context-panel", open ? "closed" : "open"); return !open; })}
+        contextOpen={wide ? contextOpen : contextSheetOpen}
+        onToggleContext={wide
+          ? () => setContextOpen((open) => { window.localStorage.setItem("agentops-context-panel", open ? "closed" : "open"); return !open; })
+          : () => setContextSheetOpen((open) => !open)}
+        onBack={wide ? undefined : () => setMobilePane("list")}
       />
     ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading inbox…</div>;
     content = wide ? (
@@ -317,7 +324,16 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         )}
       </ResizablePanelGroup></>
     ) : (
-      <div className="grid divide-y divide-border"><h1 className="sr-only">Conversations</h1>{thread}<div className="max-h-96">{rail}</div></div>
+      <div className="flex min-h-[calc(100svh-3.5rem)] flex-col">
+        <h1 className="sr-only">Conversations</h1>
+        {mobilePane === "list" ? <div className="min-h-0 flex-1">{rail}</div> : thread}
+        <Sheet open={contextSheetOpen && mobilePane === "thread" && target?.kind === "conversation" && Boolean(threadDetail)} onOpenChange={setContextSheetOpen}>
+          <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-md">
+            <SheetHeader className="border-b border-border px-4 py-3 pr-12"><SheetTitle>Customer details</SheetTitle></SheetHeader>
+            {threadDetail && <CustomerContextPanel key={threadDetail.id} conversationPk={threadDetail.id} customerId={threadDetail.customer_id} onOpenConversation={(id) => { setTarget({ kind: "conversation", id }); setContextSheetOpen(false); }} />}
+          </SheetContent>
+        </Sheet>
+      </div>
     );
   } else if (view === "playground") {
     content = (

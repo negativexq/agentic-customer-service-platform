@@ -34,7 +34,7 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
 function Switch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
       <span className={`inline-block size-4 rounded-full bg-background shadow-sm transition-transform ${checked ? "translate-x-4.5" : "translate-x-0.5"}`} />
     </button>
   );

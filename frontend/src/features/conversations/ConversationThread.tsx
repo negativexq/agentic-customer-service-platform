@@ -1,4 +1,4 @@
-import { ArrowUp, Bot, Bug, FlaskConical, Hand, Lock, MessagesSquare, PanelRight, ShieldCheck, StickyNote, Trash2, Undo2, CheckCheck, Wrench } from "lucide-react";
+import { ArrowUp, Bot, Bug, ChevronLeft, FlaskConical, Hand, Lock, MessagesSquare, PanelRight, ShieldCheck, StickyNote, Trash2, Undo2, CheckCheck, Wrench } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { AgentResponse, ConversationTurn, OperatorConversationDetail, OperatorIdentity, RecordedMessage } from "../../types";
 import { formatRelative, humanize, parseTimestamp, toneDot } from "../runs/runPresentation";
@@ -32,6 +32,8 @@ type Props = {
   onInspectConversation: () => void;
   contextOpen: boolean;
   onToggleContext: () => void;
+  /** Narrow screens: return to the conversation list. */
+  onBack?: () => void;
 };
 
 const testCustomers = [
@@ -148,7 +150,7 @@ function ActionButton({ children, onClick, disabled, primary = false }: { childr
 }
 
 export function ConversationThread(props: Props) {
-  const { target, detail, loading, me, localTurns, canSimulateCustomer, busy, error, actionPending, actionError, onCustomerChange, onSendAsCustomer, onReply, onAction, onInspect, onInspectConversation, contextOpen, onToggleContext } = props;
+  const { target, detail, loading, me, localTurns, canSimulateCustomer, busy, error, actionPending, actionError, onCustomerChange, onSendAsCustomer, onReply, onAction, onInspect, onInspectConversation, contextOpen, onToggleContext, onBack } = props;
   const [message, setMessage] = useState("");
   const [composeAs, setComposeAs] = useState<"reply" | "note">("reply");
   const pk = target.kind === "conversation" ? target.id : null;
@@ -203,6 +205,12 @@ export function ConversationThread(props: Props) {
   return (
     <section className="flex h-full min-h-[560px] flex-col" aria-label="Conversation">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2.5">
+        {onBack && (
+          <button type="button" onClick={onBack} aria-label="Back to all conversations"
+            className="-ml-1.5 inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </button>
+        )}
         {draft ? (
           <>
             <span className="inline-flex items-center gap-1.5 rounded bg-warning/12 px-1.5 py-0.5 text-xs text-warning"><FlaskConical className="size-3" aria-hidden="true" />Test conversation</span>
@@ -230,7 +238,7 @@ export function ConversationThread(props: Props) {
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-success" aria-hidden="true" />Live</span>
               <ActionButton disabled={false} onClick={onInspectConversation}><Bug className="size-3.5" aria-hidden="true" />Debug</ActionButton>
               <button type="button" onClick={onToggleContext} aria-pressed={contextOpen} aria-label={contextOpen ? "Hide customer details" : "Show customer details"} title="Customer details"
-                className={`inline-flex size-8 items-center justify-center rounded-md border border-border transition-colors hover:bg-accent ${contextOpen ? "bg-accent text-foreground" : "text-muted-foreground"}`}>
+                className={`inline-flex size-8 items-center justify-center rounded-md border border-border transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none pointer-coarse:size-10 ${contextOpen ? "bg-accent text-foreground" : "text-muted-foreground"}`}>
                 <PanelRight className="size-3.5" aria-hidden="true" />
               </button>
               {detail && (detail.owner === "ai" || detail.owner === "queued") && (

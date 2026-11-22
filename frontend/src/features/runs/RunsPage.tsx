@@ -34,7 +34,7 @@ const columns = helper.columns([
         <span className="truncate font-medium text-foreground">{humanize(row.original.intent)}</span>
         <a
           href={`/runs/${encodeURIComponent(row.original.run_id)}`}
-          className="truncate font-mono text-xs text-muted-foreground hover:text-foreground focus-visible:text-foreground"
+          className="truncate rounded font-mono text-xs text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none pointer-coarse:min-h-8 pointer-coarse:leading-8"
           data-run-link
         >
           {row.original.run_id}
@@ -148,7 +148,7 @@ export function RunsPage({ runs, loading = false, error = null, onOpenRun }: Run
                     return (
                       <TableHead key={header.id} className="h-9 px-4 text-xs font-medium text-muted-foreground first:pl-4 sm:first:pl-6" aria-sort={sorted ? (sorted === "desc" ? "descending" : "ascending") : undefined}>
                         {sortable ? (
-                          <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={header.column.getToggleSortingHandler()}>
+                          <button type="button" className="-mx-1 -my-1 inline-flex min-h-7 min-w-7 items-center gap-1 rounded px-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none pointer-coarse:min-h-9" onClick={header.column.getToggleSortingHandler()}>
                             <table.FlexRender header={header} />
                             {sorted === "asc" ? <ArrowUp className="size-3" aria-hidden="true" /> : sorted === "desc" ? <ArrowDown className="size-3" aria-hidden="true" /> : null}
                           </button>
