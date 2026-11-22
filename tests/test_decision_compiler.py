@@ -117,6 +117,44 @@ def test_openai_compatible_provider_binds_semantic_schema(
     assert captured["structured_output_kwargs"] == {}
 
 
+@pytest.mark.parametrize(
+    ("settings_overrides", "expected", "absent"),
+    [
+        ({}, {"temperature": 0.0}, {"reasoning_effort", "use_responses_api"}),
+        (
+            {"llm_reasoning_effort": "none"},
+            {"temperature": 0.0, "reasoning_effort": "none"},
+            {"use_responses_api"},
+        ),
+        (
+            {"llm_reasoning_effort": "medium", "llm_api": "responses"},
+            {"reasoning_effort": "medium", "use_responses_api": True},
+            {"temperature"},
+        ),
+    ],
+)
+def test_openai_provider_sends_reasoning_without_sampling_parameters(
+    monkeypatch: pytest.MonkeyPatch,
+    settings_overrides: dict[str, object],
+    expected: dict[str, object],
+    absent: set[str],
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+        def with_structured_output(self, schema: object, **kwargs: object) -> object:
+            return object()
+
+    monkeypatch.setattr("app.agent.llm.provider.ChatOpenAI", FakeChatOpenAI)
+    OpenAICompatibleProvider(Settings(_env_file=None, **settings_overrides))
+
+    assert {key: captured[key] for key in expected} == expected
+    assert absent.isdisjoint(captured)
+
+
 def test_contract_mapping_is_centralized_and_exhaustive() -> None:
     assert all_semantic_intents_are_routed()
     assert set(ACTION_TOOLS.values()) == {

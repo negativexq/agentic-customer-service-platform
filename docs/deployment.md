@@ -143,6 +143,10 @@ and configure the host process with `LLM_PROVIDER=openai_compatible`,
 Compose on macOS reaches the host through `COMPOSE_LLM_BASE_URL=http://host.docker.internal:11434/v1`.
 The optional `LLM_REASONING_EFFORT` setting accepts `none`, `low`, `medium`, or `high`. If it is
 unset, the OpenAI-compatible provider sends no reasoning override and preserves provider defaults.
+When it is `low`, `medium`, or `high`, `LLM_TEMPERATURE` is not sent, because reasoning models
+reject sampling parameters. Some reasoning models accept function tools with reasoning only on the
+Responses API; set `LLM_API=responses` (default `chat_completions`) together with
+`LLM_STRUCTURED_OUTPUT_MODE=function_calling` for them.
 This is a non-deterministic development check only; deterministic integration mode remains the CI
 path and Ollama is not a production dependency.
 

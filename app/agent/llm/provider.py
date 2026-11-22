@@ -49,7 +49,6 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
             "model": settings.llm_model,
             "base_url": settings.llm_base_url,
             "api_key": settings.llm_api_key or "not-needed",
-            "temperature": settings.llm_temperature,
             "timeout": httpx.Timeout(
                 connect=settings.llm_connect_timeout_seconds,
                 read=settings.llm_timeout_seconds,
@@ -60,6 +59,11 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
         }
         if settings.llm_reasoning_effort is not None:
             model_kwargs["reasoning_effort"] = settings.llm_reasoning_effort
+        if settings.llm_reasoning_effort in {None, "none"}:
+            # Reasoning models reject sampling parameters while they reason.
+            model_kwargs["temperature"] = settings.llm_temperature
+        if settings.llm_api == "responses":
+            model_kwargs["use_responses_api"] = True
         model = ChatOpenAI(**model_kwargs)
         if settings.llm_structured_output_mode == "function_calling":
             # The decision schema is the only synthetic tool exposed to the model. It is
