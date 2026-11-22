@@ -43,7 +43,7 @@ export function RagPanel({
           <div className="eyebrow">RAG evidence</div>
           <Badge tone="success">KNOWLEDGE RETRIEVAL</Badge>
         </div>
-        <p className="mt-1 text-xs leading-5 text-muted">
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
           External knowledge retrieval and citation-constrained answer grounding.
         </p>
       </div>
@@ -61,10 +61,10 @@ export function RagPanel({
             <Badge tone={toneForGrounding(grounding)}>{grounding.status.replace(/_/g, " ")}</Badge>
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-            <div><dt className="text-muted">Sources used</dt><dd className="mt-1 font-medium text-main">{grounding.sources_used}</dd></div>
-            <div><dt className="text-muted">Citations</dt><dd className="mt-1 font-medium text-main">{grounding.citation_count}</dd></div>
-            <div><dt className="text-muted">Unsupported claims</dt><dd className="mt-1 font-medium text-main">{grounding.unsupported_claim_count}</dd></div>
-            <div><dt className="text-muted">Confidence</dt><dd className="mt-1 font-medium text-main">{grounding.confidence === null ? "Not recorded" : `${Math.round(grounding.confidence * 100)}%`}</dd></div>
+            <div><dt className="text-muted-foreground">Sources used</dt><dd className="mt-1 font-medium text-main">{grounding.sources_used}</dd></div>
+            <div><dt className="text-muted-foreground">Citations</dt><dd className="mt-1 font-medium text-main">{grounding.citation_count}</dd></div>
+            <div><dt className="text-muted-foreground">Unsupported claims</dt><dd className="mt-1 font-medium text-main">{grounding.unsupported_claim_count}</dd></div>
+            <div><dt className="text-muted-foreground">Confidence</dt><dd className="mt-1 font-medium text-main">{grounding.confidence === null ? "Not recorded" : `${Math.round(grounding.confidence * 100)}%`}</dd></div>
           </dl>
         </div>
       ) : null}
@@ -76,7 +76,7 @@ export function RagPanel({
             <CheckCircle2 size={15} className="text-success" aria-hidden="true" />
             <div>
               <div className="text-xs font-medium text-main">Evidence retrieved</div>
-              <div className="mt-1 text-xs text-muted">
+              <div className="mt-1 text-xs text-muted-foreground">
                 Bounded document metadata supports grounding inspection; raw content is not exposed.
               </div>
             </div>
@@ -87,10 +87,10 @@ export function RagPanel({
                 <div className="source-icon"><FileText size={15} aria-hidden="true" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-main">{doc.title}</div>
-                  <div className="mt-1 text-xs text-muted">Document section · {doc.section}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Document section · {doc.section}</div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs text-info">
                     <span>Citation [{doc.citation_id}]</span>
-                    <span className="text-muted">Source {doc.source}</span>
+                    <span className="text-muted-foreground">Source {doc.source}</span>
                   </div>
                 </div>
                 <div className="shrink-0 text-right">

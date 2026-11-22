@@ -83,6 +83,7 @@ test.describe.serial("operator journey evidence", () => {
     await page.getByTestId("customer-scope").selectOption("1");
     const answer = await submitWorkspaceMessage(page, "What is the refund policy for damaged products?");
     expect(answer.tool_call).toBeNull();
+    await page.getByTestId("agent-response").last().getByRole("button", { name: /Inspect run/ }).click();
     await page.getByTestId("inspector-tab-grounding").click();
     await expect(page.getByTestId("grounding-status")).toContainText("Grounded answer validation");
     await expect(page.getByTestId("grounding-status")).toContainText("pass");

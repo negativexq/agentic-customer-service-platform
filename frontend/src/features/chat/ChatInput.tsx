@@ -23,7 +23,7 @@ export function ChatInput({ busy, onSend }: Props) {
       <div className="mt-2 flex items-end gap-2 rounded-lg border border-border bg-void/30 p-2 focus-within:border-info/50">
         <textarea
           id="unified-chat-input"
-          className="min-h-[56px] flex-1 resize-y border-0 bg-transparent px-2 py-1.5 text-sm text-main outline-none placeholder:text-muted"
+          className="min-h-[56px] flex-1 resize-y border-0 bg-transparent px-2 py-1.5 text-sm text-main outline-hidden placeholder:text-muted-foreground"
           placeholder="Ask about an order, policy, or account request…"
           value={value}
           onChange={(event) => setValue(event.target.value)}
@@ -37,7 +37,7 @@ export function ChatInput({ busy, onSend }: Props) {
           {busy ? "Processing" : "Send"}
         </button>
       </div>
-      <p className="mt-2 text-xs text-muted">Requests are evaluated by the existing agent workflow. This surface does not bypass policy or confirmation.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Requests are evaluated by the existing agent workflow. This surface does not bypass policy or confirmation.</p>
     </form>
   );
 }

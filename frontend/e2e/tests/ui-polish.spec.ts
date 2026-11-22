@@ -13,25 +13,29 @@ const capture = async (page: import("@playwright/test").Page, name: string) => {
 test("navigation survives reload and browser history", async ({ page }) => {
   await loginOperator(page);
   const nav = page.getByRole("navigation", { name: "Console views" });
-  await expect(nav.getByRole("link")).toHaveCount(4);
-  for (const [label, path] of [["Playground", "/playground"], ["Runs", "/traces"], ["Safety", "/safety"], ["Overview", "/overview"]]) {
+  await expect(nav.getByRole("link")).toHaveCount(9);
+  for (const [label, path] of [
+    ["Playground", "/playground"], ["Runs", "/traces"], ["Monitoring", "/monitoring"], ["Safety", "/safety"],
+    ["Conversations", "/workspace"], ["Architecture", "/architecture"], ["Recorded showcase", "/showcase"],
+    ["Chat and activity", "/chat"], ["Overview", "/overview"],
+  ]) {
     await nav.getByRole("link", { name: label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     await page.reload();
     await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
   }
-  for (const [label, path] of [["Architecture", "/architecture"], ["Workspace", "/workspace"], ["Chat + activity", "/chat"], ["Recorded showcase", "/showcase"]]) {
-    await page.locator(".secondary-nav > summary").click();
-    await page.getByRole("navigation", { name: "More views" }).getByRole("link", { name: label, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${path}$`));
-    await page.reload();
-    await page.locator(".secondary-nav > summary").click();
-    await expect(page.getByRole("navigation", { name: "More views" }).getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
-    await page.locator(".secondary-nav > summary").click();
-  }
   await page.goBack();
   await expect(page).toHaveURL(/\/chat$/);
   await expect(page.getByTestId("unified-chat")).toBeVisible();
+});
+
+test("conversations stay a plain chat and open debugging on demand", async ({ page }) => {
+  await loginOperator(page, "/workspace");
+  await expect(page.getByRole("navigation", { name: "Conversation list" })).toBeVisible();
+  await expect(page.getByTestId("decision-boundary")).toHaveCount(0);
+  await page.getByRole("tab", { name: /Past/ }).click();
+  await page.getByRole("tab", { name: /Active/ }).click();
+  await expect(page.getByText("New conversation", { exact: true })).toBeVisible();
 });
 
 test("scenario presets populate requests and disclose settings without executing", async ({ page }) => {
@@ -113,7 +117,9 @@ test("primary surfaces fit mobile and tablet widths without clipping content", a
       await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
       if (path.startsWith("/runs/")) await expect(page.getByRole("heading", { level: 1 })).toContainText("Awaiting confirmation");
       if (path === "/showcase") await expect(page.getByTestId("investigation-summary")).toBeVisible();
-      const navigationFits = await page.getByRole("navigation", { name: "Console views" }).getByRole("link").evaluateAll((links) => links.every((link) => {
+      // Below 768px the sidebar is an off-canvas sheet behind the header trigger.
+      if (width < 768) await expect(page.getByRole("button", { name: "Toggle Sidebar" })).toBeVisible();
+      const navigationFits = width < 768 ? true : await page.getByRole("navigation", { name: "Console views" }).getByRole("link").evaluateAll((links) => links.every((link) => {
         const box = link.getBoundingClientRect();
         return box.left >= 0 && box.right <= window.innerWidth && box.height >= 40;
       }));

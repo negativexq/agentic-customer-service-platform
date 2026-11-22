@@ -16,7 +16,7 @@ export type AgentChatProjection = {
 
 export async function loginOperator(page: Page, path = "/overview"): Promise<void> {
   await page.goto(path);
-  await expect(page.getByText("AGENTIC OPS")).toBeVisible();
+  await expect(page.getByText("AgentOps", { exact: true }).first()).toBeAttached();
   await expect(page.getByText("Authenticated", { exact: true })).toBeVisible();
 }
 
