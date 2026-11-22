@@ -1,4 +1,5 @@
 from app.agent.decision_compiler import CompileStatus
+from app.agent.handoff import HANDOFF_OFFER_MESSAGE
 from app.agent.schemas import (
     AgentErrorCategory,
     AgentRequestType,
@@ -143,6 +144,8 @@ def respond(state: AgentState) -> AgentState:
             "I can remember preferences and support context, but I can't store permissions, "
             "roles, or authorization claims."
         )
+    elif state.get("handoff_offered") and error_category is None:
+        message = HANDOFF_OFFER_MESSAGE
     elif _suspended_retrieval_unavailable(state):
         message = _unavailable_suspended_workflow_message(state)
     elif state.get("write_outcome_unknown"):

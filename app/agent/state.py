@@ -87,6 +87,7 @@ class AgentState(TypedDict, total=False):
     final_response: str
     agent_run_id: str
     tool_execution_status: str | None
+    handoff_offered: bool
     memory_context: list[dict[str, object]]
     memory_candidate: MemoryCandidate | None
     memory_key: str | None

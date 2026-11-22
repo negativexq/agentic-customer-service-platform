@@ -6,7 +6,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
 import { DraftBar, when } from "./DraftBar";
 import { useActions } from "./queries";
-import type { ActionMode, ActionView } from "./types";
+import type { ActionMode, ActionView, HandoffMode } from "./types";
 import { useDraft } from "./useDraft";
 
 const modeLabels: Record<ActionMode, string> = { enabled: "On", confirm: "Ask customer first", disabled: "Off" };
@@ -23,6 +23,28 @@ export function ModePicker({ action, value, onChange, disabled }: { action: Acti
           <button key={mode} type="button" role="radio" aria-checked={active} disabled={disabled} onClick={(event) => { event.stopPropagation(); if (!active) onChange(mode); }}
             className={`h-6 rounded-md px-2 text-xs whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-60 ${active ? mode === "disabled" ? "bg-background text-danger shadow-sm" : "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             {modeLabels[mode]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const handoffOptions: { value: HandoffMode; label: string; detail: string }[] = [
+  { value: "offer_first", label: "Offer help first", detail: "The assistant asks what it is about and tries once. It connects a person straight away if the customer asks again, sounds upset, or the matter is sensitive, such as a disputed charge or account security." },
+  { value: "immediate", label: "Connect right away", detail: "Every request for a person is handed to your team on the first message." },
+];
+
+function HandoffPicker({ value, onChange, disabled }: { value: HandoffMode; onChange: (mode: HandoffMode) => void; disabled?: boolean }) {
+  return (
+    <div role="radiogroup" aria-label="When a customer asks for a person" className="grid gap-2">
+      {handoffOptions.map((option) => {
+        const active = option.value === value;
+        return (
+          <button key={option.value} type="button" role="radio" aria-checked={active} disabled={disabled} onClick={() => { if (!active) onChange(option.value); }}
+            className={`grid gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-60 ${active ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
+            <span className="text-sm font-medium text-foreground">{option.label}</span>
+            <span className="text-xs text-muted-foreground">{option.detail}</span>
           </button>
         );
       })}
@@ -118,6 +140,11 @@ export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction:
                   <ModePicker action={current} value={modeOf(current)} disabled={draft.save.isPending} onChange={(next) => setMode(current, next)} />
                   <p className="text-xs text-muted-foreground">Live: {modeLabels[current.published_mode]}. Default policy: {humanize(current.default_policy)}.</p>
                 </Field>
+                {current.name === "escalate_to_human" && (
+                  <Field label="When a customer asks for a person">
+                    <HandoffPicker value={draft.working.handoff ?? "offer_first"} disabled={draft.save.isPending} onChange={(handoff) => draft.update((config) => ({ ...config, handoff }))} />
+                  </Field>
+                )}
                 <Field label="Safeguards that always apply">
                   <ul className="grid gap-1.5">
                     {current.safeguards.map((item) => (

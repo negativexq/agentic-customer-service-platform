@@ -240,6 +240,8 @@ class AgentRuntime:
                                 "conversation_ownership_version": turn.version,
                                 "conversation_ai_resumed_at": turn.ai_resumed_at,
                                 "messages": [{"role": "user", "content": message}],
+                                # Per-turn flag; the checkpoint would otherwise carry it over.
+                                "handoff_offered": False,
                             },
                             config={
                                 "configurable": {

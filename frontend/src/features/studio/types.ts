@@ -19,7 +19,9 @@ export type GuidanceRule = {
   source_run_id?: string | null;
 };
 
-export type AgentConfig = { guidance: GuidanceRule[]; actions: Record<string, ActionMode> };
+/** offer_first: offer to help once before connecting a person, unless the matter is sensitive, the customer is upset, or they ask again. */
+export type HandoffMode = "offer_first" | "immediate";
+export type AgentConfig = { guidance: GuidanceRule[]; actions: Record<string, ActionMode>; handoff?: HandoffMode };
 
 export type ConfigVersion = {
   version: number;

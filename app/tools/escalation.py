@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,13 @@ class EscalateToHumanInput(BaseModel):
     reason: str = Field(min_length=1, max_length=2000)
     priority: EscalationPriority
     summary: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _normal_means_medium(cls, value: object) -> object:
+        """The decision prompt names the middle level "normal"; it is stored as medium."""
+
+        return EscalationPriority.MEDIUM if value == "normal" else value
 
 
 def escalate_to_human(

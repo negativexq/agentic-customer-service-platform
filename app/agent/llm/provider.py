@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ValidationError
 
+from app.agent.handoff import HANDOFF_PRIORITY_PROMPT
 from app.agent.llm.base import DecisionProposalProvider
 from app.agent.llm.diagnostics import (
     StructuredCallMetadata,
@@ -154,6 +155,7 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
             prompt_messages.append(
                 SystemMessage(content=f"The authenticated customer_id is {customer_id}.")
             )
+        prompt_messages.append(SystemMessage(content=HANDOFF_PRIORITY_PROMPT))
         guidance = guidance_prompt()
         if guidance:
             prompt_messages.append(SystemMessage(content=guidance))

@@ -46,6 +46,10 @@ class AgentConfig(BaseModel):
 
     guidance: list[GuidanceRule] = Field(default_factory=list, max_length=50)
     actions: dict[str, ActionMode] = Field(default_factory=dict)
+    # offer_first: when someone asks for a person, offer to help once before handing off.
+    # The hand-off still happens straight away if they insist, are upset, or the matter is
+    # sensitive. immediate: connect them on the first request.
+    handoff: Literal["offer_first", "immediate"] = "offer_first"
 
     @model_validator(mode="after")
     def _validate(self) -> "AgentConfig":

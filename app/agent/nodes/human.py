@@ -4,6 +4,7 @@ from typing import cast
 from sqlalchemy.orm import Session
 
 from app.agent.errors import RuntimeFailureSource, classify_runtime_error
+from app.agent.handoff import should_offer_before_handoff
 from app.agent.nodes.common import serialise_result
 from app.agent.nodes.execution_audit import record_execution_event
 from app.agent.schemas import AgentErrorCategory
@@ -35,6 +36,9 @@ def make_human_escalation_node(
                 "last_error": "Only the registered escalation tool may use the human path.",
                 "tool_execution_status": "failed",
             }
+        if should_offer_before_handoff(state):
+            # Nothing is queued: the customer can explain, or ask again to be connected.
+            return {"handoff_offered": True, "tool_execution_status": "offered"}
         definition = get_agent_tool_definition("escalate_to_human")
         if definition is None:
             return {
