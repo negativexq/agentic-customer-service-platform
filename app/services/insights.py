@@ -21,6 +21,7 @@ from app.models.entities import (
     MessageSender,
 )
 from app.models.workspace import ConversationFeedback
+from app.rag.answer_generator import content_terms
 from app.services.studio.procedures import PROCEDURES, is_clarification, is_failed
 from app.ui.insights_schemas import (
     DailyPoint,
@@ -363,9 +364,7 @@ def gaps(
             )
         )
     )
-    reasons: dict[str, list[Escalation]] = defaultdict(list)
-    for escalation in escalations:
-        reasons[escalation.reason.strip().lower()[:80] or "no reason given"].append(escalation)
+    reasons = _group_handoff_reasons(escalations)
     handoff_pks = [e.conversation_pk for e in escalations if e.conversation_pk is not None]
     last_customer: dict[int, ConversationMessage] = {}
     if handoff_pks:
@@ -409,6 +408,69 @@ def gaps(
         )
     found.sort(key=lambda gap: (-gap.count, gap.kind, gap.key))
     return found
+
+
+# Words every hand-off reason shares; they say a person was asked for, not why.
+_HANDOFF_FILLER = {
+    "agent",
+    "asked",
+    "assistance",
+    "customer",
+    "help",
+    "human",
+    "immediate",
+    "person",
+    "real",
+    "report",
+    "request",
+    "someone",
+    "speak",
+    "support",
+    "talk",
+    "user",
+    "want",
+}
+_HANDOFF_SIMILARITY = 0.25
+_ASKED_FOR_PERSON = "asked for a person"
+
+
+def _group_handoff_reasons(escalations: Sequence[Escalation]) -> dict[str, list[Escalation]]:
+    """Group escalations whose free-text reasons talk about the same thing.
+
+    Reasons are written by the model, so "unexpected charge" and "disputed $40 charge"
+    arrive as different strings; grouping by exact text would split one theme into many.
+    """
+
+    clusters: list[tuple[list[set[str]], list[Escalation], list[str]]] = []
+    for escalation in sorted(escalations, key=lambda item: item.created_at):
+        text = escalation.reason.strip().lower()[:80]
+        terms = {term for term in content_terms(text) if term not in _HANDOFF_FILLER}
+        home = None
+        if terms:
+            home = next(
+                (
+                    cluster
+                    for cluster in clusters
+                    if any(
+                        member and len(terms & member) / len(terms | member) >= _HANDOFF_SIMILARITY
+                        for member in cluster[0]
+                    )
+                ),
+                None,
+            )
+        else:
+            home = next((cluster for cluster in clusters if not any(cluster[0])), None)
+        if home is None:
+            home = ([], [], [])
+            clusters.append(home)
+        home[0].append(terms)
+        home[1].append(escalation)
+        home[2].append(text if terms else _ASKED_FOR_PERSON)
+    grouped: dict[str, list[Escalation]] = {}
+    for _, members, texts in clusters:
+        label = max(dict.fromkeys(texts), key=texts.count) or "no reason given"
+        grouped.setdefault(label, []).extend(members)
+    return grouped
 
 
 def _error_category(run: AgentRunView) -> str | None:

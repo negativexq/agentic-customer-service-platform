@@ -220,3 +220,27 @@ def test_simulation_runs_scenarios_in_isolation(client: TestClient, monkeypatch)
     assert (
         client.post("/ui/quality/monitors", json={"name": "x", "phrases": ["y"]}).status_code == 403
     )
+
+
+def test_handoff_reasons_with_the_same_theme_share_one_gap() -> None:
+    from datetime import datetime
+
+    from app.models.entities import Escalation
+    from app.services.insights import _group_handoff_reasons
+
+    reasons = [
+        "talk to someone about a weird charge",
+        "The user wants to speak to someone about an unexpected or disputed charge.",
+        "Unexpected, unrecognized charge of $40 on the user's card",
+        "User requests to speak with a real person.",
+        "Customer wants a person.",
+        "Order arrived damaged",
+    ]
+    escalations = [
+        Escalation(reason=reason, created_at=datetime(2026, 1, 1, 0, index))
+        for index, reason in enumerate(reasons)
+    ]
+    groups = {label: len(items) for label, items in _group_handoff_reasons(escalations).items()}
+    assert sorted(groups.values()) == [1, 2, 3]
+    assert groups["asked for a person"] == 2
+    assert groups["order arrived damaged"] == 1

@@ -428,6 +428,12 @@ def _terms(value: str) -> set[str]:
     return terms
 
 
+def content_terms(value: str) -> set[str]:
+    """Stemmed content words of free text, without stop words."""
+
+    return _terms(value)
+
+
 def evidence_terms(chunk: RetrievedChunk) -> set[str]:
     return _terms(" ".join((chunk.title, chunk.category, chunk.section, chunk.content)))
 
