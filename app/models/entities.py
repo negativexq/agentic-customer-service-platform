@@ -396,3 +396,112 @@ class ConversationMessage(Base):
     redaction_state: Mapped[MessageRedaction] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=utc_now_naive, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
+
+
+class QualityMonitor(Base):
+    """Operator-defined phrase monitor over recorded conversations (Watchtower-style QA)."""
+
+    __tablename__ = "quality_monitors"
+    __table_args__ = (Index("ix_quality_monitors_tenant", "tenant_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(200), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    sender_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    phrases: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utc_now_naive)
+
+
+class QualityFlagReview(Base):
+    """An operator's verdict on one flagged conversation for one monitor."""
+
+    __tablename__ = "quality_flag_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "monitor_key", "conversation_pk", name="uq_quality_flag_review"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(200), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    monitor_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    conversation_pk: Mapped[int] = mapped_column(ForeignKey("conversations.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    note: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    reviewed_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(nullable=False, default=utc_now_naive)
+
+
+class SimulationRun(Base):
+    """A batch of scripted, isolated agent simulations and their pass/fail results."""
+
+    __tablename__ = "simulation_runs"
+    __table_args__ = (Index("ix_simulation_runs_tenant_started", "tenant_id", "started_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(200), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    started_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(nullable=False)
+    scenario_count: Mapped[int] = mapped_column(nullable=False)
+    passed_count: Mapped[int] = mapped_column(nullable=False)
+    results: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+
+
+class AgentConfigVersion(Base):
+    """One version of operator-managed agent configuration (guidance and action modes).
+
+    Exactly one version per tenant is published and read by the runtime; at most one is a
+    draft. Configuration can narrow what the agent may do but never grants new authority.
+    """
+
+    __tablename__ = "agent_config_versions"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "version", name="uq_agent_config_version"),
+        Index("ix_agent_config_versions_tenant_status", "tenant_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(200), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    config: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    note: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    created_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utc_now_naive)
+    updated_at: Mapped[datetime] = mapped_column(nullable=False, default=utc_now_naive)
+    published_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
+class KnowledgeArticle(Base):
+    """Console-managed knowledge article; overrides or extends the built-in markdown corpus."""
+
+    __tablename__ = "knowledge_articles"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "document_id", name="uq_knowledge_article_document"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(200), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    document_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(nullable=False, default=utc_now_naive)

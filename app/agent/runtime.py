@@ -27,6 +27,8 @@ from app.agent.schemas import (
     ProviderRunMetadata,
 )
 from app.agent.state import AgentState
+from app.agent_config.context import current_agent_config, use_agent_config
+from app.agent_config.service import load_published_config
 from app.auth.models import ActorType, Principal
 from app.core.config import DecisionContractVersion, LLMProvider, Settings, get_settings
 from app.core.context import ExecutionContext
@@ -151,6 +153,20 @@ class AgentRuntime:
         execution_mode: AgentExecutionMode = AgentExecutionMode.RECORDED_REPLAY,
     ) -> AgentResponse:
         execution_context = context or _legacy_execution_context(conversation_id, customer_id)
+        # A caller (for example a simulation of a draft) may already have chosen the configuration.
+        if current_agent_config() is not None:
+            return self._run(message, session, execution_context, execution_mode)
+        config = load_published_config(session, execution_context.tenant_id)
+        with use_agent_config(config):
+            return self._run(message, session, execution_context, execution_mode)
+
+    def _run(
+        self,
+        message: str,
+        session: Session,
+        execution_context: ExecutionContext,
+        execution_mode: AgentExecutionMode,
+    ) -> AgentResponse:
         self.reliability_controller.enforce_request_limits(execution_context)
         turn = begin_agent_turn(session, execution_context)
         if not turn.ai_may_respond:

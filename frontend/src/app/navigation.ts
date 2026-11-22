@@ -1,4 +1,4 @@
-import { Activity, Beaker, BookOpen, Gauge, LayoutDashboard, MessagesSquare, Network, Settings, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, Beaker, BookOpen, Compass, Gauge, Library, Workflow, Zap, LayoutDashboard, MessagesSquare, Network, Settings, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
 import type { ConsoleView } from "./routes";
 
 export type NavItem = { view: ConsoleView; label: string; icon: LucideIcon; shortcut?: string };
@@ -15,7 +15,16 @@ export const navigation: NavGroup[] = [
     ],
   },
   {
-    label: "Govern",
+    label: "Train",
+    items: [
+      { view: "knowledge", label: "Knowledge", icon: Library },
+      { view: "guidance", label: "Guidance", icon: Compass },
+      { view: "procedures", label: "Procedures", icon: Workflow },
+      { view: "actions", label: "Actions", icon: Zap },
+    ],
+  },
+  {
+    label: "Test",
     items: [
       { view: "evidence", label: "Safety", icon: ShieldCheck },
       { view: "playground", label: "Playground", icon: Beaker },

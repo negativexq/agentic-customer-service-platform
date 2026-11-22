@@ -610,13 +610,16 @@ def _metadata_hash(metadata: dict[str, object]) -> str:
 def _same_provenance(first: dict[str, object], second: dict[str, object]) -> bool:
     # Lifecycle fields may be absent on a Fix 15 collection. The semantic
     # snapshot identity and corpus size still have to match before recovery is
-    # allowed; lifecycle metadata is repaired by the rebuild.
+    # allowed; lifecycle metadata is repaired by the rebuild. The lexical index
+    # hash is derived from the corpus and lexical version (both compared); its
+    # float encoding changed once, so each collection validates its own hash instead.
     ignored = {
         "build_id",
         "created_at",
         "completed_at",
         "build_state",
         "expected_chunk_count",
+        "lexical_index_hash",
     }
     return {key: value for key, value in first.items() if key not in ignored} == {
         key: value for key, value in second.items() if key not in ignored

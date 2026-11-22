@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     oidc_support_role: str = Field(default="support_operator", min_length=1, max_length=100)
     oidc_name_claim: str = Field(default="name", min_length=1, max_length=100)
     oidc_support_tenant_wide_role: str | None = Field(default=None, min_length=1, max_length=100)
+    # When set, changing agent configuration or knowledge requires this role in addition to
+    # support_operator. Unset keeps every support operator able to edit (demo default).
+    studio_editor_role: str | None = Field(default=None, min_length=1, max_length=100)
     oidc_customer_role: str = Field(default="customer", min_length=1, max_length=100)
     oidc_service_role: str = Field(default="service", min_length=1, max_length=100)
     oidc_require_tenant: bool = True

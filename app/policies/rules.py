@@ -36,6 +36,28 @@ def evaluate_default_policy(
             required_conditions=["customer_ownership"],
         )
     risk_level = int(metadata.risk_level)
+    # Operator configuration can only narrow authority: switch an action off or add confirmation.
+    # Imported here: agent configuration depends on agent schemas, which depend on policies.
+    from app.agent_config.context import current_action_mode
+    from app.agent_config.schemas import ActionMode
+
+    mode = current_action_mode(tool_name)
+    if mode == ActionMode.DISABLED:
+        return PolicyDecision(
+            outcome=PolicyOutcome.DENY,
+            tool_name=tool_name,
+            risk_level=risk_level,
+            reasons=["action_disabled_by_operator"],
+            required_conditions=["operator_enabled_action"],
+        )
+    if mode == ActionMode.CONFIRM and risk_level <= 1:
+        return PolicyDecision(
+            outcome=PolicyOutcome.REQUIRE_CONFIRMATION,
+            tool_name=tool_name,
+            risk_level=risk_level,
+            reasons=["operator_requires_confirmation"],
+            required_conditions=["explicit_confirmation", "pre_execution_revalidation"],
+        )
     if risk_level <= 1:
         return PolicyDecision(
             outcome=PolicyOutcome.ALLOW,

@@ -1,5 +1,6 @@
 from app.memory.models import MemoryRecord
 from app.models.entities import (
+    AgentConfigVersion,
     AgentRunProjectionRecord,
     BusinessActionReceipt,
     Conversation,
@@ -10,11 +11,15 @@ from app.models.entities import (
     Escalation,
     EscalationPriority,
     EscalationStatus,
+    KnowledgeArticle,
     Order,
     OrderStatus,
     PolicyAuditRecord,
+    QualityFlagReview,
+    QualityMonitor,
     RefundRequest,
     RefundStatus,
+    SimulationRun,
     SupportTicket,
     Tenant,
     TenantStatus,
@@ -22,6 +27,11 @@ from app.models.entities import (
 )
 
 __all__ = [
+    "AgentConfigVersion",
+    "KnowledgeArticle",
+    "QualityFlagReview",
+    "QualityMonitor",
+    "SimulationRun",
     "BusinessActionReceipt",
     "AgentRunProjectionRecord",
     "Conversation",

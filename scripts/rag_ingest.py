@@ -7,7 +7,22 @@ from app.core.config import get_settings
 from app.rag.embeddings import build_embedding_provider
 from app.rag.ingestion.chunking import chunk_document
 from app.rag.ingestion.loader import load_markdown_documents
+from app.rag.schemas import KnowledgeDocument
 from app.rag.storage.qdrant import QdrantKnowledgeStore
+
+
+def _documents(directory: Path) -> list[KnowledgeDocument]:
+    """Built-in markdown plus articles edited in the console, when the database is reachable."""
+
+    try:
+        from app.core.database import SessionLocal
+        from app.services.studio.knowledge import corpus
+
+        with SessionLocal() as session:
+            return corpus(session)
+    except Exception as error:  # noqa: BLE001 - ingestion must work without a database
+        print(f"Console articles unavailable ({type(error).__name__}); using built-in files.")
+        return load_markdown_documents(directory)
 
 
 def main() -> None:
@@ -23,7 +38,7 @@ def main() -> None:
     package_file = app_package.__file__
     if package_file is None:
         raise RuntimeError("Application package location is unavailable.")
-    documents = load_markdown_documents(Path(package_file).parent / "knowledge")
+    documents = _documents(Path(package_file).parent / "knowledge")
     chunks = [
         chunk
         for document in documents

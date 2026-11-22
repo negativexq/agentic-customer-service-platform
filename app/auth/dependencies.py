@@ -141,6 +141,18 @@ def require_support_operator(
     return principal
 
 
+def require_studio_editor(
+    principal: Principal = Depends(require_support_operator),
+) -> Principal:
+    role = get_settings().studio_editor_role
+    if role is not None and role not in principal.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Changing the agent requires the studio editor role.",
+        )
+    return principal
+
+
 def resolve_customer_scope(
     principal: Principal, requested_customer_id: int | None
 ) -> CustomerScope:

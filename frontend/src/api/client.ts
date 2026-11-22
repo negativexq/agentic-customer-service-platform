@@ -35,7 +35,7 @@ export async function initializeApiAuth(): Promise<AuthSnapshot> {
   return authProvider.initialize();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = authProvider.getSnapshot();
   if (auth.status !== "authenticated") {
     const message =
@@ -61,6 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       if (typeof payload === "object" && payload !== null && "detail" in payload) {
         const raw = (payload as { detail?: unknown }).detail;
         if (typeof raw === "object" && raw !== null) detail = raw as { message?: string; reason?: string };
+        else if (typeof raw === "string") detail = { message: raw };
       }
     } catch {
       detail = null;
@@ -73,6 +74,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           : `Request failed (${response.status}).`);
     throw new ApiError(message, response.status, detail?.reason);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 

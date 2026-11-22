@@ -22,6 +22,7 @@ from app.agent.llm.diagnostics import (
 )
 from app.agent.schemas import SemanticDecision, SemanticDecisionV3, StructuredDecision
 from app.agent.state import ConversationMessage
+from app.agent_config.context import guidance_prompt
 from app.core.config import Settings
 
 _PROMPT_PATH = Path(__file__).parents[1] / "prompts" / "system.txt"
@@ -153,6 +154,9 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
             prompt_messages.append(
                 SystemMessage(content=f"The authenticated customer_id is {customer_id}.")
             )
+        guidance = guidance_prompt()
+        if guidance:
+            prompt_messages.append(SystemMessage(content=guidance))
         if memory_context:
             memory_lines = [
                 f"- {item.get('normalized_key')}: {item.get('content')}"

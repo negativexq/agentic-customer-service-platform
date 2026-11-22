@@ -8,6 +8,7 @@ from app.api.routes import (
     memories,
     operator,
     orders,
+    studio,
     tickets,
     ui,
 )
@@ -22,3 +23,4 @@ api_router.include_router(agent.router)
 api_router.include_router(memories.router)
 api_router.include_router(ui.router)
 api_router.include_router(operator.router)
+api_router.include_router(studio.router)

@@ -24,6 +24,10 @@ import { CommandMenu } from "./CommandMenu";
 import { viewFromPath, viewPaths, type ConsoleView } from "./routes";
 import { readPreferences } from "@/lib/preferences";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { ActionsPage } from "../features/studio/ActionsPage";
+import { GuidancePage } from "../features/studio/GuidancePage";
+import { KnowledgePage } from "../features/studio/KnowledgePage";
+import { ProceduresPage } from "../features/studio/ProceduresPage";
 
 function AuthBoundary({ snapshot }: { snapshot: AuthSnapshot }) {
   const loading = snapshot.status === "loading";
@@ -66,6 +70,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [locationPath, setLocationPath] = useState(() => window.location.pathname);
+  const [locationSearch, setLocationSearch] = useState(() => window.location.search);
   const [view, setView] = useState<ConsoleView>(() => viewFromPath(window.location.pathname));
   const [searchOpen, setSearchOpen] = useState(false);
   const [target, setTarget] = useState<ThreadTarget | null>(null);
@@ -105,7 +110,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   }, [health.error, runsQuery.error, routeRun.error, memory.error, chat.error, onUnauthenticated]);
 
   useEffect(() => {
-    const onPopState = () => { setLocationPath(window.location.pathname); setView(viewFromPath(window.location.pathname)); };
+    const onPopState = () => { setLocationPath(window.location.pathname); setLocationSearch(window.location.search); setView(viewFromPath(window.location.pathname)); };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -113,6 +118,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, "", path);
     setLocationPath(window.location.pathname);
+    setLocationSearch(window.location.search);
     setView(viewFromPath(window.location.pathname));
     window.scrollTo({ top: 0 });
   }, []);
@@ -187,6 +193,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const detailLabel = routeRunId ?? null;
   const activeView: ConsoleView = routeRunId ? "traces" : view;
 
+  const searchParam = (name: string) => new URLSearchParams(locationSearch).get(name);
   let content: React.ReactNode;
   if (routeRunId) {
     content = (
@@ -215,6 +222,17 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     );
   } else if (view === "traces") {
     content = <RunsPage runs={allRuns} loading={runsQuery.isPending} error={runsQuery.error ? errorMessage(runsQuery.error, "Runs are unavailable.") : null} onOpenRun={openRun} />;
+  } else if (view === "knowledge") {
+    content = <KnowledgePage key={locationSearch} initialDocument={searchParam("document")} />;
+  } else if (view === "guidance") {
+    content = <GuidancePage />;
+  } else if (view === "procedures") {
+    content = <ProceduresPage key={locationSearch} initialIntent={searchParam("intent")}
+      onOpenAction={(name) => navigate(`/actions?action=${encodeURIComponent(name)}`)}
+      onOpenGuidance={() => navigateToView("guidance")}
+      onOpenKnowledge={(id) => navigate(`/knowledge?document=${encodeURIComponent(id)}`)} />;
+  } else if (view === "actions") {
+    content = <ActionsPage key={locationSearch} initialAction={searchParam("action")} onOpenProcedure={(intent) => navigate(`/procedures?intent=${encodeURIComponent(intent)}`)} />;
   } else if (view === "settings") {
     content = <SettingsPage runtimeConfig={runtimeConfig.data} health={health.data} />;
   } else if (view === "monitoring") {
