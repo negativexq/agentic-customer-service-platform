@@ -26,9 +26,22 @@ def _order_id(state: AgentState) -> int | str | None:
     return None
 
 
+DISABLED_ACTION_MESSAGE = (
+    "I can't do that here right now. I can connect you with a support specialist "
+    "who can help with it."
+)
+
+
 def _error_message(category: AgentErrorCategory | None, state: AgentState) -> str:
     if category is None:
         return "I couldn't complete that request."
+    decision = state.get("policy_decision")
+    if (
+        category == AgentErrorCategory.POLICY_DENIED
+        and decision is not None
+        and "action_disabled_by_operator" in decision.reasons
+    ):
+        return DISABLED_ACTION_MESSAGE
     order_id = _order_id(state)
     resource_not_found = (
         f"I couldn't find order #{order_id} in our system. "

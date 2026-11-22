@@ -37,6 +37,8 @@ def context(customer_id: int = 1) -> ExecutionContext:
         "I confirm",
         "proceed with the refund",
         "go ahead",
+        "Yes, go ahead.",
+        "OK, go ahead",
         "please continue",
         "approved",
         "evet",

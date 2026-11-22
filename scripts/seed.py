@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -190,6 +190,25 @@ def seed_into(session: Session) -> None:
             ),
         ]
     )
+    session.flush()
+    _advance_id_sequences(session)
+
+
+# Rows above use fixed ids, which PostgreSQL identity sequences do not see. Without this
+# the first ticket, order, or refund created after seeding collides with id 1.
+_SEQUENCED_TABLES = ("customers", "orders", "refund_requests", "support_tickets", "escalations")
+
+
+def _advance_id_sequences(session: Session) -> None:
+    if session.get_bind().dialect.name != "postgresql":
+        return
+    for table in _SEQUENCED_TABLES:
+        session.execute(
+            text(
+                f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
+            )
+        )
 
 
 def seed() -> None:

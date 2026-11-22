@@ -139,6 +139,8 @@ def test_runtime_reads_published_config(client: TestClient) -> None:
             "/agent/chat", json={**chat, "conversation_id": "studio-runtime-2"}
         ).json()
         assert (response["tool_call"] or {}).get("status") != "executed"
+        assert "support specialist" in response["message"]
+        assert "verification" not in response["message"]
     finally:
         app.dependency_overrides.pop(get_agent_runtime, None)
 
@@ -223,3 +225,31 @@ def test_studio_editor_role_guards_changes(
     assert client.get("/ui/agent-config").status_code == 200
     assert client.put("/ui/agent-config/draft", json={"config": {}}).status_code == 403
     assert client.post("/ui/knowledge", json={"title": "x", "content": "y"}).status_code == 403
+
+
+def test_confirm_mode_ticket_executes_after_customer_confirms(client: TestClient) -> None:
+    ticket = StructuredDecision(
+        intent=Intent.TICKET_CREATE,
+        request_type=AgentRequestType.WRITE_ACTION,
+        tool_name="create_support_ticket",
+        arguments={"customer_id": 1, "category": "billing", "description": "Wrong invoice address"},
+        reason="studio test",
+    )
+    runtime = AgentRuntime(provider=FakeDecisionProvider([ticket, ticket]))
+    app.dependency_overrides[get_agent_runtime] = lambda: runtime
+    try:
+        client.put(
+            "/ui/agent-config/draft",
+            json={"config": {"actions": {"create_support_ticket": "confirm"}}},
+        )
+        client.post("/ui/agent-config/publish", json={})
+        invalidate_cache()
+        chat = {"conversation_id": "studio-confirm", "customer_id": 1, "message": "Open a ticket"}
+        first = client.post("/agent/chat", json=chat).json()
+        assert first["pending_action"]["status"] == "pending"
+        assert first["tool_call"] is None
+        confirmed = client.post("/agent/chat", json={**chat, "message": "yes"}).json()
+        assert confirmed["tool_call"]["status"] == "executed", confirmed
+        assert confirmed["message"] == "Your support ticket was created."
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
