@@ -5,6 +5,7 @@ from app.api.routes import (
     customers,
     escalations,
     health,
+    insights,
     memories,
     operator,
     orders,
@@ -26,3 +27,4 @@ api_router.include_router(ui.router)
 api_router.include_router(operator.router)
 api_router.include_router(studio.router)
 api_router.include_router(workspace.router)
+api_router.include_router(insights.router)

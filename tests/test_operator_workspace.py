@@ -192,7 +192,7 @@ def test_customer_rates_conversation_and_operator_sees_it(
         headers=CUSTOMER_ONE,
     )
     assert rated.status_code == 200
-    assert rated.json()["resolved_by"] == "ai"
+    assert rated.json()["resolved_by"] == "human"
     again = client.post("/conversations/ws-csat/feedback", json={"rating": 5}, headers=CUSTOMER_ONE)
     assert again.json()["rating"] == 5
     assert client.get(f"/operator/conversations/{entry['id']}").json()["csat_rating"] == 5

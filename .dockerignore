@@ -14,7 +14,15 @@ build
 dist
 docker-compose*.yml
 docs
-evaluation
+evaluation/*
+!evaluation/__init__.py
+!evaluation/datasets
+!evaluation/fixtures.py
+!evaluation/metrics
+!evaluation/reporting.py
+!evaluation/runner.py
+!evaluation/schemas.py
+!evaluation/simulate.py
 frontend
 htmlcov
 Makefile

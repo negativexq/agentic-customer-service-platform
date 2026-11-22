@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -456,7 +457,8 @@ class SimulationRun(Base):
     finished_at: Mapped[datetime] = mapped_column(nullable=False)
     scenario_count: Mapped[int] = mapped_column(nullable=False)
     passed_count: Mapped[int] = mapped_column(nullable=False)
-    results: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    # {"against": "published"|"draft", "config_version": int|None, "items": [scenario results]}
+    results: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class AgentConfigVersion(Base):

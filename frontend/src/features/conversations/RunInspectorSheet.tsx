@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { Compass, ExternalLink } from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/primitives/sheet";
 import { Skeleton } from "@/components/primitives/skeleton";
@@ -14,10 +14,12 @@ type Props = {
   memoryRecords: MemoryRecord[];
   onClose: () => void;
   onOpenInvestigation: (runId: string) => void;
+  /** Start a guidance rule from this turn. */
+  onCoach?: (run: AgentRun) => void;
 };
 
 /** Debug view for one turn. Opened on demand so the conversation itself stays a plain chat. */
-export function RunInspectorSheet({ runId, run, loading, memoryRecords, onClose, onOpenInvestigation }: Props) {
+export function RunInspectorSheet({ runId, run, loading, memoryRecords, onClose, onOpenInvestigation, onCoach }: Props) {
   return (
     <Sheet open={runId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent side="right" className="w-full gap-0 p-0 data-[side=right]:sm:max-w-2xl">
@@ -31,6 +33,11 @@ export function RunInspectorSheet({ runId, run, loading, memoryRecords, onClose,
             {runId && (
               <Button variant="link" size="xs" className="h-auto p-0" onClick={() => onOpenInvestigation(runId)}>
                 Open full investigation<ExternalLink aria-hidden="true" />
+              </Button>
+            )}
+            {run && onCoach && (
+              <Button variant="link" size="xs" className="h-auto p-0" onClick={() => onCoach(run)}>
+                <Compass aria-hidden="true" />Coach this answer
               </Button>
             )}
           </SheetDescription>

@@ -181,17 +181,24 @@ def list_saved_replies(session: Session, tenant_id: str) -> list[SavedReply]:
 
 
 def resolved_by(session: Session, conversation: Conversation) -> str:
-    """'human' when a person ever took the conversation over, otherwise 'ai'."""
+    """'human' when the conversation was handed to a person at any point, otherwise 'ai'."""
 
-    took_over = session.scalar(
+    handed = session.scalar(
         select(func.count())
         .select_from(ConversationOwnershipEvent)
         .where(
             ConversationOwnershipEvent.conversation_pk == conversation.id,
-            ConversationOwnershipEvent.to_owner == ConversationOwner.HUMAN,
+            ConversationOwnershipEvent.to_owner.in_(
+                [ConversationOwner.QUEUED, ConversationOwner.HUMAN]
+            ),
         )
     )
-    return "human" if took_over else "ai"
+    escalated = session.scalar(
+        select(func.count())
+        .select_from(Escalation)
+        .where(Escalation.conversation_pk == conversation.id)
+    )
+    return "human" if handed or escalated else "ai"
 
 
 def submit_feedback(

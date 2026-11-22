@@ -26,7 +26,14 @@ import { readPreferences } from "@/lib/preferences";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { CustomerContextPanel } from "../features/workspace/CustomerContextPanel";
 import { ActionsPage } from "../features/studio/ActionsPage";
-import { GuidancePage } from "../features/studio/GuidancePage";
+import { GuidancePage, type GuidanceSeed } from "../features/studio/GuidancePage";
+import { coachingSeed } from "../features/improve/coaching";
+import { ErrorsPage } from "../features/improve/ErrorsPage";
+import { OptimizePage } from "../features/improve/OptimizePage";
+import { PerformancePage } from "../features/improve/PerformancePage";
+import { QualityPage } from "../features/improve/QualityPage";
+import { SimulationsPage } from "../features/improve/SimulationsPage";
+import { humanize } from "../features/runs/runPresentation";
 import { KnowledgePage } from "../features/studio/KnowledgePage";
 import { ProceduresPage } from "../features/studio/ProceduresPage";
 
@@ -83,6 +90,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [conversationDebugOpen, setConversationDebugOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(() => window.localStorage.getItem("agentops-context-panel") !== "closed");
   const [monitoringConversation, setMonitoringConversation] = useState("all");
+  const [guidanceSeed, setGuidanceSeed] = useState<GuidanceSeed | null>(null);
   const [playgroundExecution, setPlaygroundExecution] = useState<PlaygroundExecution | null>(null);
   const wide = useWideLayout();
 
@@ -196,6 +204,9 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const activeView: ConsoleView = routeRunId ? "traces" : view;
 
   const searchParam = (name: string) => new URLSearchParams(locationSearch).get(name);
+  const coach = (seed: GuidanceSeed) => { setInspectRunId(null); setGuidanceSeed(seed); navigateToView("guidance"); };
+  const showConversation = (pk: number) => { setTarget({ kind: "conversation", id: pk }); chat.reset(); conversationAction.reset(); navigateToView("workspace"); };
+  const openProcedure = (intent: string) => navigate(`/procedures?intent=${encodeURIComponent(intent)}`);
   let content: React.ReactNode;
   if (routeRunId) {
     content = (
@@ -227,7 +238,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   } else if (view === "knowledge") {
     content = <KnowledgePage key={locationSearch} initialDocument={searchParam("document")} />;
   } else if (view === "guidance") {
-    content = <GuidancePage />;
+    content = <GuidancePage key={guidanceSeed ? "seeded" : "plain"} seed={guidanceSeed} onSeedUsed={() => setGuidanceSeed(null)} />;
   } else if (view === "procedures") {
     content = <ProceduresPage key={locationSearch} initialIntent={searchParam("intent")}
       onOpenAction={(name) => navigate(`/actions?action=${encodeURIComponent(name)}`)}
@@ -235,6 +246,24 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
       onOpenKnowledge={(id) => navigate(`/knowledge?document=${encodeURIComponent(id)}`)} />;
   } else if (view === "actions") {
     content = <ActionsPage key={locationSearch} initialAction={searchParam("action")} onOpenProcedure={(intent) => navigate(`/procedures?intent=${encodeURIComponent(intent)}`)} />;
+  } else if (view === "performance") {
+    content = <PerformancePage onOpenProcedure={openProcedure} />;
+  } else if (view === "optimize") {
+    content = (
+      <OptimizePage onCoach={coach} onOpenConversation={showConversation} onOpenRun={openRun}
+        onFix={(gap) => {
+          if (gap.fix === "guidance") coach(coachingSeed({ title: gap.title, context: gap.examples[0]?.question ? `a customer asks “${gap.examples[0].question}”` : gap.description, intent: gap.intent, runId: gap.examples[0]?.run_id }));
+          else if (gap.fix === "actions") navigate(gap.key.startsWith("action:disabled:") ? `/actions?action=${encodeURIComponent(gap.key.slice(16))}` : "/actions");
+          else if (gap.fix === "procedures" && gap.intent) openProcedure(gap.intent);
+          else navigateToView(gap.fix);
+        }} />
+    );
+  } else if (view === "quality") {
+    content = <QualityPage onCoach={coach} onOpenConversation={showConversation} onOpenRun={openRun} />;
+  } else if (view === "simulations") {
+    content = <SimulationsPage />;
+  } else if (view === "errors") {
+    content = <ErrorsPage onOpenRun={openRun} />;
   } else if (view === "settings") {
     content = <SettingsPage runtimeConfig={runtimeConfig.data} health={health.data} />;
   } else if (view === "monitoring") {
@@ -335,6 +364,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         memoryRecords={inspectRun.data?.customer_id === memoryCustomer ? memory.data ?? [] : []}
         onClose={() => setInspectRunId(null)}
         onOpenInvestigation={(runId) => { setInspectRunId(null); openRun(runId); }}
+        onCoach={(run) => coach(coachingSeed({ title: `Coaching: ${humanize(run.intent)}`, context: `the assistant handles a ${humanize(run.intent).toLowerCase()} request like run ${run.run_id}`, intent: run.intent, runId: run.run_id }))}
       />
       <ConversationInspectorSheet
         open={conversationDebugOpen && target?.kind === "conversation"}

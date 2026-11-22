@@ -13,7 +13,7 @@ const capture = async (page: import("@playwright/test").Page, name: string) => {
 test("navigation survives reload and browser history", async ({ page }) => {
   await loginOperator(page);
   const nav = page.getByRole("navigation", { name: "Console views" });
-  await expect(nav.getByRole("link")).toHaveCount(14);
+  await expect(nav.getByRole("link")).toHaveCount(19);
   for (const [label, path] of [
     ["Playground", "/playground"], ["Runs", "/traces"], ["Monitoring", "/monitoring"], ["Safety", "/safety"],
     ["Conversations", "/workspace"], ["Architecture", "/architecture"], ["Recorded showcase", "/showcase"],
