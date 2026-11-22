@@ -303,7 +303,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
       />
     ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading inbox…</div>;
     content = wide ? (
-      <ResizablePanelGroup orientation="horizontal" className="workspace-panels h-[calc(100svh-3.5rem)] min-h-0" id="conversations-layout">
+      <><h1 className="sr-only">Conversations</h1><ResizablePanelGroup orientation="horizontal" className="workspace-panels h-[calc(100svh-3.5rem)] min-h-0" id="conversations-layout">
         <ResizablePanel defaultSize="26%" minSize="18%" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize="74%" minSize="40%" className="min-w-0">{thread}</ResizablePanel>
@@ -315,9 +315,9 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
             </ResizablePanel>
           </>
         )}
-      </ResizablePanelGroup>
+      </ResizablePanelGroup></>
     ) : (
-      <div className="grid divide-y divide-border">{thread}<div className="max-h-96">{rail}</div></div>
+      <div className="grid divide-y divide-border"><h1 className="sr-only">Conversations</h1>{thread}<div className="max-h-96">{rail}</div></div>
     );
   } else if (view === "playground") {
     content = (

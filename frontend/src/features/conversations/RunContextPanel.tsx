@@ -66,7 +66,7 @@ export function RunContextView({ run, live, loading }: { run: AgentRun; live?: M
                   <span className="font-mono text-xs tabular-nums text-muted-foreground">score {doc.score.toFixed(3)}</span>
                 </div>
                 {doc.citation_preview
-                  ? <blockquote className="border-l-2 border-border pl-3 text-sm leading-6 text-muted-foreground">{doc.citation_preview}</blockquote>
+                  ? <blockquote className="border-l border-border pl-3 text-sm leading-6 text-muted-foreground">{doc.citation_preview}</blockquote>
                   : <p className="text-xs text-muted-foreground">Chunk text was not recorded for this run.</p>}
                 <span className="truncate font-mono text-[11px] text-muted-foreground">{doc.chunk_id ?? doc.citation_id}{doc.document_version ? ` · v${doc.document_version}` : ""}</span>
               </li>

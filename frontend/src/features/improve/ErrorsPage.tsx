@@ -78,7 +78,7 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
                     <TableCell className="max-w-64 truncate text-muted-foreground">{[...row.failed_tools, ...row.degraded_components].join(", ") || humanize(row.status)}</TableCell>
                     <TableCell className="text-muted-foreground">{row.recovery_action ? humanize(row.recovery_action) : "—"}</TableCell>
                     <TableCell className="pr-4 text-right">
-                      <button type="button" onClick={() => onOpenRun(row.run_id)} className="rounded font-mono text-xs text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">{row.run_id.slice(0, 12)}</button>
+                      <button type="button" onClick={() => onOpenRun(row.run_id)} className="-my-1 inline-flex min-h-7 items-center rounded px-1 font-mono text-xs text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">{row.run_id.slice(0, 12)}</button>
                     </TableCell>
                   </TableRow>
                 ))}

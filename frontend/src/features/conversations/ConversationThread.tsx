@@ -49,7 +49,7 @@ function time(iso: string) {
 function InspectButton({ runId, onInspect }: { runId: string; onInspect: (runId: string) => void }) {
   return (
     <button type="button" onClick={() => onInspect(runId)} aria-label={`Inspect run ${runId}`}
-      className="inline-flex items-center gap-1 rounded px-1 text-muted-foreground opacity-70 transition-opacity hover:text-foreground hover:opacity-100 focus-visible:opacity-100">
+      className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
       <Bug className="size-3" aria-hidden="true" />Inspect
     </button>
   );
@@ -129,9 +129,9 @@ function TypingIndicator() {
       <div className="grid justify-items-end gap-1">
         <span className="px-1 text-xs text-muted-foreground">AI assistant is typing…</span>
         <span className="inline-flex h-10 items-center gap-1 rounded-xl rounded-br-sm border border-border bg-card px-4" aria-hidden="true">
-          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70 [animation-delay:-0.3s]" />
-          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70 [animation-delay:-0.15s]" />
-          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70" />
+          <span className="typing-dot size-1.5 rounded-full bg-muted-foreground" />
+          <span className="typing-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.2s]" />
+          <span className="typing-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.4s]" />
         </span>
       </div>
     </li>
@@ -141,7 +141,7 @@ function TypingIndicator() {
 function ActionButton({ children, onClick, disabled, primary = false }: { children: ReactNode; onClick: () => void; disabled: boolean; primary?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition-colors disabled:opacity-50 ${primary ? "bg-primary text-primary-foreground hover:bg-primary/90" : "border border-border hover:bg-accent"}`}>
+      className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-50 pointer-coarse:h-10 ${primary ? "bg-primary text-primary-foreground hover:bg-primary/90" : "border border-border hover:bg-accent"}`}>
       {children}
     </button>
   );

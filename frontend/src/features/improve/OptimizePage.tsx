@@ -137,7 +137,7 @@ export function OptimizePage(handlers: GapHandlers) {
         <Section title="Where conversations end" description="By the kind of request the assistant recognised first.">
           {!performance.data ? <Skeleton className="m-4 h-56" />
             : performance.data.flows.length === 0 ? <EmptyNote>No conversations in the last {days} days.</EmptyNote>
-            : <div className="px-2"><ConversationFlow flows={performance.data.flows} /></div>}
+            : <div className="px-4 sm:px-2"><ConversationFlow flows={performance.data.flows} /></div>}
         </Section>
         <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
           {query.isPending ? <Skeleton className="h-80 w-full rounded-xl" /> : <GapRail gaps={all} active={kind} onSelect={setChosen} />}

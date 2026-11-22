@@ -61,7 +61,7 @@ export function FlagRow({ flag, busy, onReview, onCoach, onOpenConversation, onO
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{flag.detail}</p>
-      {flag.excerpt && <blockquote className="border-l-2 border-border pl-3 text-sm text-foreground">{flag.excerpt}</blockquote>}
+      {flag.excerpt && <blockquote className="border-l border-border pl-3 text-sm text-foreground">{flag.excerpt}</blockquote>}
       <div className="flex flex-wrap items-center gap-1.5">
         <Button size="xs" variant="outline" onClick={onOpenConversation}>Open conversation</Button>
         {onOpenRun && <Button size="xs" variant="ghost" onClick={onOpenRun}>Inspect run</Button>}
@@ -123,7 +123,7 @@ export function PreviewResult({ preview }: { preview: MonitorPreview }) {
           {preview.examples.map((example) => (
             <li key={example.conversation_pk} className="grid gap-0.5 text-xs">
               <span className="text-muted-foreground">{example.customer_name} · {formatRelative(example.at)}</span>
-              {example.excerpt && <span className="line-clamp-2 border-l-2 border-border pl-2 text-foreground">{example.excerpt}</span>}
+              {example.excerpt && <span className="line-clamp-2 border-l border-border pl-2 text-foreground">{example.excerpt}</span>}
             </li>
           ))}
         </ul>
@@ -235,7 +235,7 @@ export function QualityPage({ onCoach, onOpenConversation, onOpenRun }: { onCoac
           <Button size="sm" onClick={() => setEditing({ id: null, input: blankMonitor })}><Plus data-icon="inline-start" aria-hidden />New monitor</Button>
         </>} />
       <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <Section title="Monitors">
+        <Section title="Monitors" className="order-2 lg:order-1">
           {!query.data ? <Skeleton className="m-4 h-40" /> : (
             <ul className="grid gap-0.5 p-2">
               <MonitorRow monitor={{ key: "", name: "All monitors", description: "Every flag in this window", severity: "low", built_in: true, enabled: true, sender_type: null, phrases: [], open_flags: query.data.monitors.reduce((sum, item) => sum + item.open_flags, 0), total_flags: 0 }}
@@ -250,7 +250,7 @@ export function QualityPage({ onCoach, onOpenConversation, onOpenRun }: { onCoac
             </ul>
           )}
         </Section>
-        <Section title={selected?.name ?? "Flagged conversations"} description={selected?.description}
+        <Section title={selected?.name ?? "Flagged conversations"} description={selected?.description} className="order-1 lg:order-2"
           actions={
             <div role="radiogroup" aria-label="Review status" className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
               {(["open", "all"] as const).map((value) => (

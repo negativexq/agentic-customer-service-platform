@@ -27,7 +27,10 @@ export function ResultRow({ result, open, onToggle, change = null }: { result: S
       <button type="button" onClick={onToggle} aria-expanded={open}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
         {result.passed ? <CheckCircle2 className="size-4 shrink-0 text-success" aria-label="Passed" /> : <XCircle className="size-4 shrink-0 text-danger" aria-label="Failed" />}
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{result.scenario_id}</span>
+        <span className="grid min-w-0 flex-1">
+          <span className="truncate font-mono text-xs text-foreground">{result.scenario_id}</span>
+          {result.transcript[0] && <span className="truncate text-xs text-muted-foreground">“{result.transcript[0].user}”</span>}
+        </span>
         {change === "regressed" && <span className="rounded bg-danger/10 px-1.5 py-0.5 text-[11px] text-danger">Newly failing</span>}
         {change === "fixed" && <span className="rounded bg-success/10 px-1.5 py-0.5 text-[11px] text-success">Fixed</span>}
         {result.critical_safety && <ShieldAlert className="size-3.5 shrink-0 text-warning" aria-label="Safety-critical" />}
@@ -156,10 +159,7 @@ export function SimulationsPage() {
       <div className="grid gap-4 p-4 sm:p-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
         <div className="grid content-start gap-4">
           <Section title="Scenarios" description={scenarios.data ? `${selected.size} of ${scenarios.data.length} selected` : undefined}>
-            {scenarios.isError ? <p role="alert" className="px-4 py-3 text-sm text-danger">The scenario library is unavailable.</p>
-              : !scenarios.data ? <Skeleton className="m-4 h-60" />
-              : <ScenarioPicker scenarios={scenarios.data} selected={selected} onChange={setSelected} />}
-            <div className="grid gap-3 border-t border-border p-4">
+            <div className="grid gap-3 border-b border-border p-4">
               <div role="radiogroup" aria-label="Test against" className="inline-flex w-fit rounded-lg border border-border bg-muted/40 p-0.5">
                 {(["published", "draft"] as const).map((value) => (
                   <button key={value} type="button" role="radio" aria-checked={against === value} onClick={() => setAgainst(value)}
@@ -174,6 +174,9 @@ export function SimulationsPage() {
                 <Play data-icon="inline-start" aria-hidden />{runSimulation.isPending ? `Running ${selected.size} scenarios…` : `Run ${selected.size || ""} scenario${selected.size === 1 ? "" : "s"}`}
               </Button>
             </div>
+            {scenarios.isError ? <p role="alert" className="px-4 py-3 text-sm text-danger">The scenario library is unavailable.</p>
+              : !scenarios.data ? <Skeleton className="m-4 h-60" />
+              : <ScenarioPicker scenarios={scenarios.data} selected={selected} onChange={setSelected} />}
           </Section>
           <Section title="Past simulations">
             {!runs.data ? <Skeleton className="m-4 h-24" /> : runs.data.length === 0 ? <EmptyNote>No simulations yet.</EmptyNote> : (

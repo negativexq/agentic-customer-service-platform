@@ -21,7 +21,7 @@ export function PerformanceSummaryStrip({ summary }: { summary: PerformanceView[
   return (
     <StatStrip label="Performance summary">
       <Stat label="Conversations" value={summary.conversations} detail={`${summary.ai_runs} AI runs`} />
-      <Stat label="AI resolution rate" value={percent(summary.ai_resolution_rate)} detail={`${summary.ai_resolved} resolved without a person`} />
+      <Stat label="AI resolution rate" value={percent(summary.ai_resolution_rate)} detail={`${summary.ai_resolved} without a person`} />
       <Stat label="Handoff rate" value={percent(summary.handoff_rate)} detail={`${summary.handed_off} handed off`} />
       <Stat label="CSAT" value={rating(summary.csat_average)} detail={summary.csat_responses ? `${summary.csat_responses} ratings out of 5` : "No ratings yet"} />
       <Stat label="CSAT by who resolved" value={<span className="text-base">{rating(summary.csat_ai_average)} / {rating(summary.csat_human_average)}</span>} detail="AI / person" />
@@ -77,7 +77,7 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
                 {data.topics.map((topic) => (
                   <TableRow key={topic.intent}>
                     <TableCell className="pl-4">
-                      <button type="button" onClick={() => onOpenProcedure(topic.intent)} className="rounded text-left text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
+                      <button type="button" onClick={() => onOpenProcedure(topic.intent)} className="-my-1 inline-flex min-h-7 items-center rounded px-1 -mx-1 text-left text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
                         {humanize(topic.intent)}
                       </button>
                     </TableCell>
