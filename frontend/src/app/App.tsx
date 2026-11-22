@@ -24,6 +24,7 @@ import { CommandMenu } from "./CommandMenu";
 import { viewFromPath, viewPaths, type ConsoleView } from "./routes";
 import { readPreferences } from "@/lib/preferences";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { CustomerContextPanel } from "../features/workspace/CustomerContextPanel";
 import { ActionsPage } from "../features/studio/ActionsPage";
 import { GuidancePage } from "../features/studio/GuidancePage";
 import { KnowledgePage } from "../features/studio/KnowledgePage";
@@ -80,6 +81,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [turnsByConversation, setTurnsByConversation] = useState<Record<string, ConversationTurn[]>>({});
   const [inspectRunId, setInspectRunId] = useState<string | null>(null);
   const [conversationDebugOpen, setConversationDebugOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(() => window.localStorage.getItem("agentops-context-panel") !== "closed");
   const [monitoringConversation, setMonitoringConversation] = useState("all");
   const [playgroundExecution, setPlaygroundExecution] = useState<PlaygroundExecution | null>(null);
   const wide = useWideLayout();
@@ -267,13 +269,23 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         onAction={(action) => { void runAction(action); }}
         onInspect={setInspectRunId}
         onInspectConversation={() => setConversationDebugOpen(true)}
+        contextOpen={contextOpen}
+        onToggleContext={() => setContextOpen((open) => { window.localStorage.setItem("agentops-context-panel", open ? "closed" : "open"); return !open; })}
       />
     ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading inbox…</div>;
     content = wide ? (
       <ResizablePanelGroup orientation="horizontal" className="workspace-panels h-[calc(100svh-3.5rem)] min-h-0" id="conversations-layout">
         <ResizablePanel defaultSize="26%" minSize="18%" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>
         <ResizableHandle />
-        <ResizablePanel defaultSize="74%" minSize="50%" className="min-w-0">{thread}</ResizablePanel>
+        <ResizablePanel defaultSize="74%" minSize="40%" className="min-w-0">{thread}</ResizablePanel>
+        {contextOpen && target?.kind === "conversation" && threadDetail && (
+          <>
+            <ResizableHandle />
+            <ResizablePanel id="customer-context" defaultSize="24%" minSize="18%" maxSize="36%" className="min-w-0 overflow-y-auto border-l-0 bg-sidebar/30">
+              <CustomerContextPanel key={threadDetail.id} conversationPk={threadDetail.id} customerId={threadDetail.customer_id} onOpenConversation={(id) => setTarget({ kind: "conversation", id })} />
+            </ResizablePanel>
+          </>
+        )}
       </ResizablePanelGroup>
     ) : (
       <div className="grid divide-y divide-border">{thread}<div className="max-h-96">{rail}</div></div>

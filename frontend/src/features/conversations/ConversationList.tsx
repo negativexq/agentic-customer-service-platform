@@ -1,4 +1,4 @@
-import { FlaskConical, Search } from "lucide-react";
+import { FlaskConical, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/primitives/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/primitives/tooltip";
@@ -6,6 +6,7 @@ import { usePreferences } from "@/lib/preferences";
 import type { OperatorConversation } from "../../types";
 import { formatRelative, toneDot } from "../runs/runPresentation";
 import { handler, inboxFilters, initials, matchesFilter, previewText, type InboxFilter } from "./conversations";
+import { slaLabel, slaTone } from "../workspace/sla";
 
 type Props = {
   conversations: OperatorConversation[];
@@ -115,6 +116,8 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
                     {item.escalation && item.owner !== "closed" && item.owner !== "ai" && (
                       <span className={`shrink-0 ${priorityTone[item.escalation.priority] ?? "text-muted-foreground"}`}>{item.escalation.priority}</span>
                     )}
+                    {item.sla && <span className={`ml-auto shrink-0 tabular-nums ${slaTone[item.sla.state]}`} data-testid="inbox-sla">{slaLabel(item.sla)}</span>}
+                    {!item.sla && item.csat_rating != null && <span className="ml-auto inline-flex shrink-0 items-center gap-0.5" aria-label={`Rated ${item.csat_rating} of 5`}><Star className="size-3 fill-warning text-warning" aria-hidden="true" />{item.csat_rating}</span>}
                   </span>
                 </span>
               </button>

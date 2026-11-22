@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.ui.workspace_schemas import SlaStatusView
+
 
 class OperatorIdentityView(BaseModel):
     actor_id: str
@@ -55,6 +57,8 @@ class OperatorConversationView(BaseModel):
     updated_at: datetime
     last_message: ConversationMessageView | None = None
     escalation: EscalationSummaryView | None = None
+    sla: SlaStatusView | None = None
+    csat_rating: int | None = None
 
 
 class OperatorConversationDetailView(OperatorConversationView):

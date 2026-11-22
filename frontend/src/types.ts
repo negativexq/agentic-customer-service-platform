@@ -1,3 +1,5 @@
+import type { SlaStatus } from "./features/workspace/types";
+
 export type ToolEvent = {
   name: string;
   risk_level: number | null;
@@ -317,6 +319,8 @@ export type OperatorConversation = {
   updated_at: string;
   last_message: RecordedMessage | null;
   escalation: { priority: string; reason: string; summary: string; status: string; created_at: string | null } | null;
+  sla?: SlaStatus | null;
+  csat_rating?: number | null;
 };
 
 export type OperatorConversationDetail = OperatorConversation & { messages: RecordedMessage[] };

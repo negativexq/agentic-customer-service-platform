@@ -25,8 +25,13 @@ from app.models.entities import (
     TenantStatus,
     TicketStatus,
 )
+from app.models.workspace import ConversationFeedback, ConversationNote, SavedReply, SlaTarget
 
 __all__ = [
+    "ConversationFeedback",
+    "ConversationNote",
+    "SavedReply",
+    "SlaTarget",
     "AgentConfigVersion",
     "KnowledgeArticle",
     "QualityFlagReview",

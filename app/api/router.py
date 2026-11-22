@@ -11,6 +11,7 @@ from app.api.routes import (
     studio,
     tickets,
     ui,
+    workspace,
 )
 
 api_router = APIRouter()
@@ -24,3 +25,4 @@ api_router.include_router(memories.router)
 api_router.include_router(ui.router)
 api_router.include_router(operator.router)
 api_router.include_router(studio.router)
+api_router.include_router(workspace.router)

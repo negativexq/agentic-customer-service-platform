@@ -37,6 +37,7 @@ from app.services.conversations import (
     release_conversation,
     resolve_conversation,
 )
+from app.services.workspace import feedback_for, sla_statuses, sla_targets
 from app.ui.operator_schemas import (
     ConversationMessageView,
     CustomerMessageView,
@@ -124,6 +125,10 @@ def _summaries(
     latest = last_messages(session, pks)
     escalations = _active_escalations(session, pks)
     assignee_names = _assignee_names(session, pks)
+    slas = sla_statuses(
+        session, conversations, escalations, sla_targets(session, _tenant(principal))
+    )
+    ratings = feedback_for(session, pks)
     views: list[OperatorConversationView] = []
     for conversation in conversations:
         mine = conversation.assignee_actor_id == principal.actor_id
@@ -158,6 +163,8 @@ def _summaries(
                 )
                 if escalation
                 else None,
+                sla=slas.get(conversation.id),
+                csat_rating=ratings[conversation.id].rating if conversation.id in ratings else None,
             )
         )
     return views

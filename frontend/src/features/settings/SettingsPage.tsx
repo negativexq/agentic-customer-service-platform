@@ -8,31 +8,8 @@ import { readThemePreference, storeThemePreference, themeChangeEvent, type Theme
 import { PageHeader } from "../../components/layout/PageHeader";
 import type { Health, RuntimeConfig } from "../../types";
 import { humanize } from "../runs/runPresentation";
-
-/** A settings group: what it is on the left, the controls on the right. */
-function Group({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return (
-    <section className="grid gap-4 border-b border-border py-6 last:border-b-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-10">
-      <div className="grid content-start gap-1">
-        <h2 className="text-sm font-medium text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      <div className="grid min-w-0 content-start gap-0 divide-y divide-border rounded-xl border border-border bg-card">{children}</div>
-    </section>
-  );
-}
-
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-      <div className="grid min-w-0 gap-0.5">
-        <span className="text-sm text-foreground">{label}</span>
-        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-      </div>
-      <div className="flex min-w-0 items-center gap-2 text-sm">{children}</div>
-    </div>
-  );
-}
+import { SavedRepliesSettings, ServiceLevelSettings } from "../workspace/WorkspaceSettings";
+import { Group, Row } from "./layout";
 
 function Value({ children, mono = false }: { children: ReactNode; mono?: boolean }) {
   return <span className={`truncate text-muted-foreground ${mono ? "font-mono text-xs" : ""}`}>{children}</span>;
@@ -135,6 +112,9 @@ export function SettingsPage({ runtimeConfig, health }: { runtimeConfig: Runtime
             <Button variant="ghost" size="sm" disabled={!changed} onClick={resetPreferences}>Restore defaults</Button>
           </div>
         </Group>
+
+        <ServiceLevelSettings />
+        <SavedRepliesSettings />
 
         <Group title="Data and privacy" description="Set by your administrator for the whole workspace. Sensitive values are masked before anything is stored.">
           {profile ? (

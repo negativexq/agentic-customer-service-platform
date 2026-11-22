@@ -126,10 +126,7 @@ def test_runtime_reads_published_config(client: TestClient) -> None:
     app.dependency_overrides[get_agent_runtime] = lambda: runtime
     try:
         chat = {"conversation_id": "studio-runtime", "customer_id": 1, "message": "My orders?"}
-        assert (
-            client.post("/agent/chat", json=chat).json()["tool_call"]["status"]
-            == "executed"
-        )
+        assert client.post("/agent/chat", json=chat).json()["tool_call"]["status"] == "executed"
 
         client.put(
             "/ui/agent-config/draft",
