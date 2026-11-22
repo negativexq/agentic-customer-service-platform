@@ -96,6 +96,23 @@ function Message({ row, customerName, onInspect }: { row: Row; customerName: str
   );
 }
 
+/** Chat-style "typing" bubble shown on the AI side while a reply is being written. */
+function TypingIndicator() {
+  return (
+    <li className="flex flex-row-reverse gap-2" role="status" aria-live="polite" data-testid="ai-typing">
+      <span className="mt-5 flex size-7 shrink-0 items-center justify-center rounded-full bg-success/12 text-success" aria-hidden="true"><Bot className="size-3.5" /></span>
+      <div className="grid justify-items-end gap-1">
+        <span className="px-1 text-xs text-muted-foreground">AI assistant is typing…</span>
+        <span className="inline-flex h-10 items-center gap-1 rounded-xl rounded-br-sm border border-border bg-card px-4" aria-hidden="true">
+          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70 [animation-delay:-0.3s]" />
+          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70 [animation-delay:-0.15s]" />
+          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/70" />
+        </span>
+      </div>
+    </li>
+  );
+}
+
 function ActionButton({ children, onClick, disabled, primary = false }: { children: ReactNode; onClick: () => void; disabled: boolean; primary?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
@@ -129,15 +146,18 @@ export function ConversationThread(props: Props) {
     return result;
   }, [detail?.messages, localTurns]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [rows.length, busy]);
+  // The customer's message shows right away, followed by a typing bubble while the AI answers.
+  const [pendingCustomer, setPendingCustomer] = useState<string | null>(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [rows.length, busy, pendingCustomer]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!message.trim() || busy || actionPending) return;
     const value = message;
     setMessage("");
-    if (mine) await onReply(value);
-    else await onSendAsCustomer(value);
+    if (mine) { await onReply(value); return; }
+    setPendingCustomer(value);
+    try { await onSendAsCustomer(value); } finally { setPendingCustomer(null); }
   };
 
   const who = detail ? handler(detail) : null;
@@ -196,7 +216,7 @@ export function ConversationThread(props: Props) {
       {actionError && <p className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-xs text-danger" role="alert">{actionError}</p>}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5" aria-live="polite">
-        {rows.length === 0 && !busy ? (
+        {rows.length === 0 && !busy && !pendingCustomer ? (
           <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-2 text-center">
             <MessagesSquare className="size-5 text-muted-foreground" aria-hidden="true" />
             <p className="text-sm text-foreground">{loading ? "Loading conversation…" : draft ? "Start a test conversation" : "No messages yet"}</p>
@@ -205,11 +225,16 @@ export function ConversationThread(props: Props) {
         ) : (
           <ol className="mx-auto grid max-w-3xl gap-4">
             {rows.map((row) => <Message key={row.key} row={row} customerName={customerName} onInspect={onInspect} />)}
-            {busy && (
-              <li className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-1.5 animate-pulse rounded-full bg-info" aria-hidden="true" />Generating bounded response…
+            {pendingCustomer && (
+              <li className="flex gap-2" data-testid="pending-customer-message">
+                <span className="mt-5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-foreground" aria-hidden="true">{initials(customerName)}</span>
+                <div className="grid max-w-[78%] justify-items-start gap-1">
+                  <span className="px-1 text-xs text-muted-foreground">{customerName} · now</span>
+                  <p className="rounded-xl rounded-bl-sm bg-muted px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">{pendingCustomer}</p>
+                </div>
               </li>
             )}
+            {busy && <TypingIndicator />}
           </ol>
         )}
         <div ref={endRef} />
@@ -227,11 +252,11 @@ export function ConversationThread(props: Props) {
             <span className="px-1 text-xs text-muted-foreground">
               {composerMode === "operator" ? `Replying to ${customerName} as ${me?.display_name ?? "operator"}` : `Testing as ${customerName}. Messages go to the AI assistant as the customer.`}
             </span>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1 pl-3 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-1 pl-3 transition-shadow focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
               <label className="sr-only" htmlFor="agent-message">{composerMode === "operator" ? "Reply to customer" : "Message as customer"}</label>
               <input data-testid={composerMode === "operator" ? "operator-reply" : "agent-message"} id="agent-message" value={message} onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerMode === "operator" ? `Reply to ${customerName}` : "Write as the customer"}
-                className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" disabled={busy || actionPending} />
+                className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground focus-visible:outline-none" disabled={busy || actionPending} />
               <button data-testid={composerMode === "operator" ? "send-operator-reply" : "send-agent-message"} type="submit" disabled={busy || actionPending || !message.trim()}
                 className="inline-flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground transition-opacity disabled:opacity-40">
                 <ArrowUp className="size-4" aria-hidden="true" /><span className="sr-only">Send message</span>

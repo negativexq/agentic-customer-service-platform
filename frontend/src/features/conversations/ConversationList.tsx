@@ -79,7 +79,7 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search customers or messages"
             aria-label="Search conversations"
-            className="h-8 w-full rounded-md border border-border bg-transparent pr-2 pl-8 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+            className="h-8 w-full rounded-md border border-border bg-transparent pr-2 pl-8 text-sm outline-none placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           />
         </div>
       </div>
