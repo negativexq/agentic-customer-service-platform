@@ -22,3 +22,4 @@ frontend/test-results/
 /models/
 .qdrant/
 .DS_Store
+.claude/worktrees/

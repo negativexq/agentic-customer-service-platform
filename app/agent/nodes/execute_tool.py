@@ -14,6 +14,7 @@ from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
 from app.resilience.errors import ResilienceError, RetryExhaustedError, UnknownWriteOutcomeError
 from app.resilience.retry import run_with_retry
+from app.services.conversations import lock_current_agent_turn
 from app.services.idempotency import IdempotencyScope, commit_business_write
 from app.tools import registry
 from app.tools.base import ToolError
@@ -84,6 +85,9 @@ def make_execute_tool_node(
 
             def attempt() -> object:
                 try:
+                    expected_version = state.get("conversation_ownership_version")
+                    if operation_type == "write" and expected_version is not None:
+                        lock_current_agent_turn(session, context, expected_version)
                     result = definition.execute(session, context, arguments, idempotency)
                     if operation_type == "write":
                         commit_business_write(session, tool_name)

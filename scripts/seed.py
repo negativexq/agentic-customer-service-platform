@@ -6,7 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.memory.schemas import MemorySource, MemoryStatus, MemoryType
-from app.models import Customer, Escalation, MemoryRecord, Order, RefundRequest, SupportTicket
+from app.models import (
+    Conversation,
+    ConversationOwnershipEvent,
+    Customer,
+    Escalation,
+    MemoryRecord,
+    Order,
+    RefundRequest,
+    SupportTicket,
+)
 from app.models.entities import OrderStatus, RefundStatus, TicketStatus
 from scripts.qa_fixtures import (
     QA_CUSTOMER_IDS,
@@ -23,6 +32,8 @@ DEMO_MEMORY_PRIVATE_CONTENT = QA_MEMORY_SENTINEL
 
 def seed_into(session: Session) -> None:
     session.execute(delete(Escalation))
+    session.execute(delete(ConversationOwnershipEvent))
+    session.execute(delete(Conversation))
     session.execute(delete(RefundRequest))
     session.execute(delete(SupportTicket))
     session.execute(delete(Order))

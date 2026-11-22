@@ -23,6 +23,7 @@ class LLMProvider(StrEnum):
 
 LLMReasoningEffort = Literal["none", "low", "medium", "high"]
 LLMStructuredOutputMode = Literal["schema", "function_calling"]
+LLMApi = Literal["chat_completions", "responses"]
 DecisionContractVersion = Literal["direct_tool_v1", "semantic_decision_v2", "semantic_decision_v3"]
 
 
@@ -41,6 +42,8 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     llm_reasoning_effort: LLMReasoningEffort | None = None
+    # Some reasoning models accept function tools with reasoning only on the Responses API.
+    llm_api: LLMApi = "chat_completions"
     llm_structured_output_mode: LLMStructuredOutputMode = "schema"
     agent_decision_contract_version: DecisionContractVersion = "semantic_decision_v3"
     llm_connect_timeout_seconds: float = Field(default=5.0, gt=0.0)

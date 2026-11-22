@@ -1,4 +1,5 @@
 import operator
+from datetime import datetime
 from typing import Annotated, Literal, TypedDict
 
 from app.agent.decision_compiler import CompiledDecision
@@ -54,6 +55,8 @@ class AgentState(TypedDict, total=False):
     conversation_customer_id: int
     conversation_actor_id: str
     conversation_actor_type: str
+    conversation_ownership_version: int
+    conversation_ai_resumed_at: datetime | None
     messages: Annotated[list[ConversationMessage], operator.add]
     intent: Intent
     request_type: AgentRequestType

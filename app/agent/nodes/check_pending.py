@@ -1,5 +1,6 @@
 import time
 from collections.abc import Callable
+from datetime import UTC
 
 from app.agent.nodes.workflow_lifecycle import (
     is_interruption_candidate,
@@ -17,6 +18,7 @@ from app.policies.confirmation import (
     transition,
 )
 from app.policies.models import (
+    PendingAction,
     PendingActionStatus,
     PolicyAuditEvent,
     PolicyOutcome,
@@ -113,7 +115,7 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
             "error_category": AgentErrorCategory.OWNERSHIP_VIOLATION,
         }
     if action.status == PendingActionStatus.PENDING:
-        if is_expired(action, clock.now(), ttl_seconds):
+        if is_expired(action, clock.now(), ttl_seconds) or _predates_ai_resume(action, state):
             return {
                 "pending_action": transition(action, PendingActionStatus.EXPIRED),
                 "confirmation_status": "expired",
@@ -146,6 +148,18 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
             }
         return {"confirmation_status": "no_pending"}
     return {"confirmation_status": "normal", "pending_action": None}
+
+
+def _predates_ai_resume(action: PendingAction, state: AgentState) -> bool:
+    """A confirmation from before a human handoff must not authorize a write after it."""
+
+    resumed_at = state.get("conversation_ai_resumed_at")
+    if resumed_at is None:
+        return False
+    created_at = action.created_at
+    if created_at.tzinfo is not None:
+        created_at = created_at.astimezone(UTC).replace(tzinfo=None)
+    return created_at <= resumed_at
 
 
 def _latest_user_message(state: AgentState) -> str:
