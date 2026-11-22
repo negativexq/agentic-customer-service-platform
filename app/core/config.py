@@ -56,6 +56,20 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = Field(default=32, gt=0)
     embedding_base_url: str | None = None
+    # Matryoshka models (for example qwen3-embedding) can truncate to a smaller size on request.
+    embedding_output_dimension: int | None = Field(default=None, gt=0)
+    # Instruction-tuned embedders expect queries (not documents) to carry a task prefix.
+    embedding_query_instruction: str = ""
+
+    @field_validator(
+        "embedding_output_dimension", "embedding_base_url", "embedding_api_key", mode="before"
+    )
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        """Compose passes unset variables as empty strings."""
+
+        return None if value == "" else value
+
     embedding_api_key: SecretStr | None = None
     embedding_connect_timeout_seconds: float = Field(default=5.0, gt=0.0)
     embedding_timeout_seconds: float = Field(default=30.0, gt=0.0)

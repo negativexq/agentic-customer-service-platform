@@ -212,6 +212,8 @@ def test_knowledge_publish_never_calls_paid_embeddings(
     assert status["publish_allowed"] is False
     assert "paid" in status["publish_blocked_reason"]
     assert client.post("/ui/knowledge/publish").status_code == 409
+    monkeypatch.setattr(settings, "embedding_base_url", "http://localhost:11434/v1")
+    assert "paid" not in client.get("/ui/knowledge/status").json()["publish_blocked_reason"]
 
 
 def test_studio_editor_role_guards_changes(

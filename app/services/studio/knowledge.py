@@ -303,7 +303,9 @@ def search(
 
 
 def _publish_blocked_reason(settings: Settings) -> str | None:
-    if settings.embedding_provider != "deterministic":
+    # A self-hosted endpoint (for example Ollama) costs nothing per call; only the
+    # hosted provider is gated behind the deliberate ingest script.
+    if settings.embedding_provider != "deterministic" and not settings.embedding_base_url:
         return (
             "Publishing would call the paid embedding provider. Run scripts/rag_ingest.py "
             "deliberately instead."

@@ -31,6 +31,39 @@ _QUANTIFIED_FACT = re.compile(
     re.IGNORECASE,
 )
 _STOP_WORDS = {
+    "and",
+    "any",
+    "been",
+    "but",
+    "did",
+    "get",
+    "had",
+    "has",
+    "have",
+    "into",
+    "its",
+    "know",
+    "much",
+    "need",
+    "our",
+    "should",
+    "some",
+    "take",
+    "than",
+    "that",
+    "them",
+    "then",
+    "there",
+    "they",
+    "usually",
+    "typically",
+    "generally",
+    "want",
+    "was",
+    "were",
+    "will",
+    "would",
+    "you",
     "about",
     "are",
     "can",
@@ -64,6 +97,9 @@ _EVIDENCE_REFERENCE_TERMS = {
 }
 _MIN_RELEVANCE_SCORE = 0.35
 _GENERIC_QUERY_TERMS = {
+    "account",
+    "change",
+    "update",
     "allow",
     "allowed",
     "answer",
@@ -368,13 +404,41 @@ def _normalize(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+_SUFFIXES = ("ments", "ment", "ings", "ing", "ed", "es", "s")
+
+
+def _stem(word: str) -> str:
+    """Light suffix stripping so shipped, shipping and shipment share one root."""
+
+    for suffix in _SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            word = word[: -len(suffix)]
+            break
+    if len(word) > 3 and word[-1] == word[-2] and word[-1] not in "aeiouls":
+        word = word[:-1]
+    return word
+
+
 def _terms(value: str) -> set[str]:
     terms: set[str] = set()
     for raw in _TOKEN.findall(value.casefold()):
         if raw in _STOP_WORDS or len(raw) < 3:
             continue
-        terms.add(raw[:-1] if raw.endswith("s") and len(raw) > 4 else raw)
+        terms.add(_stem(raw))
     return terms
+
+
+def evidence_terms(chunk: RetrievedChunk) -> set[str]:
+    return _terms(" ".join((chunk.title, chunk.category, chunk.section, chunk.content)))
+
+
+def query_term_overlap(query: str, terms: set[str]) -> float:
+    """Share of the query's content terms that appear in the evidence terms."""
+
+    query_terms = _terms(query)
+    if not query_terms:
+        return 0.0
+    return sum(_term_matches(term, terms) for term in query_terms) / len(query_terms)
 
 
 def _is_relevant(query: str, chunk: RetrievedChunk) -> bool:
@@ -384,17 +448,23 @@ def _is_relevant(query: str, chunk: RetrievedChunk) -> bool:
     score = chunk.rerank_score if chunk.rerank_score is not None else chunk.score
     if query_terms & _EVIDENCE_REFERENCE_TERMS:
         return score >= _MIN_RELEVANCE_SCORE
-    evidence_terms = _terms(" ".join((chunk.title, chunk.category, chunk.section, chunk.content)))
-    covered = {term for term in query_terms if _term_matches(term, evidence_terms)}
+    chunk_terms = evidence_terms(chunk)
+    covered = {term for term in query_terms if _term_matches(term, chunk_terms)}
     distinctive = query_terms - _GENERIC_QUERY_TERMS
     # A deterministic reranker can score a short, highly specific question
     # below the general threshold even when every distinctive term is present
     # in the source.  Permit that bounded case, but never let a low-confidence
     # generic query pass without stronger retrieval support.
+    matched = {term for term in distinctive if _term_matches(term, chunk_terms)}
     if score < _MIN_RELEVANCE_SCORE:
         if score < 0.2 or not distinctive:
             return False
-    return bool(covered) and all(_term_matches(term, evidence_terms) for term in distinctive)
+        return bool(covered) and matched == distinctive
+    # With solid retrieval support, most (not every) distinctive term must appear:
+    # customers phrase questions in words the policy text does not repeat verbatim.
+    if not distinctive:
+        return bool(covered)
+    return bool(matched) and len(matched) / len(distinctive) >= 0.5
 
 
 def _term_matches(term: str, evidence_terms: set[str]) -> bool:

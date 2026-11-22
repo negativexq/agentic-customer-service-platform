@@ -205,3 +205,40 @@ def test_validator_rejects_answer_mismatch_even_with_valid_citation_marker() -> 
     assert validation.accepted is False
     assert validation.unsupported_claim_count == 1
     assert "answer_evidence_mismatch" in validation.reasons
+
+
+def test_paraphrased_question_matches_policy_wording() -> None:
+    evidence = _chunk(
+        "After an order has shipped it can no longer be cancelled; request a return instead.",
+        document_id="cancellation-policy",
+        score=0.44,
+    )
+
+    answer = GroundedAnswerGenerator().answer(
+        "Can I cancel an order after it has shipped?", [evidence]
+    )
+
+    assert answer.status == AnswerGroundingStatus.PASS
+    assert answer.citations[0].chunk_id == evidence.chunk_id
+
+
+def test_partial_overlap_on_unrelated_topic_still_fails_closed() -> None:
+    evidence = _chunk("After an order has shipped it can no longer be cancelled.", score=0.44)
+
+    answer = GroundedAnswerGenerator().answer("Do you sell gift cards?", [evidence])
+
+    assert answer.status == AnswerGroundingStatus.INSUFFICIENT_EVIDENCE
+
+
+def test_shared_account_vocabulary_does_not_answer_a_different_topic() -> None:
+    evidence = _chunk(
+        "Plan changes on your account take effect at the next renewal.",
+        document_id="subscription-policy",
+        score=0.67,
+    )
+
+    answer = GroundedAnswerGenerator().answer(
+        "How do I change the email on my account?", [evidence]
+    )
+
+    assert answer.status == AnswerGroundingStatus.INSUFFICIENT_EVIDENCE
