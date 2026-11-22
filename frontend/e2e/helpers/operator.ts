@@ -16,7 +16,10 @@ export type AgentChatProjection = {
 
 export async function loginOperator(page: Page, path = "/overview"): Promise<void> {
   await page.goto(path);
-  await expect(page.getByText("AgentOps", { exact: true }).first()).toBeAttached();
+  // Below 768px the sidebar, and the brand inside it, live in a closed off-canvas sheet.
+  if ((page.viewportSize()?.width ?? 1440) >= 768) {
+    await expect(page.getByText("AgentOps", { exact: true }).first()).toBeAttached();
+  }
   await expect(page.getByText("Authenticated", { exact: true })).toBeVisible();
 }
 

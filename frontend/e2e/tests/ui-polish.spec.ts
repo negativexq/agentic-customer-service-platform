@@ -38,7 +38,7 @@ test("operator watches a conversation live, takes over, replies, and hands it ba
   await expect(page.getByTestId("conversation-handler")).toContainText("AI assistant is replying");
   await page.getByRole("button", { name: "Take over" }).first().click();
   await expect(page.getByTestId("conversation-handler")).toContainText("You are replying");
-  await expect(page.getByText(/joined the conversation/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Conversation" }).getByText(/joined the conversation/)).toBeVisible();
 
   await page.getByTestId("operator-reply").fill("Hi, an operator here. Checking your order now.");
   await page.getByTestId("send-operator-reply").click();
@@ -93,7 +93,7 @@ test("investigation prioritizes outcome and supports keyboard-accessible detail 
   await expect(page.getByLabel("Decision lifecycle summary")).toContainText("Confirmation required");
   await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
   await page.getByRole("button", { name: "Copy run ID" }).click();
-  await expect(page.getByRole("status")).toHaveText("Copied");
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("demo-refund-memory-rag-20260823");
   await expect(page.getByRole("tab", { name: "Evidence", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Evidence", exact: true }).focus();
@@ -120,7 +120,7 @@ test("clipboard denial leaves selectable run metadata and honest feedback", asyn
   });
   await loginOperator(page, "/runs/demo-refund-memory-rag-20260823");
   await page.getByRole("button", { name: "Copy run ID" }).click();
-  await expect(page.getByRole("status")).toHaveText("Copy unavailable; select the ID.");
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Copy unavailable; select the ID.");
   await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
   await expect(page.getByTestId("investigation-run-id")).toHaveCSS("user-select", "text");
 });
