@@ -13,6 +13,8 @@ from app.core.database import SessionLocal
 from app.models import (
     AgentRunProjectionRecord,
     BusinessActionReceipt,
+    Conversation,
+    ConversationOwnershipEvent,
     Customer,
     Escalation,
     MemoryRecord,
@@ -54,6 +56,8 @@ def reset() -> None:
             PolicyAuditRecord,
             BusinessActionReceipt,
             Escalation,
+            ConversationOwnershipEvent,
+            Conversation,
             RefundRequest,
             SupportTicket,
             Order,

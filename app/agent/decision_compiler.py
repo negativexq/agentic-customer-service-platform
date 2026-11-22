@@ -440,18 +440,20 @@ class DecisionCompiler:
                 },
             )
         if decision.intent == Intent.HUMAN_ESCALATION:
-            if not decision.reason or not decision.priority or not decision.summary:
+            if not decision.reason or not decision.summary:
                 return self._clarification(
                     decision,
                     "Escalation details are required.",
                     reason_code=CompilerReasonCode.ESCALATION_DETAILS_REQUIRED,
                     clarification_fields=_absent_fields(
                         decision,
-                        (CompilerField.REASON, CompilerField.PRIORITY, CompilerField.SUMMARY),
+                        (CompilerField.REASON, CompilerField.SUMMARY),
                     ),
                 )
+            # Priority is triage metadata the customer rarely states; asking for it would
+            # keep a customer who wants a human in a clarification loop.
             try:
-                priority = EscalationPriority(decision.priority).value
+                priority = EscalationPriority(decision.priority or EscalationPriority.MEDIUM).value
             except ValueError:
                 return self._rejected(
                     decision,

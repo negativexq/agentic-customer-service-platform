@@ -1,11 +1,13 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from pydantic import BaseModel
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.agent.llm.fake import FakeDecisionProvider
@@ -14,9 +16,10 @@ from app.agent.schemas import AgentErrorCategory, AgentRequestType, Intent, Stru
 from app.auth.models import ActorType, Principal
 from app.core.config import Settings
 from app.core.context import ExecutionContext
+from app.core.database import Base
 from app.memory.schemas import MemoryCandidate, MemoryType
 from app.memory.service import MemoryService
-from app.models import Order
+from app.models import Customer, Order
 from app.models.entities import OrderStatus
 from app.persistence.checkpoint import (
     CHECKPOINT_ALLOWED_MSGPACK_TYPES,
@@ -322,7 +325,22 @@ def test_different_actors_with_same_conversation_id_are_isolated(db_session: Ses
     assert [message["content"] for message in second_provider.calls[0]] == ["Actor two request"]
 
 
-def test_concurrent_customer_contexts_do_not_share_state(db_session: Session) -> None:
+def test_concurrent_customer_contexts_do_not_share_state(tmp_path: Path) -> None:
+    # Each request owns its Session and connection, as in the API; the shared in-memory
+    # fixture connection cannot hold two concurrent transactions.
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'concurrent.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as seed:
+        seed.add_all(
+            [
+                Customer(id=1, name="Test Customer", email="test@example.com"),
+                Customer(id=2, name="Other Customer", email="other@example.com"),
+            ]
+        )
+        seed.commit()
     checkpointer = MemorySaver()
 
     def run_customer(actor_id: str, customer_id: int) -> list[str]:
@@ -332,15 +350,16 @@ def test_concurrent_customer_contexts_do_not_share_state(db_session: Session) ->
             checkpointer=checkpointer,
             memory_service=MemoryService(enabled=False),
         )
-        runtime.run(
-            context=execution_context(
-                actor_id=actor_id,
-                customer_id=customer_id,
-                conversation_id="concurrent-conversation",
-            ),
-            message=f"Request from {actor_id}",
-            session=db_session,
-        )
+        with Session(engine) as session:
+            runtime.run(
+                context=execution_context(
+                    actor_id=actor_id,
+                    customer_id=customer_id,
+                    conversation_id="concurrent-conversation",
+                ),
+                message=f"Request from {actor_id}",
+                session=session,
+            )
         return [message["content"] for message in provider.calls[0]]
 
     with ThreadPoolExecutor(max_workers=2) as executor:

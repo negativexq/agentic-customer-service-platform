@@ -21,15 +21,19 @@ from app.models import (
     EscalationStatus,
     RefundRequest,
     SupportTicket,
+    Tenant,
     TicketStatus,
 )
 from app.resilience.errors import UnknownWriteOutcomeError
 from app.services.conversations import (
     ConversationOwnershipChangedError,
     claim_conversation,
+    queue_for_human,
     release_conversation,
     resolve_conversation,
 )
+from scripts.qa_fixtures import QA_TENANT_ID
+from scripts.seed import seed_into
 
 ESCALATION_ARGUMENTS: dict[str, object] = {
     "customer_id": 1,
@@ -588,3 +592,43 @@ def test_ownership_events_never_store_message_text() -> None:
         "reason_code",
         "created_at",
     }
+
+
+def test_demo_seed_reruns_after_a_conversation_was_handed_off() -> None:
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+
+    @event.listens_for(engine, "connect")
+    def enforce_foreign_keys(connection: Any, _: object) -> None:
+        connection.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(Tenant(id=QA_TENANT_ID, name="Demo"))
+        seed_into(session)
+        customer_id = session.scalars(select(Customer.id).order_by(Customer.id)).first()
+        assert customer_id is not None
+        conversation = Conversation(
+            tenant_id=QA_TENANT_ID,
+            customer_id=customer_id,
+            conversation_id="seed-rerun",
+            owner=ConversationOwner.AI,
+        )
+        escalation = Escalation(
+            customer_id=customer_id,
+            tenant_id=QA_TENANT_ID,
+            reason="seed rerun",
+            priority=EscalationPriority.HIGH,
+            summary="seed rerun",
+            status=EscalationStatus.QUEUED,
+        )
+        session.add_all([conversation, escalation])
+        session.flush()
+        queue_for_human(session, conversation, escalation_id=escalation.id, actor_id="seed-test")
+        session.flush()
+
+        seed_into(session)
+
+        assert session.scalar(select(func.count()).select_from(Conversation)) == 0
+        assert session.scalar(select(func.count()).select_from(ConversationOwnershipEvent)) == 0

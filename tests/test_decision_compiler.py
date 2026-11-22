@@ -247,6 +247,24 @@ def test_refund_ticket_escalation_and_read_compilation(db_session: Session) -> N
     assert escalation.tool_arguments["customer_id"] == 1
     assert escalation.tool_arguments["priority"] == "urgent"
 
+    # Live models often omit triage priority; the customer must not be asked for it.
+    unprioritized = compiler(db_session).compile(
+        SemanticDecision(
+            intent=Intent.HUMAN_ESCALATION,
+            reason="Order arrived damaged.",
+            summary="Customer wants a person to review a damaged order.",
+        ),
+        context(),
+    )
+    assert unprioritized.selected_tool == "escalate_to_human"
+    assert unprioritized.tool_arguments["priority"] == "medium"
+
+    unsummarized = compiler(db_session).compile(
+        SemanticDecision(intent=Intent.HUMAN_ESCALATION, reason="The customer requested an agent."),
+        context(),
+    )
+    assert unsummarized.status == CompileStatus.CLARIFICATION_REQUIRED
+
     lookup = compiler(db_session).compile(
         SemanticDecision(
             intent=Intent.ORDER_LOOKUP,
