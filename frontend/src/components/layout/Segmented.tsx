@@ -24,7 +24,7 @@ export function Segmented<T extends string | number>({ options, value, onChange,
       )}
       {options.map((option) => (
         <button key={String(option.value)} type="button" role="radio" aria-checked={value === option.value} onClick={() => onChange(option.value)}
-          className={`relative h-7 rounded-md px-2.5 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${value === option.value ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+          className={`relative h-[26px] rounded-md px-2.5 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${value === option.value ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           {option.label}
         </button>
       ))}

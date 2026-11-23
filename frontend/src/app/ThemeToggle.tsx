@@ -22,7 +22,7 @@ export function ThemeToggle() {
   const Icon = resolveTheme(preference) === "dark" ? Moon : Sun;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Change theme" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Change theme" />}>
         <Icon aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">

@@ -188,7 +188,7 @@ export function KnowledgePage({ initialDocument }: { initialDocument: string | n
         </>} />
       <IndexStatusBar />
       <div className="grid min-h-0 flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className="grid content-start gap-2 border-b border-border p-3 lg:border-r lg:border-b-0">
+        <aside className="grid content-start gap-2 border-b border-border py-3 pr-3 pl-4 sm:pl-6 lg:border-r lg:border-b-0">
           <Input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter articles" aria-label="Filter articles" className="h-8" />
           {documents.isPending ? <div className="grid gap-1.5"><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : (
             <nav aria-label="Articles" className="grid gap-0.5">

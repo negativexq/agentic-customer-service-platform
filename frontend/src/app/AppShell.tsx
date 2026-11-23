@@ -119,7 +119,7 @@ export function AppShell({ activeView, detailLabel, user, notifications, onSelec
       </Sidebar>
       <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-6">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1 size-8" />
           <Separator orientation="vertical" className="mx-1 h-4 data-vertical:self-center" />
           <Breadcrumb className="min-w-0">
             <BreadcrumbList className="flex-nowrap text-[15px]">
@@ -141,12 +141,12 @@ export function AppShell({ activeView, detailLabel, user, notifications, onSelec
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto flex items-center gap-2.5">
-            <Button variant="outline" size="sm" className="hidden h-9 w-64 justify-start gap-2 text-muted-foreground lg:inline-flex xl:w-80" onClick={onOpenSearch}>
+            <Button variant="outline" size="sm" className="hidden h-8 w-64 justify-start gap-2 text-muted-foreground lg:inline-flex xl:w-80" onClick={onOpenSearch}>
               <Search aria-hidden="true" />
               <span className="flex-1 text-left">Search…</span>
               <KbdGroup><Kbd>⌘</Kbd><Kbd>K</Kbd></KbdGroup>
             </Button>
-            <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Search" onClick={onOpenSearch}><Search aria-hidden="true" /></Button>
+            <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Search" onClick={onOpenSearch}><Search aria-hidden="true" /></Button>
             <NotificationsMenu items={notifications} onSelect={onSelectNotification} />
             <ThemeToggle />
           </div>

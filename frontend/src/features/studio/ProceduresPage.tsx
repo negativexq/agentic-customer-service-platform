@@ -101,7 +101,7 @@ export function ProceduresPage({ initialIntent, onOpenAction, onOpenGuidance, on
     <>
       <PageHeader title="Procedures" description="The step-by-step workflow the AI assistant follows for each kind of request: what it collects, which checks run, which actions it can take and when it hands off." />
       <div className="grid min-h-0 flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className="grid content-start gap-2 border-b border-border p-3 lg:border-r lg:border-b-0">
+        <aside className="grid content-start gap-2 border-b border-border py-3 pr-3 pl-4 sm:pl-6 lg:border-r lg:border-b-0">
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter procedures" aria-label="Filter procedures" className="h-8" />
           {procedures.isPending ? <div className="grid gap-1.5"><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : (
             <nav aria-label="Procedures" className="grid gap-0.5">

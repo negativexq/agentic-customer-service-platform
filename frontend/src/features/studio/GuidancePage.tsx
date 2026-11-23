@@ -89,7 +89,7 @@ export function GuidancePage({ seed, onSeedUsed }: { seed?: GuidanceSeed | null;
       <PageHeader title="Guidance" description="Rules in plain language that shape how the AI assistant reads requests. Guidance never grants authority: identity, policy and confirmation checks always win."
         actions={<Button size="sm" onClick={() => setEditing({ rule: newRule(), isNew: true })} disabled={rules.length >= 50}><Plus />New rule</Button>} />
       <DraftBar state={draft.state.data} />
-      <div className="mx-auto grid w-full max-w-4xl gap-4 px-4 py-6 sm:px-6">
+      <div className="grid w-full max-w-4xl gap-4 px-4 py-6 sm:px-6">
         {draft.save.error && <p role="alert" className="text-sm text-danger">{draft.save.error.message}</p>}
         {draft.state.isPending ? <div className="grid gap-2"><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
           : rules.length === 0 ? (

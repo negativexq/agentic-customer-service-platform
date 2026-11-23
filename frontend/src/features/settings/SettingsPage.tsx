@@ -75,7 +75,7 @@ export function SettingsPage({ runtimeConfig, health }: { runtimeConfig: Runtime
   return (
     <>
       <PageHeader title="Settings" description="Your profile, how this console behaves for you, and the workspace rules set by your administrator." />
-      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+      <div className="w-full max-w-5xl px-4 sm:px-6">
         <Group title="Profile" description="Comes from your identity provider. Customers see your display name when you reply.">
           {settings.isPending ? <div className="grid gap-2 p-4"><Skeleton className="h-5" /><Skeleton className="h-5" /></div>
             : settings.isError || !profile ? <p className="px-4 py-3 text-sm text-muted-foreground">Profile could not be loaded.</p>

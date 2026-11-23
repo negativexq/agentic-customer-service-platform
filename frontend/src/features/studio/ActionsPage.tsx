@@ -88,7 +88,7 @@ export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction:
     <>
       <PageHeader title="Actions" description="What the AI assistant can do in your systems. You can switch an action off or make it ask the customer first; you can never give it more authority than its policy allows." />
       <DraftBar state={draft.state.data} />
-      <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-6 sm:px-6">
+      <div className="grid w-full max-w-5xl gap-8 px-4 py-6 sm:px-6">
         {draft.save.error && <p role="alert" className="text-sm text-danger">{draft.save.error.message}</p>}
         {actions.isPending ? <div className="grid gap-2"><Skeleton className="h-14" /><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
           : actions.isError ? <p className="text-sm text-muted-foreground">Actions could not be loaded.</p>

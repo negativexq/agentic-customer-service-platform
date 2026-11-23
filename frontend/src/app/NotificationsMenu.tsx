@@ -26,7 +26,7 @@ export function NotificationsMenu({ items, onSelect }: { items: ConsoleNotificat
   return (
     <DropdownMenu onOpenChange={(open) => { if (!open) markAllRead(); }}>
       <DropdownMenuTrigger render={
-        <Button variant="ghost" size="icon-sm" className="relative" aria-label={unread.length ? `Notifications, ${unread.length} new` : "Notifications"} />
+        <Button variant="ghost" size="icon" className="relative" aria-label={unread.length ? `Notifications, ${unread.length} new` : "Notifications"} />
       }>
         <Bell aria-hidden="true" />
         {unread.length > 0 && (

@@ -42,12 +42,12 @@ export function ProcedureSimulations({ intent, scenarios: given }: { intent: str
           <div role="radiogroup" aria-label="Test against" className="inline-flex rounded-md border border-border bg-muted/40 p-0.5">
             {(["published", "draft"] as const).map((value) => (
               <button key={value} type="button" role="radio" aria-checked={against === value} disabled={value === "draft" && !hasDraft} onClick={() => setChoice(value)}
-                className={`h-6 rounded px-2 text-xs disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${against === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                className={`h-[22px] rounded px-2 text-xs disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${against === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
                 {value === "published" ? "Published" : "Draft"}
               </button>
             ))}
           </div>
-          <Button size="xs" disabled={scenarios.length === 0 || run.isPending} onClick={() => start(scenarios.map((scenario) => scenario.id))}>
+          <Button size="sm" disabled={scenarios.length === 0 || run.isPending} onClick={() => start(scenarios.map((scenario) => scenario.id))}>
             <Play data-icon="inline-start" aria-hidden />{run.isPending ? "Running…" : "Run all"}
           </Button>
         </div>
