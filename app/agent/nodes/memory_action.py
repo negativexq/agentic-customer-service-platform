@@ -43,6 +43,14 @@ def make_memory_action_node(
                 "Authenticated execution context is required for memory.",
             )
         intent = state.get("intent")
+        if (
+            intent == Intent.MEMORY_REMEMBER
+            and state.get("asks_memory_summary")
+            and not _REMEMBER_REQUEST.search(_latest_user_message(state))
+        ):
+            # "What do you know about me?" read as a memory request by both the decision and
+            # the message reader: show what is saved, store nothing.
+            return {"memory_summary_requested": True}
         if intent == Intent.MEMORY_REMEMBER:
             candidate = state.get("memory_candidate")
             if candidate is None:

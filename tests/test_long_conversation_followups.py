@@ -1,5 +1,7 @@
 """Follow-ups found in long live conversations: none may loop, fail, or start the wrong write."""
 
+import re
+
 from sqlalchemy.orm import Session
 
 from app.agent.llm.fake import FakeSemanticDecisionV3Provider
@@ -317,3 +319,100 @@ def test_half_turkish_reply_is_translated_whole() -> None:
 
     mixed = "Bunu yaşadığınız için üzgünüm. I'll connect you with a human support specialist."
     assert localize_reply(Marked(), "Çok sinir bozucu", mixed).startswith("Üzgünüm.")
+
+
+class SignalReader:
+    """A model reading that marks one signal on every message."""
+
+    def __init__(self, **signals: object) -> None:
+        self.signals = signals
+
+    def read(self, message: str) -> dict[str, object]:
+        return {"requests": [{"text": message}], **self.signals}
+
+
+def test_never_mind_drops_the_unfinished_request(db_session: Session) -> None:
+    provider = FakeSemanticDecisionV3Provider(
+        [
+            SemanticDecisionV3(
+                intent=Intent.REFUND_REQUEST, request_type=AgentRequestType.WRITE_ACTION
+            )
+        ]
+    )
+    runtime = AgentRuntime(provider=provider)
+    asked = _say(runtime, db_session, "withdraw", "I want a refund")
+    runtime.reader = SignalReader(withdraws=True)
+    dropped = _say(runtime, db_session, "withdraw", "Vazgeçtim, gerek yok")
+
+    assert asked.message == "Could you provide your order number?"
+    assert dropped.message.startswith("No problem, I've set that aside.")
+    assert len(provider.calls) == 1
+
+
+def test_bare_acknowledgement_gets_a_short_reply(db_session: Session) -> None:
+    provider = FakeSemanticDecisionV3Provider(
+        [SemanticDecisionV3(intent=Intent.UNKNOWN, request_type=AgentRequestType.UNCLEAR)]
+    )
+    runtime = AgentRuntime(provider=provider, reader=SignalReader(acknowledgement=True))
+    answer = _say(runtime, db_session, "ack", "👍")
+    assert answer.message == "Great! Is there anything else I can help with?"
+
+
+def test_shared_card_number_gets_a_security_note() -> None:
+    from app.agent.nodes.respond import _shares_card_number
+
+    assert _shares_card_number("Kartım 4111 1111 1111 1111, iadeyi buna yapın")
+    assert not _shares_card_number("Order 1234567890123 please")  # fails the Luhn check
+    assert not _shares_card_number("Sipariş 2 nerede?")
+
+
+def test_second_listed_ticket_and_last_ticket_number_resolve(db_session: Session) -> None:
+    from app.models import SupportTicket
+
+    for ticket_id in (4301, 4302):
+        db_session.add(
+            SupportTicket(
+                id=ticket_id, customer_id=1, category="billing", description="x", status="open"
+            )
+        )
+    db_session.flush()
+    provider = FakeSemanticDecisionV3Provider(
+        [
+            SemanticDecisionV3(
+                intent=Intent.TICKET_LIST, request_type=AgentRequestType.READ_ACTION
+            ),
+            SemanticDecisionV3(
+                intent=Intent.TICKET_LOOKUP,
+                request_type=AgentRequestType.READ_ACTION,
+                clarification_required=True,
+            ),
+            SemanticDecisionV3(
+                intent=Intent.TICKET_LOOKUP,
+                request_type=AgentRequestType.READ_ACTION,
+                clarification_required=True,
+            ),
+        ]
+    )
+    runtime = AgentRuntime(provider=provider)
+
+    listed = _say(runtime, db_session, "ordinal-ticket", "Show my tickets")
+    second = _say(runtime, db_session, "ordinal-ticket", "Show the second one")
+    again = _say(runtime, db_session, "ordinal-ticket", "What was that ticket's number?")
+
+    rows = re.findall(r"(?:: |; )#(\d+) \(", listed.message)
+    assert len(rows) >= 2
+    assert second.message.startswith(f"Ticket #{rows[1]} ")
+    assert again.message.startswith(f"Ticket #{rows[1]} ")
+
+
+def test_reader_alone_cannot_turn_a_business_question_into_a_memory_summary(
+    db_session: Session,
+) -> None:
+    provider = FakeSemanticDecisionV3Provider(
+        [SemanticDecisionV3(intent=Intent.TICKET_LIST, request_type=AgentRequestType.READ_ACTION)]
+    )
+    runtime = AgentRuntime(provider=provider, reader=SignalReader(asks_memory_summary=True))
+    answer = _say(runtime, db_session, "no-memory-leak", "Destek taleplerim neler?")
+
+    assert answer.intent == Intent.TICKET_LIST
+    assert "remember" not in answer.message.lower()

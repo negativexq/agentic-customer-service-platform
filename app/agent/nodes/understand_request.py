@@ -142,6 +142,29 @@ def make_understand_request_node(
                 "provider_metadata": _provider_metadata(provider),
                 "security_signal": None,
             }
+        if state.get("withdraws") and pending_action is None:
+            # "Never mind": the customer drops their own request; nothing new to decide.
+            withdrawn = SemanticDecisionV3(
+                intent=Intent.UNKNOWN,
+                request_type=AgentRequestType.UNCLEAR,
+                reason="customer_withdrew",
+            )
+            return {
+                "semantic_decision": normalize_semantic_decision(withdrawn),
+                "intent": Intent.UNKNOWN,
+                "request_type": AgentRequestType.UNCLEAR,
+                "selected_tool": None,
+                "tool_arguments": {},
+                "requires_retrieval": False,
+                "decision_reason": "customer_withdrew",
+                "last_error": None,
+                "error_category": None,
+                "provider_metadata": _provider_metadata(provider),
+                "security_signal": None,
+                "workflow_active": False,
+                "pending_workflow_decision": None,
+                "missing_required_fields": [],
+            }
         if is_memory_summary_request(message):
             summary_decision = SemanticDecisionV3(
                 # Keep the frozen semantic contract unchanged.  The explicit

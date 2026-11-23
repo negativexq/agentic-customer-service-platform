@@ -32,7 +32,8 @@ _INSTRUCTION = (
     "You translate a customer-support reply into {language}. Translate faithfully and "
     "naturally, as a friendly support agent would write it. Do not add, remove, or change any "
     "fact, promise, number, order or ticket id, amount, date, or status meaning. Keep '#' "
-    "before ids. Return only the translated reply."
+    "before ids. In Turkish, a support ticket is \"destek talebi\" and a refund is \"iade\". "
+    "Return only the translated reply."
 )
 
 
@@ -91,7 +92,8 @@ class OpenAICompatibleLocalizer:
 
 _ENGLISH_WORDS = re.compile(
     r"\b(?:the|is|are|my|me|you|what|where|when|how|why|can|please|order|refund|hi|hello|"
-    r"thanks|want|need|help|yes|no|ok|okay|bye)\b",
+    r"thanks|want|need|help|yes|no|ok|okay|bye|i|remember|your|this|that|with|for|and|of|to|"
+    r"over|from|have|has|was|will|would|could|should|not|don't|can't|it|its|we|our)\b",
     re.I,
 )
 

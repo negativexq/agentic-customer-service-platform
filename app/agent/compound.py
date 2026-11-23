@@ -24,7 +24,7 @@ from typing import Literal, Protocol
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import Settings
 
@@ -36,8 +36,10 @@ _NUMBER = re.compile(r"\d+")
 
 _INSTRUCTION = (
     "You read one customer-support message and return JSON only, in this shape: "
-    '{"requests": [{"text": "...", "status_question": false}], "upset": false, '
-    '"reply_language": null}.\n'
+    '{"requests": [{"text": "...", "status_question": false, "list_position": null}], '
+    '"upset": false, '
+    '"reply_language": null, "language": "turkish", "withdraws": false, '
+    '"asks_memory_summary": false, "acknowledgement": false}.\n'
     "requests: the message's separate requests, in the order asked; one item when it is a "
     "single request. A separate request could be handled on its own: looking something up, an "
     "action such as a refund, cancellation or support ticket, or a policy question. Separate "
@@ -50,16 +52,27 @@ _INSTRUCTION = (
     "status_question: true when that request asks about the state or progress of something "
     "that already exists (an order, a refund, a cancellation, a ticket) rather than asking to "
     "start something new or asking what a policy says.\n"
+    "list_position: when that request points at an item by its place in a list the assistant "
+    'just showed ("the second one", "ikincisinin", "the last one"), its 1-based position, '
+    "or -1 for the last one; otherwise null.\n"
     "upset: true only when the customer is plainly frustrated, angry or complaining about the "
-    "service, in any language or wording.\n"
+    "service, in any language or wording, sarcasm included.\n"
     'reply_language: "english" or "turkish" only when the customer explicitly asks to be '
-    "answered in that language; otherwise null."
+    "answered in that language; otherwise null.\n"
+    'language: the language the message is written in: "english", "turkish", "other", or '
+    "null when it has no words (a number, an emoji).\n"
+    'withdraws: true when the customer drops their own earlier request ("never mind", '
+    '"vazgeçtim", "gerek yok") without asking for anything new.\n'
+    "asks_memory_summary: true when the customer asks what you remember or know about them.\n"
+    'acknowledgement: true when the whole message only acknowledges ("ok", "got it", '
+    "a thumbs up) and asks for nothing."
 )
 
 
 class ReadRequest(BaseModel):
     text: str
     status_question: bool = False
+    list_position: int | None = Field(default=None, ge=-1, le=50)
 
 
 class MessageReading(BaseModel):
@@ -67,6 +80,10 @@ class MessageReading(BaseModel):
     # None means unknown (no model): callers use their own conservative default.
     upset: bool | None = None
     reply_language: Literal["english", "turkish"] | None = None
+    language: Literal["english", "turkish", "other"] | None = None
+    withdraws: bool = False
+    asks_memory_summary: bool = False
+    acknowledgement: bool = False
 
 
 class MessageReader(Protocol):
@@ -137,17 +154,28 @@ def read_message(reader: MessageReader | None, message: str) -> MessageReading:
         )
         return whole
     if not reading.requests:
-        return whole
+        # "ok" or "never mind" asks for nothing; its signals still count.
+        return reading.model_copy(update={"requests": whole.requests})
     parts = [request.text.strip() for request in reading.requests]
     if len(parts) < 2 or len(parts) > MAX_PARTS or not parts_are_faithful(message, parts):
         if len(parts) >= 2:
             logger.warning("Request split rejected.", extra={"split_part_count": len(parts)})
         # One request: keep the customer's exact words, and the model's reading of them.
         first = reading.requests[0] if len(reading.requests) == 1 else ReadRequest(text=message)
-        requests = [ReadRequest(text=message, status_question=first.status_question)]
+        requests = [
+            ReadRequest(
+                text=message,
+                status_question=first.status_question,
+                list_position=first.list_position,
+            )
+        ]
     else:
         requests = [
-            ReadRequest(text=text, status_question=request.status_question)
+            ReadRequest(
+                text=text,
+                status_question=request.status_question,
+                list_position=request.list_position,
+            )
             for text, request in zip(parts, reading.requests, strict=True)
         ]
     return reading.model_copy(update={"requests": requests})

@@ -213,7 +213,14 @@ class AgentRuntime:
             "customer_upset": reading.upset,
             "language_requested": reading.reply_language,
             "status_question": bool(parts[0]["status_question"]),
+            "list_position": _position(parts[0].get("list_position")),
+            "withdraws": reading.withdraws,
+            "asks_memory_summary": reading.asks_memory_summary,
+            "acknowledgement": reading.acknowledgement,
         }
+        if reading.language in {"english", "turkish"}:
+            # The language this message is written in; kept so "2" or "👍" keep it too.
+            signals["message_language"] = reading.language
         if reading.reply_language:
             # A language the customer chose stays chosen until they choose another.
             signals["reply_language_choice"] = reading.reply_language
@@ -242,6 +249,10 @@ class AgentRuntime:
                     "customer_upset": None,
                     "language_requested": None,
                     "status_question": bool(pending[0].get("status_question")),
+                    "list_position": _position(pending[0].get("list_position")),
+                    "withdraws": False,
+                    "asks_memory_summary": False,
+                    "acknowledgement": False,
                 },
             )
             replies.append(response)
@@ -366,7 +377,7 @@ class AgentRuntime:
                             },
                         ),
                     )
-                    choice = state.get("reply_language_choice")
+                    choice = state.get("reply_language_choice") or state.get("message_language")
                     reply_language = (
                         _CHOSEN_LANGUAGES[choice]
                         if choice in _CHOSEN_LANGUAGES
@@ -606,6 +617,10 @@ def _waiting(response: AgentResponse, state: AgentState) -> bool:
         or response.conversation_owner != ConversationOwner.AI.value
         or response.decision_reason == "conversation_ownership_changed"
     )
+
+
+def _position(value: object) -> int | None:
+    return value if isinstance(value, int) else None
 
 
 _CHOSEN_LANGUAGES: dict[object, str | None] = {"english": None, "turkish": "Turkish"}

@@ -11,10 +11,17 @@ from app.agent.decision_compiler import (
     DecisionCompiler,
 )
 from app.agent.nodes.create_pending import _business_state_error
-from app.agent.schemas import AgentErrorCategory, AgentRequestType, Intent, SemanticDecision
+from app.agent.schemas import (
+    AgentErrorCategory,
+    AgentRequestType,
+    Intent,
+    SemanticDecision,
+    SemanticTarget,
+)
 from app.agent.semantic_grounding import (
     GroundingStatus,
     SemanticGrounding,
+    listed_reference,
     validate_semantic_grounding,
 )
 from app.agent.state import AgentState
@@ -43,10 +50,17 @@ def make_compile_decision_node(
         restored_action = bool(state.get("pending_action_restored"))
         if not restored_action:
             decision = _status_question_as_lookup(decision, state)
+            decision = _resolve_reference(decision, user_message, state)
         grounding = (
             _restored_grounding(state, decision)
             if restored_action
-            else validate_semantic_grounding(decision, user_message, _previous_reply(state))
+            else validate_semantic_grounding(
+                decision,
+                user_message,
+                _previous_reply(state),
+                state.get("last_reference"),
+                state.get("list_position"),
+            )
         )
         admissibility = assess_target_admissibility(decision.intent, decision.target, grounding)
         result = compiler.compile(
@@ -281,6 +295,34 @@ def _status_question_as_lookup(decision: SemanticDecision, state: AgentState) ->
             "knowledge_query": None,
         }
     )
+
+
+def _resolve_reference(
+    decision: SemanticDecision, user_message: str, state: AgentState
+) -> SemanticDecision:
+    """Give a read-only lookup with no target the record the customer pointed at.
+
+    "Show the second one" points at a row of the list just shown; "what was my ticket number?"
+    at the record the last reply was about. The server resolves both from its own replies and
+    tool results, and grounding checks the target again; the model's guess is never used.
+    """
+
+    kinds = {Intent.ORDER_LOOKUP: "order", Intent.TICKET_LOOKUP: "ticket"}
+    kind = kinds.get(decision.intent)
+    if kind is None or decision.target is not None:
+        return decision
+    identifier = listed_reference(user_message, _previous_reply(state), state.get("list_position"))
+    last = state.get("last_reference")
+    if identifier is None and last is not None and last.get("kind") == kind:
+        identifier = last.get("id") if isinstance(last.get("id"), int) else None
+    if identifier is None:
+        return decision
+    target = (
+        SemanticTarget(type="explicit_order", order_id=identifier)
+        if kind == "order"
+        else SemanticTarget(type="explicit_ticket", ticket_id=identifier)
+    )
+    return decision.model_copy(update={"target": target, "clarification_required": False})
 
 
 def _ineligible_before_asking(

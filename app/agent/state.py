@@ -137,6 +137,15 @@ class AgentState(TypedDict, total=False):
     status_question: bool
     # The reply language the customer asked for ("english" / "turkish"); kept across turns.
     reply_language_choice: str | None
+    # The language the model read in the latest worded message; kept across turns.
+    message_language: str | None
+    withdraws: bool
+    # 1-based place in the list just shown, or -1 for the last, as the model read it.
+    list_position: int | None
+    asks_memory_summary: bool
+    acknowledgement: bool
+    # The order or ticket the last reply was about, for "what was its number?".
+    last_reference: dict[str, Any] | None
     workflow_validation_context: dict[str, object]
     workflow_policy_inputs: dict[str, object]
     pending_action_restored: bool

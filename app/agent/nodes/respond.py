@@ -311,6 +311,50 @@ def _latest_user_text(state: AgentState) -> str:
     return ""
 
 
+_CARD_CANDIDATE = re.compile(r"(?:\d[ -]?){13,19}")
+
+
+def _shares_card_number(text: str) -> bool:
+    """A Luhn-valid 13-19 digit number: a payment card, whatever words surround it."""
+
+    for candidate in _CARD_CANDIDATE.findall(text):
+        digits = [int(ch) for ch in candidate if ch.isdigit()]
+        if not 13 <= len(digits) <= 19:
+            continue
+        total = 0
+        for index, digit in enumerate(reversed(digits)):
+            if index % 2:
+                digit *= 2
+                digit -= 9 if digit > 9 else 0
+            total += digit
+        if total % 10 == 0:
+            return True
+    return False
+
+
+_REFERENCE_TOOLS = {
+    "get_order": "order",
+    "cancel_order": "order",
+    "request_refund": "order",
+    "get_ticket": "ticket",
+    "create_support_ticket": "ticket",
+}
+
+
+def _last_reference(state: AgentState) -> dict[str, object] | None:
+    """The single order or ticket this reply was about, kept for "what was its number?"."""
+
+    kind = _REFERENCE_TOOLS.get(str(state.get("selected_tool")))
+    result = state.get("tool_result") or {}
+    if kind is None or state.get("tool_execution_status") != "executed":
+        return state.get("last_reference")
+    identifier = result.get("order_id") if kind == "order" else None
+    identifier = identifier or result.get("id")
+    if not isinstance(identifier, int):
+        return state.get("last_reference")
+    return {"kind": kind, "id": identifier}
+
+
 def _sorry(state: AgentState) -> str:
     """An apology before the handoff when the customer is plainly upset."""
 
@@ -368,6 +412,15 @@ def respond(state: AgentState) -> AgentState:
             "I can remember preferences and support context, but I can't store permissions, "
             "roles, or authorization claims."
         )
+    elif state.get("decision_reason") == "customer_withdrew":
+        message = "No problem, I've set that aside. Is there anything else I can help with?"
+    elif (
+        state.get("acknowledgement")
+        and state.get("tool_execution_status") != "executed"
+        and (pending_action is None or pending_action.status != PendingActionStatus.PENDING)
+        and not state.get("workflow_active")
+    ):
+        message = "Great! Is there anything else I can help with?"
     elif state.get("language_requested") in {"english", "turkish"}:
         message = (
             "Elbette, bundan sonra Türkçe yazacağım."
@@ -518,6 +571,9 @@ def respond(state: AgentState) -> AgentState:
         )
     elif not tool_name and state.get("intent") == Intent.HUMAN_ESCALATION:
         message = f"{_sorry(state)}I'll connect you with a human support specialist."
+    elif state.get("request_type") == AgentRequestType.UNCLEAR and state.get("asks_memory_summary"):
+        # Neither model saw a business request, and the reader saw "what do you know about me".
+        message = _memory_summary_message(state)
     elif state.get("request_type") == AgentRequestType.UNCLEAR:
         message = _open_reply(_latest_user_text(state))
     elif tool_name:
@@ -529,7 +585,16 @@ def respond(state: AgentState) -> AgentState:
     else:
         message = _OUT_OF_SCOPE
     message = _apply_memory_context(state, message)
+    if state.get("customer_upset") is True and not message.startswith("I'm sorry"):
+        # Read by the model, never guessed from keywords: an upset customer hears it first.
+        message = f"I'm sorry for the trouble. {message}"
+    if _shares_card_number(_latest_user_text(state)):
+        message += (
+            " For your security, please don't share card numbers here; I never need them to "
+            "help you."
+        )
     return {
+        "last_reference": _last_reference(state),
         "final_response": message,
         "messages": [{"role": "assistant", "content": message}],
         "workflow_state": _response_workflow_state(state),

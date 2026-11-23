@@ -163,3 +163,27 @@ def test_each_reply_is_recorded_as_its_own_message(db_session: Session) -> None:
     ]
     assert recorded[1].agent_run_id == response.earlier_replies[0].agent_run_id
     assert recorded[2].agent_run_id == response.agent_run_id
+
+
+def test_a_message_asking_for_nothing_keeps_its_signals() -> None:
+    class Reader:
+        def read(self, message: str) -> dict[str, object]:
+            return {"requests": [], "acknowledgement": True}
+
+    reading = read_message(Reader(), "ok")
+    assert reading.acknowledgement is True
+    assert [request.text for request in reading.requests] == ["ok"]
+
+
+def test_model_read_list_position_resolves_against_our_own_listing() -> None:
+    from app.agent.semantic_grounding import listed_reference
+
+    listing = (
+        "You have 3 support tickets: #4 (product about order #6): closed; "
+        "#6 (invoice): open; #7 (billing): open."
+    )
+    # "İkincisinin" is not a fixed ordinal word; the model's position still resolves it.
+    assert listed_reference("İkincisinin detayını göster", listing) is None
+    assert listed_reference("İkincisinin detayını göster", listing, 2) == 6
+    assert listed_reference("the last one", listing, -1) == 7
+    assert listed_reference("the fifth one", listing, 5) is None
