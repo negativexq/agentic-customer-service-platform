@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.agent.llm.fake import FakeDecisionProvider
 from app.agent.llm.provider import OpenAICompatibleProvider
 from app.agent.runtime import AgentRuntime
-from app.agent.schemas import AgentRequestType, Intent, StructuredDecision
+from app.agent.schemas import AgentRequestType, Intent, SemanticDecisionV3, StructuredDecision
 from app.core import database
 from app.core.config import Settings
 from app.rag.embeddings import DeterministicEmbeddingProvider
@@ -145,9 +145,11 @@ def test_llm_http_client_has_explicit_connect_and_request_timeouts(
     assert captured["max_retries"] == 0
 
 
-def test_schema_structured_output_mode_preserves_existing_transport(
+def test_schema_structured_output_mode_asks_for_a_non_strict_json_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Strict provider-side enforcement rejects the decision contract (OpenAI refuses its
+    # discriminated unions), so schema mode must not ask for it.
     captured: dict[str, object] = {}
 
     class FakeChatOpenAI:
@@ -162,7 +164,65 @@ def test_schema_structured_output_mode_preserves_existing_transport(
     monkeypatch.setattr("app.agent.llm.provider.ChatOpenAI", FakeChatOpenAI)
     OpenAICompatibleProvider(Settings(_env_file=None))
 
-    assert captured["structured_output_kwargs"] == {}
+    assert captured["structured_output_kwargs"] == {"method": "json_schema", "strict": False}
+    # A model class would make the OpenAI SDK force strict mode, so a plain schema is sent.
+    schema = captured["schema"]
+    assert isinstance(schema, dict)
+    assert schema["name"] == "SemanticDecisionV3"
+    assert schema["strict"] is False
+    assert schema["schema"] == SemanticDecisionV3.model_json_schema()
+
+
+@pytest.mark.parametrize(
+    "contract_version", ["direct_tool_v1", "semantic_decision_v2", "semantic_decision_v3"]
+)
+def test_schema_mode_request_turns_strict_enforcement_off(contract_version: str) -> None:
+    provider = OpenAICompatibleProvider(
+        Settings(
+            _env_file=None,
+            llm_api_key="test-key",
+            agent_decision_contract_version=contract_version,
+        )
+    )
+    binding = cast(Any, provider._model).steps[0]
+    request_kwargs = {
+        key: value for key, value in binding.kwargs.items() if key != "ls_structured_output_format"
+    }
+
+    payload = binding.bound._get_request_payload([("user", "hi")], **request_kwargs)
+
+    response_format = payload["response_format"]
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["strict"] is False
+
+
+def test_schema_mode_validates_the_plain_json_reply_against_the_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeRunnable:
+        def invoke(self, messages: object) -> dict[str, object]:
+            del messages
+            return {"intent": "order_lookup", "target": {"type": "latest_order"}}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+
+        def with_structured_output(self, schema: object, **kwargs: object) -> FakeRunnable:
+            del schema, kwargs
+            return FakeRunnable()
+
+    monkeypatch.setattr("app.agent.llm.provider.ChatOpenAI", FakeChatOpenAI)
+    monkeypatch.setattr("app.agent.llm.provider.guidance_prompt", lambda: "")
+    provider = OpenAICompatibleProvider(Settings(_env_file=None))
+
+    decision = provider.decide(
+        messages=[{"role": "user", "content": "Where is my latest order?"}],
+        customer_id=1,
+    )
+
+    assert isinstance(decision, SemanticDecisionV3)
+    assert decision.intent == Intent.ORDER_LOOKUP
 
 
 def test_function_calling_structured_output_parses_decision_arguments(

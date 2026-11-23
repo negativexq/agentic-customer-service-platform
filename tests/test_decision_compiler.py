@@ -115,8 +115,11 @@ def test_openai_compatible_provider_binds_semantic_schema(
         messages=[{"role": "user", "content": "Cancel order 3."}], customer_id=1
     )
     assert isinstance(result, SemanticDecision)
-    assert captured["schema"] is SemanticDecision
-    assert captured["structured_output_kwargs"] == {}
+    schema = captured["schema"]
+    assert isinstance(schema, dict)
+    assert schema["name"] == "SemanticDecision"
+    assert schema["schema"] == SemanticDecision.model_json_schema()
+    assert captured["structured_output_kwargs"] == {"method": "json_schema", "strict": False}
 
 
 @pytest.mark.parametrize(
