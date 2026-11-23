@@ -1,5 +1,6 @@
 import { deriveRunSemantics } from "../../components/runSemantics";
 import type { AgentRun } from "../../types";
+import { UI_LOCALE } from "@/lib/utils";
 
 export type Tone = "success" | "warning" | "danger" | "neutral" | "info";
 
@@ -19,9 +20,13 @@ export const toneText: Record<Tone, string> = {
   neutral: "text-muted-foreground",
 };
 
+const ACRONYMS = new Set(["faq", "llm", "rag", "id", "csat", "sla", "api", "url", "pii"]);
+
+/** "support_faq" -> "Support FAQ"; an unrecognised intent reads as such, not as "Unknown". */
 export function humanize(value: string | null | undefined): string {
   if (!value) return "Not recorded";
-  const text = value.replace(/_/g, " ");
+  if (value === "unknown") return "Unrecognised request";
+  const text = value.replace(/_/g, " ").replace(/\b[a-z]+\b/gi, (word) => (ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word));
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
@@ -100,5 +105,5 @@ export function formatRelative(iso: string, now = Date.now()): string {
   if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h ago`;
-  return parseTimestamp(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+  return parseTimestamp(iso).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" });
 }

@@ -8,6 +8,7 @@ import { Stat, StatStrip } from "../../components/layout/StatStrip";
 import { formatRelative, humanize } from "../runs/runPresentation";
 import { useErrorLog } from "./queries";
 import { EmptyNote, percent, Section, WindowPicker } from "./shared";
+import { UI_LOCALE } from "@/lib/utils";
 
 const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
@@ -18,7 +19,7 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
   const data = query.data;
   const names = (data?.categories ?? []).map((item) => item.category);
   const config = Object.fromEntries(names.map((name, index) => [name, { label: humanize(name), color: palette[index % palette.length] }])) satisfies ChartConfig;
-  const chart = (data?.daily ?? []).map((point) => ({ ...point, label: new Date(`${point.day}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) }));
+  const chart = (data?.daily ?? []).map((point) => ({ ...point, label: new Date(`${point.day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" }) }));
   const errors = (data?.errors ?? []).filter((row) => !category || row.category === category);
 
   return (

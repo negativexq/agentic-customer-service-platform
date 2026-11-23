@@ -6,6 +6,7 @@ import { useAgentConfig } from "../studio/queries";
 import { useRunSimulation, useScenarios } from "./queries";
 import { ResultRow } from "./SimulationsPage";
 import type { Scenario, SimulationResult } from "./types";
+import { humanize } from "../runs/runPresentation";
 
 function Outcome({ result }: { result: SimulationResult | undefined }) {
   if (!result) return <span className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground ring-1 ring-border">Not run</span>;
@@ -27,7 +28,7 @@ export function ProcedureSimulations({ intent, scenarios: given }: { intent: str
   const scenarios = (given ?? library.data ?? []).filter((scenario) => scenario.expected_intent === intent);
 
   const start = (ids: string[]) => run.mutate(
-    { scenarioIds: ids, against, label: `${intent} procedure` },
+    { scenarioIds: ids, against, label: `${humanize(intent)} procedure` },
     { onSuccess: (done) => setResults((current) => ({ ...current, ...Object.fromEntries((done.results ?? []).map((result) => [result.scenario_id, result])) })) },
   );
   const failed = scenarios.filter((scenario) => results[scenario.id] && !results[scenario.id].passed).length;

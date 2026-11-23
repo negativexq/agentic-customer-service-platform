@@ -155,12 +155,17 @@ def _failed(items: list[AgentRunView]) -> _Hit | None:
             (t.name for t in run.tools if t.status in {"failed", "error", "timeout"}), None
         )
         if is_failed(run) or failed_tool or run.degraded_components:
-            detail = (
-                run.failure_category
-                or (f"{failed_tool} failed" if failed_tool else None)
-                or f"Degraded: {', '.join(run.degraded_components)}"
+            if run.failure_category:
+                detail = run.failure_category.replace("_", " ").replace("llm", "LLM")
+            elif failed_tool:
+                detail = f"{failed_tool} failed"
+            elif run.degraded_components:
+                detail = f"Degraded: {', '.join(run.degraded_components).replace('_', ' ')}"
+            else:
+                detail = "Run failed"
+            return _Hit(
+                detail[:1].upper() + detail[1:], None, run.started_at, run.run_id, run.intent
             )
-            return _Hit(detail.replace("_", " "), None, run.started_at, run.run_id, run.intent)
     return None
 
 

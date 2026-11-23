@@ -1,6 +1,7 @@
 import { Bot, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "../../components/ui";
+import { UI_LOCALE } from "@/lib/utils";
 
 export type ChatMessage = {
   id: string;
@@ -11,7 +12,7 @@ export type ChatMessage = {
 };
 
 function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(timestamp).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit" });
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }): ReactNode {

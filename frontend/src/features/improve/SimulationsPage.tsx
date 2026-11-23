@@ -61,6 +61,12 @@ export function ResultRow({ result, open, onToggle, change = null }: { result: S
   );
 }
 
+/** Older procedure runs stored the raw intent id ("order_lookup procedure"). */
+function runTitle(run: SimulationRun): string {
+  if (!run.label) return `Simulation ${run.id}`;
+  return run.label.replace(/^([a-z]+(?:_[a-z]+)+) procedure$/, (_, intent: string) => `${humanize(intent)} procedure`);
+}
+
 function RunResults({ run, previous }: { run: SimulationRun; previous: SimulationRun | null }) {
   const [open, setOpen] = useState<string | null>(null);
   const [failedOnly, setFailedOnly] = useState(run.passed_count < run.scenario_count);
@@ -69,8 +75,8 @@ function RunResults({ run, previous }: { run: SimulationRun; previous: Simulatio
   const fixed = Object.values(changes).filter((change) => change === "fixed").length;
   const results = (run.results ?? []).filter((result) => !failedOnly || !result.passed || changes[result.scenario_id]);
   return (
-    <Section title={run.label || `Simulation ${run.id}`}
-      description={`${run.passed_count} of ${run.scenario_count} passed against ${run.against === "draft" ? "the draft" : `published v${run.config_version ?? "default"}`}`}
+    <Section title={runTitle(run)}
+      description={`${run.passed_count} of ${run.scenario_count} passed against ${run.against === "draft" ? "the draft" : run.config_version ? `published v${run.config_version}` : "the published assistant"}`}
       actions={<label className="flex items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={failedOnly} onChange={(event) => setFailedOnly(event.target.checked)} className="size-3.5 accent-primary" />Failed only</label>}>
       {previous && (regressed > 0 || fixed > 0) && (
         <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">

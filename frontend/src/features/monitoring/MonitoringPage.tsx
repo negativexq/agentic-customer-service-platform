@@ -11,6 +11,7 @@ import { Stat, StatStrip } from "../../components/layout/StatStrip";
 import type { AgentRun, Health } from "../../types";
 import { formatDuration, formatRelative, humanize, isRecorded } from "../runs/runPresentation";
 import { deriveTelemetry, percentile, type TimelineOutcome, type TimelinePoint } from "./telemetry";
+import { UI_LOCALE } from "@/lib/utils";
 
 const latencyConfig = { latency: { label: "Latency (ms)", color: "var(--chart-1)" } } satisfies ChartConfig;
 const tokenConfig = {
@@ -175,7 +176,7 @@ export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailab
               <Stat label="Success rate" value={telemetry.successRate === null ? "—" : `${(telemetry.successRate * 100).toFixed(1)}%`} detail={`${telemetry.errorCount} failed`} />
               <Stat label="Latency p50" value={formatDuration(telemetry.latencyP50)} />
               <Stat label="Latency p95" value={formatDuration(telemetry.latencyP95)} />
-              <Stat label="Tokens" value={tokens.toLocaleString()} detail={`${telemetry.inputTokens.toLocaleString()} in · ${telemetry.outputTokens.toLocaleString()} out`} />
+              <Stat label="Tokens" value={tokens.toLocaleString(UI_LOCALE)} detail={`${telemetry.inputTokens.toLocaleString(UI_LOCALE)} in · ${telemetry.outputTokens.toLocaleString(UI_LOCALE)} out`} />
               <Stat label="Escalations" value={String(telemetry.escalationCount)} detail={telemetry.costUsd === null ? "Cost not reported" : `$${telemetry.costUsd.toFixed(4)} cost`} />
             </StatStrip>
 
@@ -269,7 +270,7 @@ export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailab
                     {telemetry.models.map((model) => (
                       <li key={model.model} className="grid gap-1 px-4 py-3">
                         <span className="truncate font-mono text-xs text-foreground">{model.model}</span>
-                        <span className="text-xs text-muted-foreground">{model.calls} calls · {formatDuration(model.avgLatency)} avg · {model.tokens.toLocaleString()} tokens{model.errors ? ` · ${model.errors} errors` : ""}</span>
+                        <span className="text-xs text-muted-foreground">{model.calls} calls · {formatDuration(model.avgLatency)} avg · {model.tokens.toLocaleString(UI_LOCALE)} tokens{model.errors ? ` · ${model.errors} errors` : ""}</span>
                       </li>
                     ))}
                   </ul>

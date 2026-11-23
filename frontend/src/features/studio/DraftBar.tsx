@@ -6,10 +6,11 @@ import { Input } from "@/components/primitives/input";
 import { parseTimestamp } from "../runs/runPresentation";
 import { studioApi, useConfigMutation } from "./queries";
 import type { AgentConfigState } from "./types";
+import { UI_LOCALE } from "@/lib/utils";
 
 export function when(value: string | null): string {
   if (!value) return "—";
-  return parseTimestamp(value).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return parseTimestamp(value).toLocaleString(UI_LOCALE, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 /**

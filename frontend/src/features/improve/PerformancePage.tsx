@@ -9,13 +9,14 @@ import { humanize } from "../runs/runPresentation";
 import { usePerformance } from "./queries";
 import { EmptyNote, percent, rating, Section, WindowPicker } from "./shared";
 import type { PerformanceView } from "./types";
+import { UI_LOCALE } from "@/lib/utils";
 
 const trendConfig = {
   ai_resolved: { label: "Resolved by AI", color: "var(--chart-1)" },
   handed_off: { label: "Handed to a person", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
-const dayLabel = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const dayLabel = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" });
 
 export function PerformanceSummaryStrip({ summary }: { summary: PerformanceView["summary"] }) {
   return (

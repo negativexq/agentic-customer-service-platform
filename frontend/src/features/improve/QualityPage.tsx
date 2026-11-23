@@ -16,6 +16,7 @@ import { coachingSeed } from "./coaching";
 import { improveApi, useQuality, useQualityMutation } from "./queries";
 import { EmptyNote, percent, Section, WindowPicker } from "./shared";
 import type { Flag, Monitor, MonitorInput, MonitorPreview, MonitorSender, ReviewStatus } from "./types";
+import { UI_LOCALE } from "@/lib/utils";
 
 const severityTone: Record<string, string> = { high: "bg-danger", medium: "bg-warning", low: "bg-muted-foreground/60" };
 const statusLabel: Record<ReviewStatus, string> = { open: "Needs review", reviewed: "Reviewed", dismissed: "Dismissed", coached: "Coached" };
@@ -87,7 +88,7 @@ export function flaggedPerDay(flags: Flag[], days: number, now = new Date()) {
     buckets.set(day.toISOString().slice(0, 10), 0);
   }
   flags.forEach((flag) => { const key = flag.at.slice(0, 10); if (buckets.has(key)) buckets.set(key, buckets.get(key)! + 1); });
-  return [...buckets].map(([day, flagged]) => ({ day, flagged, label: new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) }));
+  return [...buckets].map(([day, flagged]) => ({ day, flagged, label: new Date(`${day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" }) }));
 }
 
 export function MonitorOverview({ flags, conversations, days }: { flags: Flag[]; conversations: number; days: number }) {

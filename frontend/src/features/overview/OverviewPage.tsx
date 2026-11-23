@@ -45,7 +45,13 @@ function RunRow({ run, onOpen }: { run: AgentRun; onOpen: (runId: string) => voi
 export function OverviewPage({ runs, onOpenRun, onOpenConversations, onOpenRuns, onExploreDemo }: OverviewPageProps) {
   const live = useMemo(() => runs.filter((run) => !isRecorded(run)).sort((a, b) => b.started_at.localeCompare(a.started_at)), [runs]);
   const telemetry = useMemo(() => deriveTelemetry(live), [live]);
-  const attention = live.filter((run) => attentionLabels.has(runStatus(run).label) || run.intent === "human_escalation").slice(0, 6);
+  // One row per conversation, and only while its latest turn still waits on someone.
+  const open = useMemo(() => {
+    const latest = new Map<string, AgentRun>();
+    for (const run of live) if (!latest.has(run.conversation_id)) latest.set(run.conversation_id, run);
+    return [...latest.values()].filter((run) => attentionLabels.has(runStatus(run).label) || run.intent === "human_escalation");
+  }, [live]);
+  const attention = open.slice(0, 6);
   const count = (label: string) => live.filter((run) => runStatus(run).label === label).length;
   const value = (n: number) => (live.length ? String(n) : "—");
 
@@ -75,7 +81,7 @@ export function OverviewPage({ runs, onOpenRun, onOpenConversations, onOpenRuns,
           <section className="min-w-0 rounded-xl border border-border bg-card lg:col-span-2">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-medium">Needs attention</h2>
-              <span className="text-xs text-muted-foreground">{attention.length} open</span>
+              <span className="text-xs text-muted-foreground">{open.length} open</span>
             </div>
             {attention.length === 0 ? (
               <div className="flex items-center gap-3 px-4 py-8 text-sm text-muted-foreground">

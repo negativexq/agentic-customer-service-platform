@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/primitives/skeleton";
 import { useMemory } from "@/lib/queries";
 import { formatRelative, humanize } from "../runs/runPresentation";
 import { useCustomerContext } from "./queries";
+import { UI_LOCALE } from "@/lib/utils";
 
 function Section({ icon, title, count, children }: { icon: ReactNode; title: string; count?: number; children: ReactNode }) {
   return (
@@ -34,7 +35,7 @@ export function Stars({ rating, size = "size-3" }: { rating: number; size?: stri
   );
 }
 
-const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 /** What the operator needs about the customer without leaving the conversation. */
 export function CustomerContextPanel({ conversationPk, customerId, onOpenConversation }: { conversationPk: number; customerId: number; onOpenConversation: (id: number) => void }) {
@@ -52,7 +53,7 @@ export function CustomerContextPanel({ conversationPk, customerId, onOpenConvers
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Mail className="size-3" aria-hidden="true" />{data.customer.email}</span>
         <dl className="mt-2 grid gap-1 text-xs">
           {([
-            ["Customer since", new Date(data.customer.customer_since).toLocaleDateString([], { month: "short", year: "numeric" })],
+            ["Customer since", new Date(data.customer.customer_since).toLocaleDateString(UI_LOCALE, { month: "short", year: "numeric" })],
             ["Conversations", String(data.conversation_count)],
             ["Average rating", data.average_rating === null ? "Not rated yet" : `${data.average_rating.toFixed(1)} / 5`],
           ] as const).map(([label, value]) => (

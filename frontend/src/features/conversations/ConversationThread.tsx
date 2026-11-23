@@ -9,6 +9,7 @@ import { useAddNote, useDeleteNote, useNotes } from "../workspace/queries";
 import { SavedReplyMenu } from "../workspace/SavedReplyMenu";
 import { slaLabel, slaTone } from "../workspace/sla";
 import type { Note } from "../workspace/types";
+import { UI_LOCALE } from "@/lib/utils";
 
 export type ThreadTarget =
   | { kind: "draft"; conversationId: string; customerId: number }
@@ -46,7 +47,7 @@ const testCustomers = [
 type Row = { key: string; message: RecordedMessage; response?: AgentResponse; note?: undefined } | { key: string; note: Note; message?: undefined; response?: undefined };
 
 function time(iso: string) {
-  return parseTimestamp(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return parseTimestamp(iso).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit" });
 }
 
 function InspectButton({ runId, onInspect }: { runId: string; onInspect: (runId: string) => void }) {

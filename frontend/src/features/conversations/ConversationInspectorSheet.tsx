@@ -7,6 +7,7 @@ import type { AgentRun } from "../../types";
 import { formatDuration, humanize, parseTimestamp, runLatencyMs, runStatus } from "../runs/runPresentation";
 import { StatusLabel } from "../runs/StatusLabel";
 import { RunContextPanel } from "./RunContextPanel";
+import { UI_LOCALE } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -126,7 +127,7 @@ export function ConversationDebugView({ runs: unsorted, onOpenRun }: { runs: Age
       <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-lg border border-border sm:grid-cols-4 sm:divide-y-0">
         <Stat label="AI turns" value={String(runs.length)} detail={`${summary.escalated} escalated · ${summary.failed} failed`} />
         <Stat label="Avg latency" value={formatDuration(summary.avgLatency)} />
-        <Stat label="Tokens" value={(summary.input + summary.output).toLocaleString()} detail={`${summary.input.toLocaleString()} in · ${summary.output.toLocaleString()} out`} />
+        <Stat label="Tokens" value={(summary.input + summary.output).toLocaleString(UI_LOCALE)} detail={`${summary.input.toLocaleString(UI_LOCALE)} in · ${summary.output.toLocaleString(UI_LOCALE)} out`} />
         <Stat label="Context" value={`${summary.knowledge.length} chunks`} detail={`${summary.reads.length} memories read · ${summary.writes.length} written`} />
       </div>
 
@@ -155,7 +156,7 @@ export function ConversationDebugView({ runs: unsorted, onOpenRun }: { runs: Age
                     </span>
                   </span>
                   <span className="hidden shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:grid">
-                    <span>{parseTimestamp(run.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                    <span>{parseTimestamp(run.started_at).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                     <span>{formatDuration(runLatencyMs(run))} · {tokens.input + tokens.output} tok</span>
                   </span>
                 </button>

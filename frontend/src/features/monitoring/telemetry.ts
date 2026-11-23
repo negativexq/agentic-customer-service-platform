@@ -1,5 +1,6 @@
 import { isRecorded, parseTimestamp, runLatencyMs, runStatus } from "../runs/runPresentation";
 import type { AgentRun, TraceStage } from "../../types";
+import { UI_LOCALE } from "@/lib/utils";
 
 /**
  * Telemetry derived from persisted run projections. The page reads only this shape, so a
@@ -83,7 +84,7 @@ export function deriveTelemetry(allRuns: AgentRun[]): TelemetrySnapshot {
     costUsd: costs.length ? costs.reduce((sum, value) => sum + value, 0) : null,
     timeline: runs.map((run) => ({
       at: run.started_at,
-      label: parseTimestamp(run.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      label: parseTimestamp(run.started_at).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit" }),
       latency: Math.round(runLatencyMs(run)),
       tokensIn: run.provider_metadata?.input_tokens ?? 0,
       tokensOut: run.provider_metadata?.output_tokens ?? 0,

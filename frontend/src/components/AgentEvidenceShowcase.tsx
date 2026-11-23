@@ -1,6 +1,7 @@
 import { ArrowDown, Brain, CheckCircle2, CircleAlert, CircleDot, FileText, LockKeyhole, MessageSquare, ShieldCheck, Bot } from "lucide-react";
 import type { AgentProposal, AgentRun, DemoConversationMessage, DemoMemoryEvidence, DemoScenario, MemoryRecord, MemoryUsage } from "../types";
 import { Badge, Card, EmptyState, SectionHeader, StatusIndicator } from "./ui";
+import { UI_LOCALE } from "@/lib/utils";
 
 type Tone = "success" | "warning" | "danger" | "info" | "neutral";
 
@@ -68,7 +69,7 @@ export function ConversationEvidence({ run, request, response, messages = [] }: 
               <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-main">{row.label}</span><Badge tone={row.role === "customer" ? "neutral" : "info"}>{row.role === "customer" ? "request" : "bounded response"}</Badge>{"evidence_tags" in row && row.evidence_tags?.map((tag) => <Badge tone="neutral" key={tag}>{tag}</Badge>)}</div>
               <p className="mt-2 text-sm leading-6 text-main">{row.body}</p>
               {"state" in row && row.state && <small className="mt-2 block text-xs text-muted-foreground">State: {displayStatus(row.state)}</small>}
-              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-xs text-muted-foreground">{new Date(row.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
+              {"timestamp" in row && row.timestamp && <small className="mt-1 block font-mono text-xs text-muted-foreground">{new Date(row.timestamp).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit" })}</small>}
             </div>
           </div>
         ))}
