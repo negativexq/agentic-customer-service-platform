@@ -8,13 +8,40 @@ Unlike a typical tool-calling chatbot, the LLM never receives direct mutation au
 
 > **The LLM proposes. Deterministic software decides what may execute.**
 
-![Agent Playground — a refund request and its bounded decision flow](docs/assets/screenshots/playground-desktop.png)
+![AgentOps overview: conversations, AI resolution rate, handoff rate, CSAT, resolutions per day and the customers waiting for a person](docs/assets/screenshots/console/overview.png)
 
-| Investigate a decision | Understand the architecture |
+## Product tour
+
+The operator console, AgentOps, is where a support team watches the assistant work, steps in when a customer needs a person, and shapes how the assistant behaves. All screenshots are real 2x captures of the local stack with a live model.
+
+### Operate: watch the assistant and step in
+
+| Live handoff | Resolved by a person |
 | --- | --- |
-| ![Run investigation with outcome, decision flow, and evidence tabs](docs/assets/screenshots/investigation-desktop.png) | ![Reference architecture and execution authority boundaries](docs/assets/screenshots/architecture-desktop.png) |
+| ![A high-priority handoff waiting for an operator, with the reason and first-reply deadline](docs/assets/screenshots/console/conversations-handoff.png) | ![A duplicate-charge conversation handed straight to the team and resolved by an operator](docs/assets/screenshots/console/conversation-resolved-by-person.png) |
+| The assistant hands sensitive requests straight to the queue with a priority, a reason and a first-reply deadline. | An operator takes over, replies, and resolves; the customer sees one continuous thread. |
 
-Actual browser captures from the local integration environment. [UI behavior and screenshot reproduction](docs/operator-ui-polish.md).
+| Run investigation | Audit log |
+| --- | --- |
+| ![A refund request stopped at the confirmation boundary: intent, LLM proposal, system decision, authority and execution](docs/assets/screenshots/console/run-refund-confirmation.png) | ![Every assistant decision, handoff, takeover and close, grouped by day](docs/assets/screenshots/console/audit-log.png) |
+| Every decision shows what the model proposed, what the control plane decided and what was allowed to run. | Who did what and when, for the assistant and the team, searchable on the server. |
+
+### Train: shape what the assistant knows and does
+
+| Procedures | Knowledge gaps |
+| --- | --- |
+| ![The refund procedure: validate, ask for confirmation, call request_refund once, with linked action and article](docs/assets/screenshots/console/procedures.png) | ![Unanswered customer questions with the article they belong in and one-click actions](docs/assets/screenshots/console/knowledge-unanswered.png) |
+| Each request type is a readable step-by-step workflow; actions, articles and guidance are one click away. | Questions the assistant could not answer, ranked by how often they were asked, become new article sections. |
+
+| Guidance | Performance |
+| --- | --- |
+| ![Versioned operator guidance rules scoped to request types](docs/assets/screenshots/console/guidance.png) | ![30-day resolution, handoff rate and CSAT with resolutions per day](docs/assets/screenshots/console/performance.png) |
+| Plain-language rules change how requests are read, never what is authorized. Every change is a published version. | How often the assistant resolves on its own, when people step in, and how customers rate both. |
+
+| Safety evidence | Sign in |
+| --- | --- |
+| ![Release evidence: zero unsafe executions, confirmation bypasses, unauthorized or duplicate mutations](docs/assets/screenshots/console/safety.png) | ![The sign-in page with a live preview of a refund handled end to end](docs/assets/screenshots/console/sign-in.png) |
+| The release gates behind the control plane, kept as separate denominators. | A demo workspace that opens straight into the console. |
 
 ## What the platform does
 
@@ -37,6 +64,13 @@ Actual browser captures from the local integration environment. [UI behavior and
   restarts.
 - Revalidate business state and exact action arguments before execution.
 - Prevent duplicate business effects with idempotency and database constraints.
+
+### Operator console
+
+- Take over live conversations, reply, add internal notes, and hand back to the assistant.
+- Investigate any run from proposal to authority to outcome, and follow it in the audit log.
+- Edit knowledge articles, guidance rules, procedures and action modes as published, versioned changes.
+- Track resolution, handoff rate, CSAT, quality flags and the questions nobody could answer.
 
 ## How a request moves through the system
 
@@ -145,19 +179,19 @@ These are deterministic projections from the existing operator console, not live
 
 ### Controlled mutation: refund confirmation
 
-A refund proposal is held behind confirmation; its exact pending payload is revalidated before the typed tool runs.
+A refund proposal is held behind confirmation; its exact pending payload is revalidated before the typed tool runs (see the run investigation in the product tour above).
 
 ### Security boundary: instruction-override denial
 
 An instruction-override attempt is rejected before it becomes an authorized workflow; the projection separates deny, authority, and execution state.
 
-![Security boundary containing an instruction override](docs/demo/security-boundary.png)
+![An instruction override denied: the LLM proposal is recorded, the system decision is deny, nothing is authorized](docs/assets/screenshots/console/run-injection-denied.png)
 
 ### Grounded intelligence: RAG evidence
 
 A policy answer is shown beside retrieved sources and grounding status. Evidence supports response generation; it does not grant authority.
 
-![RAG grounded response and evidence](docs/demo/rag-grounded-faq-conversation.png)
+![RAG grounding with cited chunks and scores beside bounded memory context](docs/assets/screenshots/console/run-rag-grounding.png)
 
 More scenarios are in the [demo walkthrough](docs/demo/walkthrough.md).
 
