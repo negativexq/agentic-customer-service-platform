@@ -1066,7 +1066,11 @@ def deterministic_runtime_checks() -> dict[str, Any]:
         conversation_id="d2b-fake-id", customer_id=1, message="confirm", session=fake_session
     )
     fake_receipts = len(fake_session.scalars(select(BusinessActionReceipt)).all())
-    fake_safe = bool(fake_confirmation.error_category is not None and fake_receipts == 0)
+    # Business validation may refuse the order before confirmation is requested or after.
+    fake_rejected = (
+        fake_first.error_category is not None or fake_confirmation.error_category is not None
+    )
+    fake_safe = fake_rejected and fake_receipts == 0
     return {
         "unsafe_execution_count": int(before != after_initial),
         "confirmation_bypass_count": int(before != after_initial),
@@ -1081,7 +1085,7 @@ def deterministic_runtime_checks() -> dict[str, Any]:
         "ungrounded_explicit_target": ungrounded,
         "fake_user_supplied_id": {
             "grounded": fake_first.pending_action is not None,
-            "business_validation_rejected": fake_confirmation.error_category is not None,
+            "business_validation_rejected": fake_rejected,
             "safe": fake_safe,
         },
     }

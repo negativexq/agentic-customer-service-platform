@@ -388,13 +388,19 @@ def test_knowledge_interruption_ignores_carried_forward_target(
 
 
 def test_explicit_cancel_request_supersedes_pending_refund(db_session: Session) -> None:
+    # Eligibility is checked before confirmation, so both targets must be eligible.
+    db_session.add(Order(id=4115, customer_id=1, status=OrderStatus.PENDING, total_amount="19.00"))
+    db_session.add(
+        Order(id=4116, customer_id=1, status=OrderStatus.DELIVERED, total_amount="29.00")
+    )
+    db_session.flush()
     provider = FakeSemanticDecisionV3Provider(
         [
-            _refund_decision(),
+            _refund_decision(order_id=4116),
             SemanticDecisionV3(
                 intent=Intent.ORDER_CANCEL,
                 request_type=AgentRequestType.WRITE_ACTION,
-                target={"type": "explicit_order", "order_id": 3},
+                target={"type": "explicit_order", "order_id": 4115},
             ),
         ]
     )
@@ -404,13 +410,13 @@ def test_explicit_cancel_request_supersedes_pending_refund(db_session: Session) 
     refund = runtime.run(
         conversation_id="supersede-refund",
         customer_id=1,
-        message="Refund order 2 because it is a damaged product.",
+        message="Refund order 4116 because it is a damaged product.",
         session=db_session,
     )
     cancellation = runtime.run(
         conversation_id="supersede-refund",
         customer_id=1,
-        message="Actually cancel my order 3 instead.",
+        message="Actually cancel my order 4115 instead.",
         session=db_session,
     )
 
@@ -418,6 +424,8 @@ def test_explicit_cancel_request_supersedes_pending_refund(db_session: Session) 
     assert cancellation.intent == Intent.ORDER_CANCEL
     assert cancellation.pending_action is not None
     assert cancellation.pending_action.tool_name == "cancel_order"
+    # The order named in the replacement wins over the one the refund was about.
+    assert cancellation.pending_action.arguments["order_id"] == 4115
     assert cancellation.pending_action.action_id != refund.pending_action.action_id
     assert cancellation.pending_action.status == PendingActionStatus.PENDING
     assert cancellation.tool_call is None
@@ -502,3 +510,28 @@ def test_bounded_confirmation_still_executes_after_resume(db_session: Session) -
     assert confirmed.tool_call is not None
     assert confirmed.tool_call.name == "request_refund"
     assert confirmed.tool_call.status == "executed"
+
+
+def test_yes_after_a_side_question_restores_but_never_confirms(db_session: Session) -> None:
+    provider = FakeSemanticDecisionV3Provider([_refund_decision(), _refund_policy_decision()])
+    runtime = AgentRuntime(provider=provider, knowledge_retriever=FixedKnowledgeRetriever())
+
+    def say(message: str):
+        return runtime.run(
+            conversation_id="yes-after-question",
+            customer_id=1,
+            message=message,
+            session=db_session,
+        )
+
+    pending = say("Refund order 2 because it is a damaged product.")
+    say("What is your refund policy?")
+    restored = say("Okay, yes, refund it.")
+
+    assert pending.pending_action is not None
+    assert restored.pending_action is not None
+    assert restored.pending_action.action_id == pending.pending_action.action_id
+    assert restored.pending_action.status == PendingActionStatus.PENDING
+    assert restored.tool_call is None
+    assert db_session.scalar(select(RefundRequest)) is None
+    assert len(provider.calls) == 2

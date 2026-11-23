@@ -250,6 +250,6 @@ def test_confirm_mode_ticket_executes_after_customer_confirms(client: TestClient
         assert first["tool_call"] is None
         confirmed = client.post("/agent/chat", json={**chat, "message": "yes"}).json()
         assert confirmed["tool_call"]["status"] == "executed", confirmed
-        assert confirmed["message"] == "Your support ticket was created."
+        assert confirmed["message"].startswith("I created support ticket #")
     finally:
         app.dependency_overrides.pop(get_agent_runtime, None)

@@ -16,6 +16,7 @@ from app.agent.llm.integration import (
     DeterministicSemanticDecisionV3Provider,
 )
 from app.agent.llm.provider import OpenAICompatibleProvider
+from app.agent.localize import OpenAICompatibleLocalizer, ResponseLocalizer, localize_reply
 from app.agent.schemas import (
     AgentExecutionMode,
     AgentProposal,
@@ -88,6 +89,7 @@ class AgentRuntime:
         projection_repository: AgentRunProjectionRepository | None = None,
         decision_contract_version: DecisionContractVersion | None = None,
         reliability_controller: ReliabilityController | None = None,
+        localizer: ResponseLocalizer | None = None,
     ) -> None:
         settings = get_settings()
         self.settings = settings
@@ -98,6 +100,13 @@ class AgentRuntime:
         )
         self.provider = provider or _build_decision_provider(
             settings, self.decision_contract_version
+        )
+        # Replies are translated only alongside the live model; injected test providers and the
+        # deterministic integration provider keep English replies.
+        self.localizer = localizer or (
+            OpenAICompatibleLocalizer(settings)
+            if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
+            else None
         )
         self.checkpointer = checkpointer or MemoryCheckpointProvider().checkpointer
         self.checkpoint_backend = checkpoint_backend
@@ -261,6 +270,11 @@ class AgentRuntime:
                         state,
                         execution_mode=actual_mode,
                         fallback_message=fallback_message,
+                    )
+                    response = response.model_copy(
+                        update={
+                            "message": localize_reply(self.localizer, message, response.message)
+                        }
                     )
                     try:
                         view = projection_store.build_view(
@@ -431,7 +445,8 @@ def _apply_current_ownership(
         # failure. Without a confirmed owner the AI reply stays withheld.
         session.rollback()
         logger.warning(
-            "Conversation ownership check failed after an agent run.",
+            "Conversation ownership check failed after an agent run (%s).",
+            type(error).__name__,
             extra={"ownership_error_type": type(error).__name__},
         )
         return _withheld_response(response, ConversationOwner.QUEUED)

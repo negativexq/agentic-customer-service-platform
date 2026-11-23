@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from typing import TypeGuard
 
@@ -99,6 +100,9 @@ def make_security_boundary_node() -> Callable[[AgentState], AgentState]:
     return detect_security_boundary
 
 
+_EXPLICIT_ORDER_NUMBER = re.compile(r"(?:\border\s*(?:number\s*)?#?|#|\bsipariş\w*\s*)(\d+)", re.I)
+
+
 def make_understand_request_node(
     provider: DecisionProposalProvider,
     resilience_config: ResilienceConfig | None = None,
@@ -111,7 +115,9 @@ def make_understand_request_node(
         previous_pending_intent = pending_action.intent if pending_action is not None else None
         replacement_intent = explicit_replacement_intent(message, previous_pending_intent)
         if replacement_intent is not None and pending_action is not None:
-            order_id = pending_action.arguments.get("order_id")
+            # "Cancel order 4115 instead" names its own order; otherwise keep the prior one.
+            named = _EXPLICIT_ORDER_NUMBER.search(message)
+            order_id = int(named.group(1)) if named else pending_action.arguments.get("order_id")
             target = (
                 {"type": "explicit_order", "order_id": order_id}
                 if isinstance(order_id, int) and order_id > 0

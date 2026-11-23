@@ -43,7 +43,7 @@ def make_compile_decision_node(
         grounding = (
             _restored_grounding(state, decision)
             if restored_action
-            else validate_semantic_grounding(decision, user_message)
+            else validate_semantic_grounding(decision, user_message, _previous_reply(state))
         )
         admissibility = assess_target_admissibility(decision.intent, decision.target, grounding)
         result = compiler.compile(
@@ -217,3 +217,15 @@ def _workflow_input_fields(result: CompiledDecision) -> list[str]:
     if result.reason_code in workflow_codes or targeted_business_request:
         return [field.value for field in result.clarification_fields]
     return []
+
+
+def _previous_reply(state: AgentState) -> str:
+    """The assistant message right before the current customer message, if any."""
+
+    messages = state.get("messages", [])
+    for message in reversed(messages[:-1]):
+        if message["role"] == "assistant":
+            return message["content"]
+        if message["role"] == "user":
+            return ""
+    return ""

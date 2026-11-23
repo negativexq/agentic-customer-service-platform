@@ -68,7 +68,47 @@ def parse_confirmation(message: str) -> str:
         "onaylamıyorum",
     }:
         return "rejected"
+    if _is_composed_confirmation(normalized):
+        return "confirmed"
     return "ambiguous"
+
+
+_AFFIRMATIVE_OPENERS = {"yes", "ok", "okay", "sure", "yep", "yeah", "evet", "tamam"}
+# Words that may follow an affirmative without changing what is being approved. Numbers,
+# negations, and anything naming a different target fall outside and stay ambiguous.
+_CONFIRMATION_FILLER = _AFFIRMATIVE_OPENERS | {
+    "please",
+    "go",
+    "ahead",
+    "proceed",
+    "do",
+    "it",
+    "that",
+    "this",
+    "confirm",
+    "confirmed",
+    "cancel",
+    "refund",
+    "submit",
+    "create",
+    "open",
+    "the",
+    "order",
+    "request",
+    "ticket",
+    "lütfen",
+    "devam",
+    "et",
+    "onaylıyorum",
+    "onayla",
+}
+
+
+def _is_composed_confirmation(normalized: str) -> bool:
+    """Accept "okay, yes, cancel it" style approvals built only from bounded words."""
+
+    words = normalized.split()
+    return bool(words) and words[0] in _AFFIRMATIVE_OPENERS and set(words) <= _CONFIRMATION_FILLER
 
 
 def is_expired(action: PendingAction, now: datetime, ttl_seconds: int) -> bool:

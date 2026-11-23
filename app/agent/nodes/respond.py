@@ -1,3 +1,6 @@
+import re
+from datetime import datetime
+
 from app.agent.decision_compiler import CompileStatus
 from app.agent.handoff import HANDOFF_OFFER_MESSAGE
 from app.agent.schemas import (
@@ -100,26 +103,138 @@ def _error_message(category: AgentErrorCategory | None, state: AgentState) -> st
     }[category]
 
 
+def _money(value: object) -> str:
+    try:
+        return f"${float(str(value)):,.2f}"
+    except ValueError:
+        return str(value)
+
+
+def _day(value: object) -> str:
+    text = str(value or "")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return ""
+    return f"{parsed:%b} {parsed.day}, {parsed.year}"
+
+
+def _order_line(order: dict[str, object]) -> str:
+    placed = _day(order.get("created_at"))
+    suffix = f", placed {placed}" if placed else ""
+    return f"#{order.get('id')}: {order.get('status')}, {_money(order.get('total_amount'))}{suffix}"
+
+
+def _ticket_line(ticket: dict[str, object]) -> str:
+    about = f" about order #{ticket['order_id']}" if ticket.get("order_id") else ""
+    return f"#{ticket.get('id')} ({ticket.get('category')}{about}): {ticket.get('status')}"
+
+
+def _items(result: dict[str, object] | None) -> list[dict[str, object]]:
+    items = result.get("items", []) if result else []
+    return [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+
+
 def _tool_message(tool_name: str, result: dict[str, object] | None) -> str:
+    """Say what the tool found, with the identifiers the customer needs for a follow-up."""
+
+    result = result or {}
     if tool_name == "get_customer_orders":
-        items = result.get("items", []) if result else []
-        count = len(items) if isinstance(items, list) else 0
-        return f"I found {count} order(s) for this customer."
+        orders = _items(result)
+        if not orders:
+            return "I couldn't find any orders on your account."
+        lines = "; ".join(_order_line(order) for order in orders[:10])
+        noun = "order" if len(orders) == 1 else "orders"
+        return f"You have {len(orders)} {noun}: {lines}."
     if tool_name == "get_customer_tickets":
-        items = result.get("items", []) if result else []
-        count = len(items) if isinstance(items, list) else 0
-        return f"I found {count} support ticket(s) for this customer."
+        tickets = _items(result)
+        if not tickets:
+            return "You don't have any support tickets."
+        lines = "; ".join(_ticket_line(ticket) for ticket in tickets[:10])
+        noun = "support ticket" if len(tickets) == 1 else "support tickets"
+        return f"You have {len(tickets)} {noun}: {lines}."
     if tool_name == "get_customer":
-        return "I found the customer record."
-    if tool_name == "get_order":
-        return "I found the order record."
-    if tool_name == "get_ticket":
-        return "I found the support ticket."
+        name = result.get("name")
+        return f"I found your account{f' ({name})' if name else ''}."
+    if tool_name == "get_order" and result.get("id") is not None:
+        return f"Order {_order_line(result)}."
+    if tool_name == "get_ticket" and result.get("id") is not None:
+        description = str(result.get("description") or "").strip()
+        detail = f' "{description[:160]}"' if description else ""
+        return f"Ticket {_ticket_line(result)}.{detail}".rstrip()
     if tool_name == "escalate_to_human":
         return "I'll connect you with a human support specialist."
     if tool_name == "create_support_ticket":
-        return "Your support ticket was created."
+        ticket_id = result.get("id")
+        return (
+            f"I created support ticket #{ticket_id} ({result.get('category')}). "
+            "Our team will follow up on it."
+            if ticket_id is not None
+            else "Your support ticket was created."
+        )
+    if tool_name == "cancel_order" and result.get("order_id") is not None:
+        if result.get("changed") is False:
+            return f"Order #{result['order_id']} was already {result.get('status')}."
+        return f"Order #{result['order_id']} is now cancelled."
+    if tool_name == "request_refund" and result.get("order_id") is not None:
+        return (
+            f"Your refund request for order #{result['order_id']} has been submitted "
+            f"(status: {result.get('status')}). We'll let you know once it's reviewed."
+        )
     return "The requested business operation completed."
+
+
+_GREETING = re.compile(
+    r"^(?:hi|hello|hey|good (?:morning|afternoon|evening)|merhaba|selam|iyi günler)\b", re.I
+)
+_CLOSING = re.compile(
+    r"^(?:thanks|thank you|thx|cheers|that'?s all|bye|goodbye|teşekkür\w*|sağ ?ol\w*|"
+    r"görüşürüz)\b",
+    re.I,
+)
+# Case-sensitive on purpose: with IGNORECASE, Python matches the dotless "ı" to an English "I".
+_TURKISH_LETTERS = re.compile(r"[çğıöşüÇĞİÖŞÜ]")
+_TURKISH_WORDS = re.compile(r"\b(?:merhaba|selam|tesekkur|nasil|lutfen|siparis)", re.I)
+
+
+_CANCEL_WHICH_ORDER = (
+    "I can help cancel your order. Which order would you like to cancel? Share the order "
+    "number, or ask me to list your orders."
+)
+
+
+def _latest_user_text(state: AgentState) -> str:
+    for item in reversed(state.get("messages", [])):
+        if item["role"] == "user":
+            return item["content"].strip()
+    return ""
+
+
+def _open_reply(text: str) -> str:
+    """Answer greetings and thanks like a person would; otherwise ask what they need."""
+
+    turkish = bool(_TURKISH_LETTERS.search(text) or _TURKISH_WORDS.search(text))
+    if _CLOSING.match(text):
+        return (
+            "Rica ederim! Başka bir konuda yardımcı olabilirsem buradayım."
+            if turkish
+            else "You're welcome! I'm here if you need anything else."
+        )
+    if _GREETING.match(text):
+        return (
+            "Merhaba! Siparişleriniz, iade ve iptaller, destek talepleriniz ya da kargo ve "
+            "politikalarımızla ilgili yardımcı olabilirim. Size nasıl yardımcı olayım?"
+            if turkish
+            else "Hi! I can help with your orders, refunds and cancellations, support tickets, "
+            "or questions about shipping and our policies. What can I do for you?"
+        )
+    return (
+        "Ne yapmak istediğinizi biraz netleştirebilir misiniz? Siparişleriniz, iade ve "
+        "iptaller, destek talepleriniz ya da kargo ve politikalarımızla ilgili yardımcı olabilirim."
+        if turkish
+        else "Could you clarify whether you need help with an order, a refund or cancellation, "
+        "a support ticket, or a question about shipping or our policies?"
+    )
 
 
 def respond(state: AgentState) -> AgentState:
@@ -224,7 +339,7 @@ def respond(state: AgentState) -> AgentState:
         and state.get("missing_required_fields")
         and state.get("intent") == Intent.ORDER_CANCEL
     ):
-        message = "I can help cancel your order. Let me verify the order details first."
+        message = _CANCEL_WHICH_ORDER
     elif (
         state.get("workflow_active")
         and state.get("missing_required_fields")
@@ -243,9 +358,17 @@ def respond(state: AgentState) -> AgentState:
             "process. Could you provide your order number?"
         )
     elif not tool_name and state.get("intent") == Intent.ORDER_LOOKUP:
-        message = "I can help you check your order status. Could you provide your order number?"
+        message = (
+            "I can check that for you. Which order do you mean? Share the order number, "
+            "or ask me to list your orders."
+        )
+    elif not tool_name and state.get("intent") == Intent.TICKET_LOOKUP:
+        message = (
+            "Which ticket do you mean? Share the ticket number, or ask me to list your "
+            "support tickets."
+        )
     elif not tool_name and state.get("intent") == Intent.ORDER_CANCEL:
-        message = "I can help cancel your order. Let me verify the order details first."
+        message = _CANCEL_WHICH_ORDER
     elif state.get("intent") == Intent.HUMAN_ESCALATION and (
         clarification_required
         or (state.get("request_type") == AgentRequestType.ESCALATION and not tool_name)
@@ -257,10 +380,7 @@ def respond(state: AgentState) -> AgentState:
     elif not tool_name and state.get("intent") == Intent.HUMAN_ESCALATION:
         message = "I'll connect you with a human support specialist."
     elif state.get("request_type") == AgentRequestType.UNCLEAR:
-        message = (
-            "Could you clarify whether you need an order, ticket, cancellation, refund, "
-            "or human assistance?"
-        )
+        message = _open_reply(_latest_user_text(state))
     elif tool_name:
         message = _tool_message(tool_name, state.get("tool_result"))
     else:

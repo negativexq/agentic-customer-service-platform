@@ -413,3 +413,29 @@ def test_memory_internal_failure_is_not_dependency_or_llm_error(db_session: Sess
         assert response.error_category == AgentErrorCategory.INTERNAL_ERROR
         assert response.failure_category == "internal_error"
         assert MEMORY_FAILURE_SENTINEL not in response.model_dump_json()
+
+
+def test_model_claimed_consent_needs_the_customers_own_words(db_session: Session) -> None:
+    summary = candidate(
+        key="today_interaction_summary",
+        content="Today: discussed orders 5 and 6.",
+        memory_type=MemoryType.INTERACTION_SUMMARY,
+    )
+    provider = FakeDecisionProvider(
+        [
+            StructuredDecision(
+                intent=Intent.MEMORY_REMEMBER,
+                request_type=AgentRequestType.MEMORY_ACTION,
+                memory_candidate=summary,
+            )
+        ]
+    )
+    runtime = AgentRuntime(
+        provider=provider, checkpointer=MemorySaver(), memory_service=MemoryService()
+    )
+    response = runtime.run(
+        conversation_id="memory-consent", customer_id=1, message="Do it again.", session=db_session
+    )
+
+    assert response.message == "Please explicitly ask me to remember that before I store it."
+    assert db_session.query(MemoryRecord).count() == 0

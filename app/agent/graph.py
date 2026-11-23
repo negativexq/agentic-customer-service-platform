@@ -589,7 +589,7 @@ def build_graph(
         "create_pending_action",
         cast(
             Any,
-            _instrument_node("create_pending_action", make_create_pending_node(clock)),
+            _instrument_node("create_pending_action", make_create_pending_node(clock, session)),
         ),
     )
     graph.add_node(

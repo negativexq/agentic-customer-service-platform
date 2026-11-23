@@ -142,7 +142,7 @@ def test_known_intents_use_workflow_responses_instead_of_generic_clarification(
     )
 
     assert cancel.intent == Intent.ORDER_CANCEL
-    assert cancel.message == "I can help cancel your order. Let me verify the order details first."
+    assert cancel.message.startswith("I can help cancel your order. Which order")
     assert "Could you clarify whether" not in cancel.message
     assert human.intent == Intent.HUMAN_ESCALATION
     assert human.message == (
@@ -587,6 +587,10 @@ def test_unavailable_suspended_knowledge_response_is_explicit() -> None:
 def test_refund_workflow_resumes_when_order_number_arrives(
     db_session: Session,
 ) -> None:
+    db_session.add(
+        Order(id=4114, customer_id=1, status=OrderStatus.DELIVERED, total_amount="49.00")
+    )
+    db_session.flush()
     provider = FakeSemanticDecisionV3Provider(
         [
             SemanticDecisionV3(

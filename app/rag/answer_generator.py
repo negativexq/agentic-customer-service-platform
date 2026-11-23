@@ -250,7 +250,22 @@ class GroundedAnswerGenerator:
 
     def _synthesize(self, chunks: Sequence[RetrievedChunk], query: str) -> GroundedAnswer:
         conflict = _find_conflict(chunks)
-        selected = list(conflict or chunks[:2])
+        # A second excerpt from another document must be in the same category and share at
+        # least two question terms: a neighbouring policy ("shipping" vs refund review
+        # "processing business days") is off-topic for the reader.
+        question = _terms(query)
+        selected = list(
+            conflict
+            or [
+                chunk
+                for chunk in chunks[:2]
+                if chunk.document_id == chunks[0].document_id
+                or (
+                    chunk.category == chunks[0].category
+                    and len(question & _terms(chunk.content)) >= 2
+                )
+            ]
+        )
         focus = _query_focus(query)
         excerpts = [_excerpt(chunk.content, focus=focus) for chunk in selected]
         citations = [
@@ -389,6 +404,18 @@ def normalize_knowledge_query(query: str) -> str:
         and re.search(r"\b(?:refund|return|reimburse|money\s+back)\b", normalized)
     ):
         return "refund processing review settlement"
+    if re.search(r"\b(?:kargo|teslimat|gönderi)\w*", normalized) and re.search(
+        r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır)", normalized
+    ):
+        return "shipping processing business days"
+    if re.search(r"\bgecik\w*", normalized) or re.search(
+        r"\btakip\w*\s+\w*\s*(?:güncellen|ilerle)", normalized
+    ):
+        return "delayed parcel tracking delays"
+    if re.search(r"\biptal\w*", normalized) and re.search(
+        r"\b(?:politika|koşul|kural|nasıl|edebilir)\w*", normalized
+    ):
+        return "cancellation policy before shipment after shipment"
     return query
 
 

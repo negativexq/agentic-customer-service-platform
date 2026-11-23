@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 
 from opentelemetry.trace import Span
@@ -15,6 +16,20 @@ from app.memory.service import MemoryService
 from app.observability.metrics import get_metrics
 from app.observability.tracing import span
 from app.resilience.errors import FailureCategory
+
+# The model may mark a memory as explicitly requested; only the customer's own words count.
+_REMEMBER_REQUEST = re.compile(
+    r"\b(?:remember|memori[sz]e|keep\s+in\s+mind|note\s+(?:that|down)|make\s+a\s+note|save|store)\b"
+    r"|hatırla|aklında\s+tut|kaydet|not\s+al",
+    re.IGNORECASE,
+)
+
+
+def _latest_user_message(state: AgentState) -> str:
+    for message in reversed(state.get("messages", [])):
+        if message["role"] == "user":
+            return message["content"]
+    return ""
 
 
 def make_memory_action_node(
@@ -35,6 +50,10 @@ def make_memory_action_node(
                     AgentErrorCategory.INVALID_TOOL_ARGUMENTS,
                     "A specific memory was not provided.",
                 )
+            if candidate.explicit_user_request and not _REMEMBER_REQUEST.search(
+                _latest_user_message(state)
+            ):
+                candidate = candidate.model_copy(update={"explicit_user_request": False})
             with span("memory.evaluate_candidate") as memory_span:
                 memory_span.set_attribute("memory.operation", "remember")
                 memory_span.set_attribute("memory.type", candidate.memory_type.value)

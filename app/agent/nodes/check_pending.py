@@ -5,6 +5,7 @@ from datetime import UTC
 from app.agent.nodes.workflow_lifecycle import (
     is_interruption_candidate,
     is_resume_request,
+    looks_like_confirmation,
 )
 from app.agent.schemas import AgentErrorCategory
 from app.agent.state import AgentState
@@ -96,6 +97,18 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
     current_message = _latest_user_message(state)
     parsed = parse_confirmation(current_message)
     if action is None:
+        suspended = state.get("suspended_workflow")
+        if (
+            parsed == "confirmed"
+            and isinstance(suspended, dict)
+            and suspended.get("pending_action") is not None
+        ):
+            # "Okay, yes, cancel it" after a side question: bring the saved action back and
+            # ask again. Resuming never confirms, so the customer still has to say yes to it.
+            return {
+                "confirmation_status": "resume_suspended",
+                "workflow_resume_source": "explicit_user_resume",
+            }
         if is_resume_request(current_message):
             if state.get("suspended_workflow") is None:
                 return {
@@ -131,7 +144,11 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
                 "confirmation_status": "rejected",
                 "workflow_state": "cancelled",
             }
-        if is_interruption_candidate(current_message):
+        if is_interruption_candidate(current_message) or not looks_like_confirmation(
+            current_message
+        ):
+            # Anything that is not an attempt to answer the confirmation ("thanks, that's
+            # all") is read as a new turn; the pending action stays saved, never executed.
             return {
                 "confirmation_status": "inspect_interruption",
                 "workflow_interruption_pending": True,

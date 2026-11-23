@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
-from app.agent.schemas import AgentErrorCategory
+from app.agent.decision_compiler import KNOWLEDGE_QUERIES
+from app.agent.schemas import AgentErrorCategory, Intent
 from app.agent.state import AgentState
 from app.rag.answer_generator import GroundedAnswerGenerator, normalize_knowledge_query
 from app.rag.interfaces import KnowledgeRetriever
@@ -76,17 +77,18 @@ def make_retrieve_node(
         # Retrieval may use a normalized semantic query, but grounding must be
         # checked against the customer's observable question. This prevents a
         # broad classifier query from making unrelated evidence look relevant.
-        grounded = generator.answer(customer_query, chunks)
-        knowledge_answer = grounded.answer
         tool_result = state.get("tool_result")
+        # "Why not?" carries no policy words of its own. With an order in hand, ground the
+        # answer on the fixed policy question for this intent instead of the bare follow-up.
+        intent = state.get("intent")
+        policy_query = (
+            KNOWLEDGE_QUERIES.get(intent) if tool_result and isinstance(intent, Intent) else None
+        )
+        grounded = generator.answer(policy_query or customer_query, chunks)
+        knowledge_answer = grounded.answer
         if tool_result is not None:
-            status = tool_result.get("status")
-            if isinstance(status, str):
-                knowledge_answer += (
-                    f" The business system reports the specific resource status as '{status}'."
-                )
-            knowledge_answer += (
-                " Business-system state is authoritative for the specific customer request."
+            knowledge_answer = _with_order_status(
+                tool_result, grounded.answer if grounded.status.value == "pass" else ""
             )
         return {
             "retrieved_chunks": [chunk.model_dump(mode="json") for chunk in chunks],
@@ -126,3 +128,25 @@ def _latest_user_message(state: AgentState) -> str:
         if message["role"] == "user":
             return message["content"]
     return ""
+
+
+_STATUS_PHRASES = {
+    "pending": "is still pending",
+    "processing": "is being processed",
+    "shipped": "has already shipped",
+    "delivered": "has been delivered",
+    "cancelled": "is already cancelled",
+}
+
+
+def _with_order_status(tool_result: dict[str, object], policy: str) -> str:
+    """Lead with the order's own state in plain words; the business system is the authority."""
+
+    status = tool_result.get("status")
+    if not isinstance(status, str):
+        return policy
+    phrase = _STATUS_PHRASES.get(status, f"is {status.replace('_', ' ')}")
+    order_id = tool_result.get("id")
+    subject = f"Order #{order_id}" if order_id is not None else "This order"
+    lead = f"{subject} {phrase}."
+    return f"{lead} {policy}".strip()

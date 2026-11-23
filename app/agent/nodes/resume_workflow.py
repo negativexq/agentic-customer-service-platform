@@ -88,7 +88,10 @@ def _reset() -> AgentState:
 
 
 def _interruption_or_wait(message: str) -> AgentState:
-    if is_interruption_candidate(message):
+    # Nothing is pending here, only a question the assistant asked. A reply that does not
+    # answer it is a new turn ("remember I prefer email", "get me a person"), so let the
+    # model read it instead of repeating the question.
+    if message.strip() or is_interruption_candidate(message):
         return {
             "workflow_resume_status": "inspect_interruption",
             "workflow_interruption_pending": True,
