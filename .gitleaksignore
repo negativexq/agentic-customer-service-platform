@@ -3,3 +3,5 @@
 # Documented non-secret localhost/demo bearer used only by the development quick-start examples.
 e0029b36f86e93828d74cb3e4f7e6aee0d08ed45:README.md:curl-auth-header:363
 e0029b36f86e93828d74cb3e4f7e6aee0d08ed45:docs/deployment.md:curl-auth-header:58
+# Keyword argument monitor_key=monitor_key in the quality review service, not a credential.
+2b83ee4237b5855a00255ad284d4c87b0c6fb933:app/services/quality.py:generic-api-key:341
