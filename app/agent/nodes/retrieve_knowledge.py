@@ -149,4 +149,5 @@ def _with_order_status(tool_result: dict[str, object], policy: str) -> str:
     order_id = tool_result.get("id")
     subject = f"Order #{order_id}" if order_id is not None else "This order"
     lead = f"{subject} {phrase}."
+    policy = policy.removeprefix("Based on the retrieved evidence: ")
     return f"{lead} {policy}".strip()

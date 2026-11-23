@@ -404,6 +404,11 @@ def normalize_knowledge_query(query: str) -> str:
         and re.search(r"\b(?:refund|return|reimburse|money\s+back)\b", normalized)
     ):
         return "refund processing review settlement"
+    if re.search(r"\b(?:shipping|delivery|ship)\b", normalized) and re.search(
+        r"\b(?:how\s+long|how\s+many\s+days|take|arrive|when\s+will|delivery\s+time)\b",
+        normalized,
+    ):
+        return "shipping processing business days"
     if re.search(r"\b(?:kargo|teslimat|gönderi)\w*", normalized) and re.search(
         r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır)", normalized
     ):

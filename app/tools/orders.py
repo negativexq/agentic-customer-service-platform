@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Order, OrderStatus
+from app.models import Order, OrderStatus, RefundRequest
 from app.schemas.domain import OrderResponse
 from app.services.idempotency import IdempotencyScope, execute_idempotent
 from app.services.order_service import get_order as get_order_record
@@ -45,7 +45,16 @@ def get_order(
     order = get_order_for_customer(session, request.order_id, request.customer_id, tenant_id)
     if order is None:
         raise ResourceNotFoundError("Order", request.order_id)
-    return OrderResponse.model_validate(order)
+    response = OrderResponse.model_validate(order)
+    refund = session.scalar(
+        select(RefundRequest)
+        .where(RefundRequest.order_id == order.id, RefundRequest.tenant_id == tenant_id)
+        .order_by(RefundRequest.created_at.desc(), RefundRequest.id.desc())
+        .limit(1)
+    )
+    if refund is not None:
+        response.refund_status = str(refund.status)
+    return response
 
 
 def cancel_order(

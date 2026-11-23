@@ -301,3 +301,14 @@ def test_second_excerpt_from_another_category_is_dropped() -> None:
     answer = GroundedAnswerGenerator().answer("Kargo genelde kaç günde gelir?", [shipping, refund])
 
     assert [citation.document_id for citation in answer.citations] == ["shipping-policy"]
+
+
+def test_english_shipping_time_question_maps_to_shipping_vocabulary() -> None:
+    from app.rag.answer_generator import normalize_knowledge_query
+
+    assert normalize_knowledge_query("How long does shipping usually take?") == (
+        "shipping processing business days"
+    )
+    assert normalize_knowledge_query("How long does a refund take?") == (
+        "refund processing review settlement"
+    )

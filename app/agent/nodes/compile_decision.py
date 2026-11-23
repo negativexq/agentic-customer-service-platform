@@ -1,3 +1,4 @@
+import re
 import time
 from collections.abc import Callable
 
@@ -10,7 +11,7 @@ from app.agent.decision_compiler import (
     CompileStatus,
     DecisionCompiler,
 )
-from app.agent.schemas import AgentErrorCategory, Intent, SemanticDecision
+from app.agent.schemas import AgentErrorCategory, AgentRequestType, Intent, SemanticDecision
 from app.agent.semantic_grounding import (
     GroundingStatus,
     SemanticGrounding,
@@ -40,6 +41,8 @@ def make_compile_decision_node(
         workflow_id = state.get("workflow_id") or f"workflow:{state['agent_run_id']}"
         user_message = _conversation_user_message(state)
         restored_action = bool(state.get("pending_action_restored"))
+        if not restored_action:
+            decision = _status_question_as_lookup(decision, user_message)
         grounding = (
             _restored_grounding(state, decision)
             if restored_action
@@ -229,3 +232,21 @@ def _previous_reply(state: AgentState) -> str:
         if message["role"] == "user":
             return ""
     return ""
+
+
+# "What's the status of my refund for order 1?" asks about an existing request; reading the
+# order (which carries its refund status) answers it without starting a new refund.
+_REFUND_STATUS_QUESTION = re.compile(
+    r"\b(?:status|update|progress|where(?:'s| is)?)\b.{0,40}\brefund\b"
+    r"|\brefund\b.{0,20}\b(?:status|update|progress)\b"
+    r"|\biade\w*\s+(?:ne\s+durumda|durumu|nerede|ne\s+oldu)",
+    re.IGNORECASE,
+)
+
+
+def _status_question_as_lookup(decision: SemanticDecision, user_message: str) -> SemanticDecision:
+    if decision.intent != Intent.REFUND_REQUEST or not _REFUND_STATUS_QUESTION.search(user_message):
+        return decision
+    return decision.model_copy(
+        update={"intent": Intent.ORDER_LOOKUP, "request_type": AgentRequestType.READ_ACTION}
+    )

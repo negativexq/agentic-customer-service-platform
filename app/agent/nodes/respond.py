@@ -135,6 +135,15 @@ def _items(result: dict[str, object] | None) -> list[dict[str, object]]:
     return [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
 
 
+_REFUND_STATUS_LINES = {
+    "requested": "Your refund request for it has been submitted and is waiting for review.",
+    "approved": "Your refund request for it has been approved.",
+    "processing": "Your refund for it is being processed.",
+    "completed": "Your refund for it has been completed.",
+    "rejected": "Your refund request for it was declined.",
+}
+
+
 def _tool_message(tool_name: str, result: dict[str, object] | None) -> str:
     """Say what the tool found, with the identifiers the customer needs for a follow-up."""
 
@@ -157,7 +166,9 @@ def _tool_message(tool_name: str, result: dict[str, object] | None) -> str:
         name = result.get("name")
         return f"I found your account{f' ({name})' if name else ''}."
     if tool_name == "get_order" and result.get("id") is not None:
-        return f"Order {_order_line(result)}."
+        refund = _REFUND_STATUS_LINES.get(str(result.get("refund_status")))
+        refund_line = f" {refund}" if refund else ""
+        return f"Order {_order_line(result)}.{refund_line}"
     if tool_name == "get_ticket" and result.get("id") is not None:
         description = str(result.get("description") or "").strip()
         detail = f' "{description[:160]}"' if description else ""
@@ -264,6 +275,20 @@ def respond(state: AgentState) -> AgentState:
     elif state.get("write_outcome_unknown"):
         message = (
             "I couldn't confirm whether the action completed, so I won't repeat it automatically."
+        )
+    elif (
+        _has_suspended_mutation(state)
+        and state.get("tool_result") is not None
+        and tool_name
+        and error_category is None
+        and state.get("workflow_interruption_status") == "suspended"
+    ):
+        # A read answered while a write waits ("is order 5 cancelled now?"): give the
+        # answer, then say the saved request is still waiting.
+        label = _suspended_workflow_label(state)
+        message = (
+            f"{_tool_message(tool_name, state.get('tool_result'))} Your {label} is still "
+            "saved and waiting for your confirmation."
         )
     elif (
         _has_suspended_mutation(state)
