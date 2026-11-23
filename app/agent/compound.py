@@ -10,6 +10,8 @@ signals a keyword list used to guess are read here by the model instead, in one 
   exists, not for a new refund.
 * ``upset``: the customer is plainly frustrated, so a handoff starts with an apology and skips
   the offer step.
+* ``explains_issue``: the message says what the customer needs help with, so a request for a
+  person in it is handed over at once instead of first offering to help.
 * ``reply_language``: the customer asked for replies in a given language from now on.
 * ``conversation_move``: a message that asks nothing of the store (hello, chit-chat, goodbye, an
   off-topic question, "who are you?") gets a short human reply instead of a policy search.
@@ -40,7 +42,7 @@ _MOVES = {"greeting", "small_talk", "closing", "off_topic", "about_assistant", "
 _INSTRUCTION = (
     "You read one customer-support message and return JSON only, in this shape: "
     '{"requests": [{"text": "...", "status_question": false, "list_position": null}], '
-    '"upset": false, '
+    '"upset": false, "explains_issue": false, '
     '"reply_language": null, "language": "turkish", "withdraws": false, '
     '"asks_memory_summary": false, "acknowledgement": false, "conversation_move": null}.\n'
     "requests: the message's separate requests, in the order asked; one item when it is a "
@@ -49,6 +51,7 @@ _INSTRUCTION = (
     "questions are separate requests, even about the same order, and the same question about "
     'several orders or tickets ("Where are orders 1 and 2?") becomes one request per order or '
     "ticket. Details of one request, such as the reason for a refund, stay in that request. "
+    "A request to talk to a person and the problem it is about are one request, never two. "
     "Write each request in the customer's own language and words; repeat an order or ticket "
     "number in a later request only when the customer clearly meant the same one. Never add "
     "facts, numbers or requests.\n"
@@ -60,6 +63,9 @@ _INSTRUCTION = (
     "or -1 for the last one; otherwise null.\n"
     "upset: true only when the customer is plainly frustrated, angry or complaining about the "
     "service, in any language or wording, sarcasm included.\n"
+    "explains_issue: true when the message says what the customer needs help with (what "
+    "happened, or what they want done), beyond only asking to talk to a person; false for a "
+    'bare "can I talk to someone?".\n'
     'reply_language: "english" or "turkish" only when the customer explicitly asks to be '
     "answered in that language; otherwise null.\n"
     'language: the language the message is written in: "english", "turkish", "other", or '
@@ -91,6 +97,7 @@ class MessageReading(BaseModel):
     requests: list[ReadRequest]
     # None means unknown (no model): callers use their own conservative default.
     upset: bool | None = None
+    explains_issue: bool | None = None
     reply_language: Literal["english", "turkish"] | None = None
     language: Literal["english", "turkish", "other"] | None = None
     withdraws: bool = False

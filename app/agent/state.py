@@ -133,6 +133,8 @@ class AgentState(TypedDict, total=False):
     queued_requests: dict[str, Any] | None
     # Read from the customer's message by the model; None when no model read it.
     customer_upset: bool | None
+    # The customer's message says what they need help with; None when no model read it.
+    issue_explained: bool | None
     language_requested: str | None
     status_question: bool
     # The reply language the customer asked for ("english" / "turkish"); kept across turns.

@@ -214,6 +214,7 @@ class AgentRuntime:
         queue = parts[1:] if len(parts) > 1 else None
         signals: AgentState = {
             "customer_upset": reading.upset,
+            "issue_explained": reading.explains_issue,
             "language_requested": reading.reply_language,
             "status_question": bool(parts[0]["status_question"]),
             "list_position": _position(parts[0].get("list_position")),
@@ -253,6 +254,7 @@ class AgentRuntime:
                 queue=pending[1:],
                 signals={
                     "customer_upset": None,
+                    "issue_explained": None,
                     "language_requested": None,
                     "status_question": bool(pending[0].get("status_question")),
                     "list_position": _position(pending[0].get("list_position")),

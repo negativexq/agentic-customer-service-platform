@@ -94,3 +94,41 @@ def test_operators_can_choose_immediate_handoff(client: TestClient) -> None:
     response = _chat(client, "handoff-config", "Can I talk to a person?")
 
     assert response["message"].endswith(CONNECTED)
+
+
+class _Reader:
+    """Reads every message as one request, with the model's explains_issue signal fixed."""
+
+    def __init__(self, explains_issue: bool) -> None:
+        self.explains_issue = explains_issue
+
+    def read(self, message: str) -> dict[str, object]:
+        return {"requests": [{"text": message}], "explains_issue": self.explains_issue}
+
+
+def _use_with_reader(decisions: Sequence[StructuredDecision], explains_issue: bool) -> None:
+    runtime = AgentRuntime(
+        provider=FakeDecisionProvider(list(decisions)), reader=_Reader(explains_issue)
+    )
+    app.dependency_overrides[get_agent_runtime] = lambda: runtime
+
+
+def test_request_that_says_what_it_is_about_connects_immediately(client: TestClient) -> None:
+    _use_with_reader([_handoff("medium")], explains_issue=True)
+
+    connected = _chat(
+        client, "handoff-explained", "Can a person help me with a bulk order for my company?"
+    )
+
+    assert connected["message"] == CONNECTED
+    assert connected["tool_call"]["status"] == "executed"
+    assert connected["conversation_owner"] == "queued"
+
+
+def test_bare_request_read_by_the_model_still_gets_one_offer(client: TestClient) -> None:
+    _use_with_reader([_handoff("medium")], explains_issue=False)
+
+    offered = _chat(client, "handoff-bare", "Can I talk to someone?")
+
+    assert offered["message"] == HANDOFF_OFFER_MESSAGE
+    assert offered["conversation_owner"] == "ai"

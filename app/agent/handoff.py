@@ -1,8 +1,9 @@
 """When a customer asks for a person: offer to help once, or connect them straight away.
 
 Customers should never be kept from a person. The assistant offers help a single time and
-only when nothing points to an urgent need: a repeated request, frustrated wording, or a
-sensitive matter (the decision marks those high or urgent priority) all hand off at once.
+only for a bare request with nothing behind it: a repeated request, frustrated wording, a
+sensitive matter (the decision marks those high or urgent priority), or a message that already
+says what the customer needs help with all hand off at once.
 """
 
 from app.agent.state import AgentState
@@ -22,7 +23,9 @@ HANDOFF_PRIORITY_PROMPT = (
     "HAND-OFF PRIORITY: when you return human_escalation, a plain request to speak with a "
     "person is priority medium. Use high or urgent only for sensitive matters (an "
     "unrecognized, unauthorized, or disputed charge; legal, safety, or account-security "
-    "concerns) or when the customer is clearly upset. After the assistant offered to help "
+    "concerns) or when the customer is clearly upset. When the customer asks for a person and "
+    "says what it is about in the same message, return human_escalation with that issue as the "
+    "reason and summary, not the issue's own intent. After the assistant offered to help "
     "first: if the customer's latest message explains their issue, handle that issue with its "
     "own intent (for example shipping_policy or order_lookup) instead of human_escalation; "
     "return human_escalation only if they again ask for a person or accept being connected."
@@ -70,6 +73,9 @@ def should_offer_before_handoff(state: AgentState) -> bool:
         item["role"] == "assistant" and item["content"].startswith(_OFFER_OPENING)
         for item in messages
     ):
+        return False
+    if state.get("issue_explained") is True:
+        # They already said what it is about; offering to help first would only delay them.
         return False
     arguments = state.get("tool_arguments") or {}
     if str(arguments.get("priority", "")).casefold() in URGENT_PRIORITIES:

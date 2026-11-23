@@ -187,3 +187,12 @@ def test_model_read_list_position_resolves_against_our_own_listing() -> None:
     assert listed_reference("İkincisinin detayını göster", listing, 2) == 6
     assert listed_reference("the last one", listing, -1) == 7
     assert listed_reference("the fifth one", listing, 5) is None
+
+
+def test_reading_keeps_whether_the_message_explains_the_issue() -> None:
+    class Reader:
+        def read(self, message: str) -> dict[str, object]:
+            return {"requests": [{"text": message}], "explains_issue": True}
+
+    assert read_message(Reader(), "My parcel never arrived, get me a person").explains_issue
+    assert read_message(None, "x").explains_issue is None
