@@ -165,7 +165,16 @@ def _run_events(run: AgentRunView, conversation: Conversation, customer: str) ->
         if tool.name in _WRITES and tool.status == "completed"
     ]
     escalated = any(t.name == "escalate_to_human" and t.status == "completed" for t in run.tools)
-    if not events and not escalated:
+    if not events and not escalated and run.intent == "human_escalation":
+        # The handoff itself is an ownership event; a run that did not hand over asked first.
+        events.append(
+            event(
+                "assistant.clarified",
+                "assistant",
+                "Asked what the customer needs before handing over to the team",
+            )
+        )
+    elif not events and not escalated:
         summary = (
             f"Answered a question about {topic.lower()}"
             if run.intent not in {"", "unknown"}

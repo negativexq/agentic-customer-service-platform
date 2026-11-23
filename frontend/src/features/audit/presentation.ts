@@ -1,4 +1,5 @@
 import { UI_LOCALE } from "@/lib/utils";
+import { parseTimestamp } from "../runs/runPresentation";
 import type { AuditActor, AuditEvent, AuditKind } from "./types";
 
 export const kindOrder: AuditKind[] = ["conversation", "handoff", "operator", "assistant", "action", "safety"];
@@ -34,7 +35,7 @@ function dayKey(date: Date): string {
 }
 
 export function dayLabel(iso: string, now = new Date()): string {
-  const date = new Date(iso);
+  const date = parseTimestamp(iso);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (dayKey(date) === dayKey(now)) return "Today";
@@ -42,14 +43,14 @@ export function dayLabel(iso: string, now = new Date()): string {
   return date.toLocaleDateString(UI_LOCALE, { weekday: "long", day: "numeric", month: "long", year: date.getFullYear() === now.getFullYear() ? undefined : "numeric" });
 }
 
-export const clock = (iso: string) => new Date(iso).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-export const stamp = (iso: string) => new Date(iso).toLocaleString(UI_LOCALE, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+export const clock = (iso: string) => parseTimestamp(iso).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+export const stamp = (iso: string) => parseTimestamp(iso).toLocaleString(UI_LOCALE, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 /** Entries in their given order, split into consecutive calendar days. */
 export function groupByDay(events: AuditEvent[], now = new Date()): { label: string; events: AuditEvent[] }[] {
   const groups: { key: string; label: string; events: AuditEvent[] }[] = [];
   for (const event of events) {
-    const key = dayKey(new Date(event.at));
+    const key = dayKey(parseTimestamp(event.at));
     const last = groups[groups.length - 1];
     if (last && last.key === key) last.events.push(event);
     else groups.push({ key, label: dayLabel(event.at, now), events: [event] });
@@ -89,7 +90,7 @@ export function handlingSummary(trail: AuditEvent[], you: You): string[] {
 }
 
 export function span(fromIso: string, toIso: string): string {
-  const seconds = Math.max(0, Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 1000));
+  const seconds = Math.max(0, Math.round((parseTimestamp(toIso).getTime() - parseTimestamp(fromIso).getTime()) / 1000));
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes}m`;

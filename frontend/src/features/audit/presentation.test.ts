@@ -19,12 +19,12 @@ describe("audit presentation", () => {
   });
 
   it("groups consecutive entries by calendar day", () => {
-    const now = new Date("2026-11-23T15:00:00");
+    const now = new Date("2026-11-23T15:00:00Z");
     const groups = groupByDay([
-      event("a", "2026-11-23T10:00:00", "x", ai),
-      event("b", "2026-11-23T09:00:00", "x", ai),
-      event("c", "2026-11-22T21:00:00", "x", ai),
-      event("d", "2026-11-18T08:00:00", "x", ai),
+      event("a", "2026-11-23T12:30:00", "x", ai),
+      event("b", "2026-11-23T12:00:00", "x", ai),
+      event("c", "2026-11-22T12:00:00", "x", ai),
+      event("d", "2026-11-18T12:00:00", "x", ai),
     ], now);
     expect(groups.map((group) => [group.label, group.events.length])).toEqual([["Today", 2], ["Yesterday", 1], ["Wednesday 18 November", 1]]);
   });
@@ -39,8 +39,8 @@ describe("audit presentation", () => {
     const lines = handlingSummary(trail, you);
     expect(lines[0]).toBe("AI assistant handled it for 5m");
     expect(lines[1]).toBe("Waited 12m in the queue");
-    expect(lines[2]).toMatch(/^Alex Morgan \(you\) picked it up at 09:17/);
-    expect(lines[3]).toMatch(/^Closed by Alex Morgan \(you\) at 09:40/);
+    expect(lines[2]).toMatch(/^Alex Morgan \(you\) picked it up at \d{2}:17/);
+    expect(lines[3]).toMatch(/^Closed by Alex Morgan \(you\) at \d{2}:40/);
   });
 
   it("searches across customer, person and conversation", () => {
@@ -54,6 +54,11 @@ describe("audit presentation", () => {
     expect(serverSearch(" Alex ", you)).toBe("operator-local-demo");
     expect(serverSearch("refund", you)).toBe("refund");
     expect(serverSearch("a", you)).toBe("a");
+  });
+
+  it("reads server times as UTC", () => {
+    const item = event("1", "2026-11-23T12:00:00", "x", ai);
+    expect(groupByDay([item], new Date("2026-11-23T12:00:00Z"))[0].label).toBe("Today");
   });
 
   it("formats spans compactly", () => {
