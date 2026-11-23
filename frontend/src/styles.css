@@ -2642,135 +2642,135 @@
   ---break---
 */
 :root {
-  --background: #fbfbfc;
-  --foreground: #16181d;
+  --background: #ffffff;
+  --foreground: #111113;
   --card: #ffffff;
-  --card-foreground: #16181d;
+  --card-foreground: #111113;
   --popover: #ffffff;
-  --popover-foreground: #16181d;
-  --primary: #5e5ce6;
+  --popover-foreground: #111113;
+  --primary: #18181b;
   --primary-foreground: #ffffff;
-  --secondary: #f2f3f5;
-  --secondary-foreground: #16181d;
-  --muted: #f2f3f5;
-  --muted-foreground: #6b7080;
-  --accent: #eeeff3;
-  --accent-foreground: #16181d;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #111113;
+  --muted: #f4f4f5;
+  --muted-foreground: #6e6e76;
+  --accent: #f1f1f3;
+  --accent-foreground: #111113;
   --destructive: #dc2626;
-  --border: #e4e6eb;
-  --border-strong: #cfd3db;
-  --input: #e4e6eb;
-  --ring: #5e5ce6;
-  --surface-elevated: #f6f7f9;
-  --success: #059669;
-  --warning: #b45309;
-  --proposal: #a16207;
-  --danger: #dc2626;
-  --info: #2563eb;
-  --decision: #5e5ce6;
-  --chart-1: #5e5ce6;
-  --chart-2: #059669;
-  --chart-3: #2563eb;
-  --chart-4: #d97706;
-  --chart-5: #dc2626;
-  --radius: 0.625rem;
-  --sidebar: #f6f7f9;
-  --sidebar-foreground: #3a3f4b;
-  --sidebar-primary: #5e5ce6;
+  --border: #e8e8eb;
+  --border-strong: #d4d4d8;
+  --input: #e4e4e7;
+  --ring: #2f6bff;
+  --surface-elevated: #fafafa;
+  --success: #16a34a;
+  --warning: #d97706;
+  --proposal: #b45309;
+  --danger: #e5484d;
+  --info: #2f6bff;
+  --decision: #2f6bff;
+  --chart-1: #2f6bff;
+  --chart-2: #16a34a;
+  --chart-3: #8b5cf6;
+  --chart-4: #f59e0b;
+  --chart-5: #e5484d;
+  --radius: 0.75rem;
+  --sidebar: #f3f3f4;
+  --sidebar-foreground: #3f3f46;
+  --sidebar-primary: #18181b;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eceef2;
-  --sidebar-accent-foreground: #16181d;
-  --sidebar-border: #e4e6eb;
-  --sidebar-ring: #5e5ce6;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #111113;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #2f6bff;
   color-scheme: light;
 }
 
 /* Follow the system until the operator picks a theme. */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --background: #0b0d12;
-    --foreground: #e6e8ee;
-    --card: #151820;
-    --card-foreground: #e6e8ee;
-    --popover: #151820;
-    --popover-foreground: #e6e8ee;
-    --primary: #8b8cf8;
-    --primary-foreground: #0b0d12;
-    --secondary: #1b1f29;
-    --secondary-foreground: #e6e8ee;
-    --muted: #1b1f29;
-    --muted-foreground: #959aa7;
-    --accent: #1e2230;
-    --accent-foreground: #e6e8ee;
-    --destructive: #f87171;
-    --border: #252936;
-    --border-strong: #343949;
-    --input: #252936;
-    --ring: #8b8cf8;
-    --surface-elevated: #1b1f29;
-    --success: #34d399;
-    --warning: #fbbf24;
-    --proposal: #d4b062;
-    --danger: #f87171;
-    --info: #7aa2f7;
-    --decision: #8b8cf8;
-    --chart-1: #8b8cf8;
-    --chart-2: #34d399;
-    --chart-3: #7aa2f7;
-    --chart-4: #fbbf24;
-    --chart-5: #f87171;
-    --sidebar: #0e1016;
-    --sidebar-foreground: #c9ccd4;
-    --sidebar-primary: #8b8cf8;
-    --sidebar-primary-foreground: #0b0d12;
-    --sidebar-accent: #1a1d26;
-    --sidebar-accent-foreground: #e6e8ee;
-    --sidebar-border: #1f2330;
-    --sidebar-ring: #8b8cf8;
+    --background: #141415;
+    --foreground: #ededef;
+    --card: #18181a;
+    --card-foreground: #ededef;
+    --popover: #1b1b1d;
+    --popover-foreground: #ededef;
+    --primary: #f4f4f5;
+    --primary-foreground: #111113;
+    --secondary: #1f1f22;
+    --secondary-foreground: #ededef;
+    --muted: #1f1f22;
+    --muted-foreground: #8e8e96;
+    --accent: #222225;
+    --accent-foreground: #ededef;
+    --destructive: #f2555a;
+    --border: #27272a;
+    --border-strong: #36363b;
+    --input: #2a2a2e;
+    --ring: #4c82ff;
+    --surface-elevated: #1c1c1f;
+    --success: #3ecf6e;
+    --warning: #f5a524;
+    --proposal: #d4a24c;
+    --danger: #f2555a;
+    --info: #4c82ff;
+    --decision: #4c82ff;
+    --chart-1: #3b78ff;
+    --chart-2: #3ecf6e;
+    --chart-3: #a78bfa;
+    --chart-4: #f5a524;
+    --chart-5: #f2555a;
+    --sidebar: #0d0d0e;
+    --sidebar-foreground: #b4b4bb;
+    --sidebar-primary: #f4f4f5;
+    --sidebar-primary-foreground: #111113;
+    --sidebar-accent: #1c1c1f;
+    --sidebar-accent-foreground: #ededef;
+    --sidebar-border: #232326;
+    --sidebar-ring: #4c82ff;
     color-scheme: dark;
 }
 }
 
 .dark {
-  --background: #0b0d12;
-  --foreground: #e6e8ee;
-  --card: #151820;
-  --card-foreground: #e6e8ee;
-  --popover: #151820;
-  --popover-foreground: #e6e8ee;
-  --primary: #8b8cf8;
-  --primary-foreground: #0b0d12;
-  --secondary: #1b1f29;
-  --secondary-foreground: #e6e8ee;
-  --muted: #1b1f29;
-  --muted-foreground: #959aa7;
-  --accent: #1e2230;
-  --accent-foreground: #e6e8ee;
-  --destructive: #f87171;
-  --border: #252936;
-  --border-strong: #343949;
-  --input: #252936;
-  --ring: #8b8cf8;
-  --surface-elevated: #1b1f29;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --proposal: #d4b062;
-  --danger: #f87171;
-  --info: #7aa2f7;
-  --decision: #8b8cf8;
-  --chart-1: #8b8cf8;
-  --chart-2: #34d399;
-  --chart-3: #7aa2f7;
-  --chart-4: #fbbf24;
-  --chart-5: #f87171;
-  --sidebar: #0e1016;
-  --sidebar-foreground: #c9ccd4;
-  --sidebar-primary: #8b8cf8;
-  --sidebar-primary-foreground: #0b0d12;
-  --sidebar-accent: #1a1d26;
-  --sidebar-accent-foreground: #e6e8ee;
-  --sidebar-border: #1f2330;
-  --sidebar-ring: #8b8cf8;
+  --background: #141415;
+  --foreground: #ededef;
+  --card: #18181a;
+  --card-foreground: #ededef;
+  --popover: #1b1b1d;
+  --popover-foreground: #ededef;
+  --primary: #f4f4f5;
+  --primary-foreground: #111113;
+  --secondary: #1f1f22;
+  --secondary-foreground: #ededef;
+  --muted: #1f1f22;
+  --muted-foreground: #8e8e96;
+  --accent: #222225;
+  --accent-foreground: #ededef;
+  --destructive: #f2555a;
+  --border: #27272a;
+  --border-strong: #36363b;
+  --input: #2a2a2e;
+  --ring: #4c82ff;
+  --surface-elevated: #1c1c1f;
+  --success: #3ecf6e;
+  --warning: #f5a524;
+  --proposal: #d4a24c;
+  --danger: #f2555a;
+  --info: #4c82ff;
+  --decision: #4c82ff;
+  --chart-1: #3b78ff;
+  --chart-2: #3ecf6e;
+  --chart-3: #a78bfa;
+  --chart-4: #f5a524;
+  --chart-5: #f2555a;
+  --sidebar: #0d0d0e;
+  --sidebar-foreground: #b4b4bb;
+  --sidebar-primary: #f4f4f5;
+  --sidebar-primary-foreground: #111113;
+  --sidebar-accent: #1c1c1f;
+  --sidebar-accent-foreground: #ededef;
+  --sidebar-border: #232326;
+  --sidebar-ring: #4c82ff;
   color-scheme: dark;
 }
 /* Typing indicator: a calm opacity wave instead of bouncing dots. */
@@ -2785,3 +2785,36 @@
   [role="radiogroup"] > [role="radio"],
   [role="tablist"] > [role="tab"] { min-height: 2.25rem; }
 }
+
+/* Dot-matrix charts fill bottom-up once, on first paint. */
+@keyframes dot-in { from { opacity: 0.15; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+.dot-cell[data-filled] { animation: dot-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .dot-cell[data-filled] { animation: none; } }
+
+/* The assistant's mark: a thin gradient ring; it turns only while the assistant is working. */
+.agent-orb { position: relative; display: inline-grid; place-items: center; border-radius: 9999px; isolation: isolate; }
+.agent-orb::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: conic-gradient(from 200deg, #4c82ff, #a78bfa, #f472b6, #f5a524, #4c82ff); }
+.agent-orb-core { display: grid; place-items: center; width: calc(100% - 3px); height: calc(100% - 3px); border-radius: inherit; background: var(--background); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06); }
+.agent-orb[data-thinking]::before { animation: agent-orb-turn 2.4s linear infinite; }
+@keyframes agent-orb-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .agent-orb[data-thinking]::before { animation: none; } }
+
+/* Older reference pages: their hero cards read as a plain page header, like every other page. */
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header):is(.surface, *) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--border);
+}
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) h1 {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) h1 + p,
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) p { font-size: 0.875rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }

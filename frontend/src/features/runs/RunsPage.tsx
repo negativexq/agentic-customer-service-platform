@@ -146,7 +146,7 @@ export function RunsPage({ runs, loading = false, error = null, onOpenRun }: Run
                     const sorted = header.column.getIsSorted();
                     const sortable = header.column.getCanSort();
                     return (
-                      <TableHead key={header.id} className="h-9 px-4 text-xs font-medium text-muted-foreground first:pl-4 sm:first:pl-6" aria-sort={sorted ? (sorted === "desc" ? "descending" : "ascending") : undefined}>
+                      <TableHead key={header.id} className="h-9 px-4 first:pl-4 sm:first:pl-6" aria-sort={sorted ? (sorted === "desc" ? "descending" : "ascending") : undefined}>
                         {sortable ? (
                           <button type="button" className="-mx-1 -my-1 inline-flex min-h-7 min-w-7 items-center gap-1 rounded px-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none pointer-coarse:min-h-9" onClick={header.column.getToggleSortingHandler()}>
                             <table.FlexRender header={header} />

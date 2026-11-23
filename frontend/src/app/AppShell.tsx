@@ -83,7 +83,7 @@ function HealthIndicator({ health, unavailable }: { health: Health | null | unde
 export function AppShell({ activeView, detailLabel, health, healthUnavailable, runtimeConfig, onNavigate, onOpenSearch, children }: AppShellProps) {
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" variant="sidebar">
+      <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>

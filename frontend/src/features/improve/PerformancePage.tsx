@@ -1,5 +1,3 @@
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/primitives/chart";
 import { Skeleton } from "@/components/primitives/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/primitives/table";
 import { useState } from "react";
@@ -10,11 +8,7 @@ import { usePerformance } from "./queries";
 import { EmptyNote, percent, rating, Section, WindowPicker } from "./shared";
 import type { PerformanceView } from "./types";
 import { UI_LOCALE } from "@/lib/utils";
-
-const trendConfig = {
-  ai_resolved: { label: "Resolved by AI", color: "var(--chart-1)" },
-  handed_off: { label: "Handed to a person", color: "var(--chart-3)" },
-} satisfies ChartConfig;
+import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 
 const dayLabel = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" });
 
@@ -47,16 +41,9 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
 
         <Section title="Resolutions per day" description="A conversation counts as handed off once it reached a person, even if the AI answered first.">
           {!data ? <Skeleton className="m-4 h-56" /> : data.summary.conversations === 0 ? <EmptyNote>No conversations in this window.</EmptyNote> : (
-            <ChartContainer config={trendConfig} className="aspect-auto h-60 w-full p-2">
-              <BarChart data={trend} margin={{ left: 4, right: 12, top: 12 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
-                <ChartTooltip isAnimationActive={false} cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltipContent />} />
-                <Bar dataKey="ai_resolved" stackId="outcome" fill="var(--color-ai_resolved)" isAnimationActive={false} />
-                <Bar dataKey="handed_off" stackId="outcome" fill="var(--color-handed_off)" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-              </BarChart>
-            </ChartContainer>
+            <DotMatrixChart label="Resolutions per day" rows={18}
+              series={[{ key: "ai_resolved", label: "Resolved by AI", color: "var(--chart-1)" }, { key: "handed_off", label: "Handed to a person", color: "var(--foreground)" }]}
+              data={trend.map((point) => ({ label: point.label, values: { ai_resolved: point.ai_resolved, handed_off: point.handed_off } }))} />
           )}
         </Section>
 

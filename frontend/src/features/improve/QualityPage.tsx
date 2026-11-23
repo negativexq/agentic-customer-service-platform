@@ -1,7 +1,5 @@
 import { Compass, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Bar, BarChart, XAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/primitives/chart";
 import { Badge } from "@/components/primitives/badge";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/primitives/input";
@@ -17,6 +15,7 @@ import { improveApi, useQuality, useQualityMutation } from "./queries";
 import { EmptyNote, percent, Section, WindowPicker } from "./shared";
 import type { Flag, Monitor, MonitorInput, MonitorPreview, MonitorSender, ReviewStatus } from "./types";
 import { UI_LOCALE } from "@/lib/utils";
+import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 
 const severityTone: Record<string, string> = { high: "bg-danger", medium: "bg-warning", low: "bg-muted-foreground/60" };
 const statusLabel: Record<ReviewStatus, string> = { open: "Needs review", reviewed: "Reviewed", dismissed: "Dismissed", coached: "Coached" };
@@ -79,8 +78,6 @@ export function FlagRow({ flag, busy, onReview, onCoach, onOpenConversation, onO
   );
 }
 
-const flaggedConfig = { flagged: { label: "Flagged", color: "var(--chart-1)" } } satisfies ChartConfig;
-
 export function flaggedPerDay(flags: Flag[], days: number, now = new Date()) {
   const buckets = new Map<string, number>();
   for (let offset = days; offset >= 0; offset -= 1) {
@@ -97,17 +94,13 @@ export function MonitorOverview({ flags, conversations, days }: { flags: Flag[];
   return (
     <div className="grid gap-0 border-b border-border sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
       <dl className="grid grid-cols-3 gap-3 px-4 py-3 sm:grid-cols-1 sm:border-r sm:border-border">
-        <div><dt className="text-xs text-muted-foreground">Flagged rate</dt><dd className="font-mono text-xl tabular-nums text-foreground">{conversations ? percent(flaggedConversations / conversations) : "—"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Flagged rate</dt><dd className="text-[26px] leading-tight font-semibold tracking-[-0.03em] tabular-nums text-foreground">{conversations ? percent(flaggedConversations / conversations) : "—"}</dd></div>
         <div><dt className="text-xs text-muted-foreground">Conversations flagged</dt><dd className="font-mono text-sm tabular-nums text-foreground">{flaggedConversations} <span className="text-muted-foreground">of {conversations}</span></dd></div>
         <div><dt className="text-xs text-muted-foreground">Needs review</dt><dd className="font-mono text-sm tabular-nums text-foreground">{open}</dd></div>
       </dl>
-      <ChartContainer config={flaggedConfig} className="aspect-auto h-36 w-full p-2" aria-label={`Flags per day over ${days} days`}>
-        <BarChart data={flaggedPerDay(flags, days)} margin={{ left: 8, right: 8, top: 8 }}>
-          <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} />
-          <ChartTooltip isAnimationActive={false} cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltipContent />} />
-          <Bar dataKey="flagged" fill="var(--color-flagged)" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-        </BarChart>
-      </ChartContainer>
+      <DotMatrixChart label={`Flags per day over ${days} days`} rows={9}
+        series={[{ key: "flagged", label: "Flagged", color: "var(--chart-1)" }]}
+        data={flaggedPerDay(flags, days).map((point) => ({ label: point.label, values: { flagged: point.flagged } }))} />
     </div>
   );
 }

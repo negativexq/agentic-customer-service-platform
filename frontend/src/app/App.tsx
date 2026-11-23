@@ -313,7 +313,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     content = wide ? (
       // The fixed-height wrapper keeps the inbox to the viewport: the panel library sets an
       // inline height on the group that would otherwise let a long list stretch the page.
-      <><h1 className="sr-only">Conversations</h1><div className="h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden"><ResizablePanelGroup orientation="horizontal" className="workspace-panels h-full min-h-0" id="conversations-layout">
+      <><h1 className="sr-only">Conversations</h1><div className="h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden md:h-[calc(100svh-4.5rem-2px)]"><ResizablePanelGroup orientation="horizontal" className="workspace-panels h-full min-h-0" id="conversations-layout">
         <ResizablePanel defaultSize="340px" minSize="280px" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>
         <ResizableHandle />
         <ResizablePanel minSize="40%" className="min-w-0">{thread}</ResizablePanel>
@@ -327,7 +327,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         )}
       </ResizablePanelGroup></div></>
     ) : (
-      <div className="flex min-h-[calc(100svh-3.5rem)] flex-col">
+      <div className="flex min-h-[calc(100svh-3.5rem)] flex-col md:min-h-[calc(100svh-4.5rem-2px)]">
         <h1 className="sr-only">Conversations</h1>
         {mobilePane === "list" ? <div className="min-h-0 flex-1">{rail}</div> : thread}
         <Sheet open={contextSheetOpen && mobilePane === "thread" && target?.kind === "conversation" && Boolean(threadDetail)} onOpenChange={setContextSheetOpen}>

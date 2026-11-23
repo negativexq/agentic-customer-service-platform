@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 export function Stat({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
   return (
-    <div className="min-w-0 border-border px-4 py-3">
+    <div className="min-w-0 border-border px-4 py-3.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-mono text-xl font-medium tabular-nums tracking-tight text-foreground">{value}</dd>
-      {detail && <dd className="mt-0.5 truncate text-xs text-muted-foreground">{detail}</dd>}
+      <dd className="mt-1.5 text-[26px] leading-none font-semibold tracking-[-0.03em] tabular-nums text-foreground">{value}</dd>
+      {detail && <dd className="mt-1.5 truncate text-xs text-muted-foreground">{detail}</dd>}
     </div>
   );
 }

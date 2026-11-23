@@ -15,8 +15,8 @@ import { UI_LOCALE } from "@/lib/utils";
 
 const latencyConfig = { latency: { label: "Latency (ms)", color: "var(--chart-1)" } } satisfies ChartConfig;
 const tokenConfig = {
-  tokensIn: { label: "Input tokens", color: "var(--chart-3)" },
-  tokensOut: { label: "Output tokens", color: "var(--chart-2)" },
+  tokensIn: { label: "Input tokens", color: "var(--chart-1)" },
+  tokensOut: { label: "Output tokens", color: "var(--foreground)" },
 } satisfies ChartConfig;
 
 const componentTone: Record<string, string> = {
@@ -235,7 +235,7 @@ export function MonitoringPage({ runs: allRuns, health, loading, healthUnavailab
                   <Table className="min-w-[760px]">
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        {["Time", "Conversation", "Intent", "Model", "Latency", "Input", "Output"].map((label) => <TableHead key={label} className="h-9 px-4 text-xs font-medium text-muted-foreground">{label}</TableHead>)}
+                        {["Time", "Conversation", "Intent", "Model", "Latency", "Input", "Output"].map((label) => <TableHead key={label} className="h-9 px-4">{label}</TableHead>)}
                       </TableRow>
                     </TableHeader>
                     <TableBody>

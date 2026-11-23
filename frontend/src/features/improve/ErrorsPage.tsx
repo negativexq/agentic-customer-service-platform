@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/primitives/chart";
 import { Skeleton } from "@/components/primitives/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/primitives/table";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -9,8 +7,9 @@ import { formatRelative, humanize } from "../runs/runPresentation";
 import { useErrorLog } from "./queries";
 import { EmptyNote, percent, Section, WindowPicker } from "./shared";
 import { UI_LOCALE } from "@/lib/utils";
+import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 
-const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+const palette = ["var(--chart-5)", "var(--chart-4)", "var(--chart-3)", "var(--chart-1)", "var(--chart-2)"];
 
 export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }) {
   const [days, setDays] = useState(7);
@@ -18,7 +17,6 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
   const query = useErrorLog(days);
   const data = query.data;
   const names = (data?.categories ?? []).map((item) => item.category);
-  const config = Object.fromEntries(names.map((name, index) => [name, { label: humanize(name), color: palette[index % palette.length] }])) satisfies ChartConfig;
   const chart = (data?.daily ?? []).map((point) => ({ ...point, label: new Date(`${point.day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" }) }));
   const errors = (data?.errors ?? []).filter((row) => !category || row.category === category);
 
@@ -36,15 +34,9 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
         )}
         <Section title="Errors per day">
           {!data ? <Skeleton className="m-4 h-52" /> : data.failed_runs === 0 ? <EmptyNote>No failed runs in the last {days} days.</EmptyNote> : (
-            <ChartContainer config={config} className="aspect-auto h-52 w-full p-2">
-              <BarChart data={chart} margin={{ left: 4, right: 12, top: 12 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
-                <ChartTooltip isAnimationActive={false} cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltipContent />} />
-                {names.map((name, index) => <Bar key={name} dataKey={name} stackId="errors" fill={`var(--color-${name})`} radius={index === names.length - 1 ? [2, 2, 0, 0] : 0} isAnimationActive={false} />)}
-              </BarChart>
-            </ChartContainer>
+            <DotMatrixChart label="Errors per day" rows={14}
+              series={names.map((name, index) => ({ key: name, label: humanize(name), color: palette[index % palette.length] }))}
+              data={chart.map((point) => ({ label: point.label, values: Object.fromEntries(names.map((name) => [name, Number((point as Record<string, unknown>)[name] ?? 0)])) }))} />
           )}
         </Section>
         <Section title="Failed runs" description={category ? humanize(category) : undefined}

@@ -1,4 +1,4 @@
-import { ArrowUp, Bot, Bug, ChevronLeft, FlaskConical, Hand, Lock, MessagesSquare, PanelRight, ShieldCheck, StickyNote, Trash2, Undo2, CheckCheck, Wrench } from "lucide-react";
+import { ArrowUp, Bug, ChevronLeft, FlaskConical, Hand, Lock, MessagesSquare, PanelRight, ShieldCheck, StickyNote, Trash2, Undo2, CheckCheck, Wrench } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { AgentResponse, ConversationTurn, OperatorConversationDetail, OperatorIdentity, RecordedMessage } from "../../types";
 import { formatRelative, humanize, parseTimestamp, toneDot } from "../runs/runPresentation";
@@ -10,6 +10,7 @@ import { SavedReplyMenu } from "../workspace/SavedReplyMenu";
 import { slaLabel, slaTone } from "../workspace/sla";
 import type { Note } from "../workspace/types";
 import { UI_LOCALE } from "@/lib/utils";
+import { AgentOrb } from "../../components/AgentOrb";
 
 export type ThreadTarget =
   | { kind: "draft"; conversationId: string; customerId: number }
@@ -112,9 +113,11 @@ function Message({ row, customerName, onInspect, onQuickReply }: { row: { messag
       : "rounded-br-sm border border-border bg-card text-foreground";
   return (
     <li className={`flex gap-2 ${fromCustomer ? "" : "flex-row-reverse"}`} data-testid={fromCustomer ? "conversation-request" : message.sender_type === "ai" ? "agent-response" : "operator-message"}>
-      <span className={`mt-5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${fromCustomer ? "bg-muted text-foreground" : message.sender_type === "ai" ? "bg-success/12 text-success" : "bg-primary/15 text-primary"}`} aria-hidden="true">
-        {fromCustomer ? initials(customerName) : message.sender_type === "ai" ? <Bot className="size-3.5" /> : initials(message.sender_name ?? "Operator")}
-      </span>
+      {message.sender_type === "ai" && !fromCustomer ? <AgentOrb className="mt-5 size-7" /> : (
+        <span className={`mt-5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${fromCustomer ? "bg-muted text-foreground" : "bg-primary/15 text-primary"}`} aria-hidden="true">
+          {fromCustomer ? initials(customerName) : initials(message.sender_name ?? "Operator")}
+        </span>
+      )}
       <div className={`grid gap-1 ${blocks.length ? "w-full max-w-[min(92%,40rem)]" : "max-w-[78%]"} ${fromCustomer ? "justify-items-start" : "justify-items-end"}`}>
         <span className="px-1 text-xs text-muted-foreground">{senderLabel(message, customerName)} · {time(message.created_at)}</span>
         <p className={`rounded-xl px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap ${bubble}`}>{message.sender_type === "ai" ? bubbleText(message.content, blocks) : message.content}</p>
@@ -135,7 +138,7 @@ function Message({ row, customerName, onInspect, onQuickReply }: { row: { messag
 function TypingIndicator() {
   return (
     <li className="flex flex-row-reverse gap-2" role="status" aria-live="polite" data-testid="ai-typing">
-      <span className="mt-5 flex size-7 shrink-0 items-center justify-center rounded-full bg-success/12 text-success" aria-hidden="true"><Bot className="size-3.5" /></span>
+      <AgentOrb thinking className="mt-5 size-7" />
       <div className="grid justify-items-end gap-1">
         <span className="px-1 text-xs text-muted-foreground">AI assistant is typing…</span>
         <span className="inline-flex h-10 items-center gap-1 rounded-xl rounded-br-sm border border-border bg-card px-4" aria-hidden="true">
