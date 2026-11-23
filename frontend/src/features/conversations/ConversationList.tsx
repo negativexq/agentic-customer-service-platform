@@ -1,4 +1,4 @@
-import { FlaskConical, Search, Star } from "lucide-react";
+import { Clock, FlaskConical, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/primitives/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/primitives/tooltip";
@@ -6,7 +6,7 @@ import { usePreferences } from "@/lib/preferences";
 import type { OperatorConversation } from "../../types";
 import { formatRelative, toneDot } from "../runs/runPresentation";
 import { handler, inboxFilters, initials, matchesFilter, previewText, type InboxFilter } from "./conversations";
-import { slaLabel, slaTone } from "../workspace/sla";
+import { slaLabel, slaShort, slaTone } from "../workspace/sla";
 
 type Props = {
   conversations: OperatorConversation[];
@@ -16,8 +16,6 @@ type Props = {
   onSelect: (conversation: OperatorConversation) => void;
   onNewTest: () => void;
 };
-
-const priorityTone: Record<string, string> = { urgent: "text-danger", high: "text-danger", medium: "text-warning", low: "text-muted-foreground" };
 
 export function ConversationList({ conversations, loading, selectedId, draftActive, onSelect, onNewTest }: Props) {
   const preferences = usePreferences();
@@ -84,7 +82,7 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
           />
         </div>
       </div>
-      <ul className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+      <ul className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2 pb-2">
         {visible.length === 0 && (
           <li className="px-2 py-8 text-center text-xs text-muted-foreground">
             {loading ? "Loading conversations…" : query ? "No conversations match." : filter === "queued" ? "Nobody is waiting for a person." : filter === "mine" ? "You are not handling any conversation." : "No conversations here yet."}
@@ -93,31 +91,38 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
         {visible.map((item) => {
           const who = handler(item);
           const selected = item.id === selectedId;
+          const waiting = item.owner === "queued";
+          const urgent = Boolean(item.escalation && item.owner !== "closed" && item.owner !== "ai" && (item.escalation.priority === "high" || item.escalation.priority === "urgent"));
           return (
             <li key={item.id}>
               <button
                 type="button"
                 onClick={() => onSelect(item)}
                 aria-current={selected ? "true" : undefined}
-                className={`flex w-full gap-2.5 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none ${selected ? "bg-accent" : ""}`}
+                className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none ${selected ? "bg-accent" : ""}`}
               >
-                <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+                <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground" title={who.label}>
                   {initials(item.customer_name)}
                   <span className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background ${toneDot[who.tone]}`} aria-hidden="true" />
                 </span>
-                <span className="grid min-w-0 flex-1 gap-0.5">
+                <span className="grid min-w-0 flex-1 gap-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">{item.customer_name}</span>
+                    <span className={`truncate text-sm text-foreground ${waiting ? "font-semibold" : "font-medium"}`}>{item.customer_name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(item.updated_at)}</span>
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">{previewText(item.last_message)}</span>
-                  <span className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="truncate">{who.short}</span>
-                    {item.escalation && item.owner !== "closed" && item.owner !== "ai" && (
-                      <span className={`shrink-0 ${priorityTone[item.escalation.priority] ?? "text-muted-foreground"}`}>{item.escalation.priority}</span>
-                    )}
-                    {item.sla && <span className={`ml-auto shrink-0 tabular-nums ${slaTone[item.sla.state]}`} data-testid="inbox-sla">{slaLabel(item.sla)}</span>}
-                    {!item.sla && item.csat_rating != null && <span className="ml-auto inline-flex shrink-0 items-center gap-0.5" aria-label={`Rated ${item.csat_rating} of 5`}><Star className="size-3 fill-warning text-warning" aria-hidden="true" />{item.csat_rating}</span>}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="sr-only">{who.label}.</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{previewText(item.last_message)}</span>
+                    {/* One signal per row: a breached or at-risk reply time, else a high priority. */}
+                    {item.sla && item.sla.state !== "ok" ? (
+                      <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] tabular-nums ${slaTone[item.sla.state]}`} data-testid="inbox-sla" title={slaLabel(item.sla)}>
+                        <Clock className="size-3" aria-hidden="true" />{slaShort(item.sla)}
+                      </span>
+                    ) : urgent ? (
+                      <span className="size-2 shrink-0 rounded-full bg-danger" title={`${item.escalation?.priority} priority`} aria-label={`${item.escalation?.priority} priority`} />
+                    ) : !item.sla && item.csat_rating != null ? (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground" aria-label={`Rated ${item.csat_rating} of 5`}><Star className="size-3 fill-warning text-warning" aria-hidden="true" />{item.csat_rating}</span>
+                    ) : null}
                   </span>
                 </span>
               </button>

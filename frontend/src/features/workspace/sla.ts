@@ -13,6 +13,14 @@ export function slaLabel(sla: SlaStatus, now = Date.now()): string {
   return minutes < 0 ? `Overdue ${span(minutes)}` : `${span(minutes)} left`;
 }
 
+/** "5h" or "12m": the inbox row's compact form; the full label stays in its tooltip. */
+export function slaShort(sla: SlaStatus, now = Date.now()): string {
+  const minutes = Math.abs(Math.round((parseTimestamp(sla.due_at).getTime() - now) / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+  return `${Math.floor(minutes / 1440)}d`;
+}
+
 export const slaTone: Record<SlaStatus["state"], string> = {
   ok: "text-muted-foreground",
   at_risk: "text-warning",

@@ -314,9 +314,9 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
       // The fixed-height wrapper keeps the inbox to the viewport: the panel library sets an
       // inline height on the group that would otherwise let a long list stretch the page.
       <><h1 className="sr-only">Conversations</h1><div className="h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden"><ResizablePanelGroup orientation="horizontal" className="workspace-panels h-full min-h-0" id="conversations-layout">
-        <ResizablePanel defaultSize="26%" minSize="18%" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>
+        <ResizablePanel defaultSize="340px" minSize="280px" maxSize="40%" className="min-w-0 border-r-0 bg-sidebar/40">{rail}</ResizablePanel>
         <ResizableHandle />
-        <ResizablePanel defaultSize="74%" minSize="40%" className="min-w-0">{thread}</ResizablePanel>
+        <ResizablePanel minSize="40%" className="min-w-0">{thread}</ResizablePanel>
         {contextOpen && target?.kind === "conversation" && threadDetail && (
           <>
             <ResizableHandle />
