@@ -248,9 +248,13 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
     content = (
       <OverviewPage
         runs={liveRuns}
+        inbox={inbox.data ?? []}
+        inboxLoading={inbox.isPending}
+        runtimeConfig={runtimeConfig.data}
         onOpenRun={openRun}
+        onOpenConversation={showConversation}
         onOpenConversations={() => navigateToView("workspace")}
-        onOpenRuns={() => navigateToView("traces")}
+        onNavigate={navigateToView}
         onExploreDemo={() => { setPlaygroundExecution(null); navigate("/playground?demo=refund-memory-rag"); }}
       />
     );

@@ -49,14 +49,20 @@ export function PerformanceSummaryStrip({ summary, daily = [], previous, current
   );
 }
 
-export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent: string) => void }) {
-  const [days, setDays] = useState(30);
+const toComparison = (half: Record<string, number>): Comparison => ({ conversations: half.conversations, ai_resolved: half.ai_resolved, handed_off: half.handed_off });
+
+/** The chosen window plus, when the API can serve twice its length, the same totals for the window before it. */
+export function usePerformanceComparison(days: number) {
   const query = usePerformance(days);
-  const data = query.data;
   const span = compareWindow(days);
   const wide = usePerformance(span ?? days);
   const halves = span && wide.data && !wide.isPlaceholderData ? windowHalves(wide.data.daily, days, ["conversations", "ai_resolved", "handed_off"]) : null;
-  const toComparison = (half: Record<string, number>): Comparison => ({ conversations: half.conversations, ai_resolved: half.ai_resolved, handed_off: half.handed_off });
+  return { query, data: query.data, current: halves ? toComparison(halves[0]) : undefined, previous: halves ? toComparison(halves[1]) : undefined };
+}
+
+export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent: string) => void }) {
+  const [days, setDays] = useState(30);
+  const { query, data, current, previous } = usePerformanceComparison(days);
   const trend = (data?.daily ?? []).map((point) => ({ ...point, label: dayLabel(point.day) }));
 
   return (
@@ -65,7 +71,7 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
         actions={<WindowPicker value={days} onChange={setDays} />} />
       <div className="grid gap-4 p-4 sm:p-6">
         {query.isError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">Performance data is unavailable. Check that the operator API is running.</p>}
-        {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : <PerformanceSummaryStrip summary={data.summary} daily={data.daily} current={halves ? toComparison(halves[0]) : undefined} previous={halves ? toComparison(halves[1]) : undefined} />}
+        {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : <PerformanceSummaryStrip summary={data.summary} daily={data.daily} current={current} previous={previous} />}
 
         <Section title="Resolutions per day" description="A conversation counts as handed off once it reached a person, even if the AI answered first.">
           {!data ? <Skeleton className="m-4 h-56" /> : data.summary.conversations === 0 ? <EmptyNote>No conversations in this window.</EmptyNote> : (
