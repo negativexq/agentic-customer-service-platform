@@ -266,7 +266,10 @@ The console and the knowledge base work without a model. The assistant needs an 
 LLM_MODEL=gpt-4.1-mini
 COMPOSE_LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=sk-...
+LLM_STRUCTURED_OUTPUT_MODE=function_calling
 ~~~
+
+OpenAI rejects the decision schema in the default `schema` mode, so `function_calling` is required.
 
 To keep the key out of the file, write `LLM_API_KEY=${OPENAI_API_KEY}` instead and export `OPENAI_API_KEY` in the shell before every `docker compose up`. If it is not set, Compose warns that the variable is not set and the assistant runs without a key.
 
