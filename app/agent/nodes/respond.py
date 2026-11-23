@@ -222,11 +222,9 @@ def _open_reply(text: str) -> str:
         )
     if _GREETING.match(text):
         return (
-            "Merhaba! Siparişleriniz, iade ve iptaller, destek talepleriniz ya da kargo ve "
-            "politikalarımızla ilgili yardımcı olabilirim. Size nasıl yardımcı olayım?"
+            "Merhaba! Size nasıl yardımcı olabilirim?"
             if turkish
-            else "Hi! I can help with your orders, refunds and cancellations, support tickets, "
-            "or questions about shipping and our policies. What can I do for you?"
+            else "Hi! How can I help you today?"
         )
     return (
         "Ne yapmak istediğinizi biraz netleştirebilir misiniz? Siparişleriniz, iade ve "
