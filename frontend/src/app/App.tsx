@@ -89,7 +89,8 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const [turnsByConversation, setTurnsByConversation] = useState<Record<string, ConversationTurn[]>>({});
   const [inspectRunId, setInspectRunId] = useState<string | null>(null);
   const [conversationDebugOpen, setConversationDebugOpen] = useState(false);
-  const [contextOpen, setContextOpen] = useState(() => window.localStorage.getItem("agentops-context-panel") !== "closed");
+  // Customer details start closed so the thread has room; the operator opens them on demand.
+  const [contextOpen, setContextOpen] = useState(false);
   // Narrow screens show one pane at a time (list or thread) and customer details in a sheet.
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
   const [contextSheetOpen, setContextSheetOpen] = useState(false);
@@ -304,7 +305,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         onInspectConversation={() => setConversationDebugOpen(true)}
         contextOpen={wide ? contextOpen : contextSheetOpen}
         onToggleContext={wide
-          ? () => setContextOpen((open) => { window.localStorage.setItem("agentops-context-panel", open ? "closed" : "open"); return !open; })
+          ? () => setContextOpen((open) => !open)
           : () => setContextSheetOpen((open) => !open)}
         onBack={wide ? undefined : () => setMobilePane("list")}
       />
