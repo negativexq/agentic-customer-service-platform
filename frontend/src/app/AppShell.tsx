@@ -55,6 +55,8 @@ function NavigationLinks({ activeView, onNavigate, badges = {} }: Pick<AppShellP
                   <SidebarMenuButton
                     isActive={activeView === view}
                     tooltip={label}
+                    // Tablet widths and touch screens get 40px rows: a finger, not a cursor.
+                    className="pointer-coarse:h-10 md:max-lg:h-10"
                     render={
                       <a
                         href={viewPaths[view]}
@@ -74,7 +76,7 @@ function NavigationLinks({ activeView, onNavigate, badges = {} }: Pick<AppShellP
                   </SidebarMenuButton>
                   {badges[view] && badges[view].count > 0 && (
                     <SidebarMenuBadge aria-hidden="true" title={`${badges[view].count} ${badges[view].label}`}
-                      className={`top-1.5! h-5 rounded-full px-1.5 text-[11px] ${badgeTone[badges[view].tone]}`}>
+                      className={`top-1.5! h-5 rounded-full px-1.5 text-[11px] pointer-coarse:top-2.5! md:max-lg:top-2.5! ${badgeTone[badges[view].tone]}`}>
                       {badges[view].count > 99 ? "99+" : badges[view].count}
                     </SidebarMenuBadge>
                   )}
