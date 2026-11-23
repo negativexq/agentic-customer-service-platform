@@ -31,6 +31,10 @@ from app.resilience.control import ReliabilityController
 from app.resilience.errors import ResilienceError, RetryExhaustedError
 from app.resilience.retry import run_with_retry
 
+CONVERSATION_MOVES = frozenset(
+    {"greeting", "small_talk", "closing", "off_topic", "about_assistant", "own_name"}
+)
+
 
 def _security_block(
     state: AgentState,
@@ -164,6 +168,28 @@ def make_understand_request_node(
                 "workflow_active": False,
                 "pending_workflow_decision": None,
                 "missing_required_fields": [],
+            }
+        move = state.get("conversation_move")
+        if move in CONVERSATION_MOVES and pending_action is None:
+            # Hello, goodbye, chit-chat or an off-topic question asks nothing of the store, so
+            # there is nothing to decide or look up; the reply is a short human one.
+            social = SemanticDecisionV3(
+                intent=Intent.UNKNOWN,
+                request_type=AgentRequestType.UNCLEAR,
+                reason=f"conversation_{move}",
+            )
+            return {
+                "semantic_decision": normalize_semantic_decision(social),
+                "intent": Intent.UNKNOWN,
+                "request_type": AgentRequestType.UNCLEAR,
+                "selected_tool": None,
+                "tool_arguments": {},
+                "requires_retrieval": False,
+                "decision_reason": f"conversation_{move}",
+                "last_error": None,
+                "error_category": None,
+                "provider_metadata": _provider_metadata(provider),
+                "security_signal": None,
             }
         if is_memory_summary_request(message):
             summary_decision = SemanticDecisionV3(

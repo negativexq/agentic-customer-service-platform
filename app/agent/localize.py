@@ -32,7 +32,7 @@ _INSTRUCTION = (
     "You translate a customer-support reply into {language}. Translate faithfully and "
     "naturally, as a friendly support agent would write it. Do not add, remove, or change any "
     "fact, promise, number, order or ticket id, amount, date, or status meaning. Keep '#' "
-    "before ids. In Turkish, a support ticket is \"destek talebi\" and a refund is \"iade\". "
+    'before ids. In Turkish, a support ticket is "destek talebi" and a refund is "iade". '
     "Return only the translated reply."
 )
 

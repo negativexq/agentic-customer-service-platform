@@ -48,7 +48,7 @@ from app.auth.models import ActorType, Principal
 from app.core.config import DecisionContractVersion, LLMProvider, Settings, get_settings
 from app.core.context import ExecutionContext
 from app.memory.service import MemoryService
-from app.models.entities import ConversationOwner
+from app.models.entities import ConversationOwner, Customer
 from app.observability.metrics import get_metrics, record_agent_run_summary
 from app.observability.privacy import safe_exception_type
 from app.observability.tracing import span
@@ -84,6 +84,9 @@ logger = logging.getLogger(__name__)
 HANDOFF_ACKNOWLEDGEMENT = (
     "A support specialist is handling this conversation and will reply here as soon as one is "
     "available."
+)
+HANDOFF_ACKNOWLEDGEMENT_TR = (
+    "Bir destek uzmanı bu konuşmayla ilgileniyor ve müsait olduğunda size buradan yanıt verecek."
 )
 
 
@@ -217,7 +220,10 @@ class AgentRuntime:
             "withdraws": reading.withdraws,
             "asks_memory_summary": reading.asks_memory_summary,
             "acknowledgement": reading.acknowledgement,
+            "conversation_move": reading.conversation_move,
         }
+        if reading.conversation_move == "own_name":
+            signals["customer_name"] = _customer_name(session, execution_context)
         if reading.language in {"english", "turkish"}:
             # The language this message is written in; kept so "2" or "👍" keep it too.
             signals["message_language"] = reading.language
@@ -253,6 +259,7 @@ class AgentRuntime:
                     "withdraws": False,
                     "asks_memory_summary": False,
                     "acknowledgement": False,
+                    "conversation_move": None,
                 },
             )
             replies.append(response)
@@ -276,7 +283,16 @@ class AgentRuntime:
     ) -> tuple[AgentResponse, AgentState | None]:
         turn = begin_agent_turn(session, execution_context)
         if not turn.ai_may_respond:
-            response = _handoff_response(execution_context, turn.owner, execution_mode)
+            response = _handoff_response(
+                execution_context,
+                turn.owner,
+                execution_mode,
+                turkish=signals.get("message_language") == "turkish"
+                or (
+                    signals.get("message_language") is None
+                    and detect_language(message) == "Turkish"
+                ),
+            )
             self._record_handoff_projection(session, execution_context, response)
             return response, None
         conversation_id = execution_context.conversation_id
@@ -548,15 +564,33 @@ class AgentRuntime:
         )
 
 
+def _handoff_text(turkish: bool) -> str:
+    return HANDOFF_ACKNOWLEDGEMENT_TR if turkish else HANDOFF_ACKNOWLEDGEMENT
+
+
+def _customer_name(session: Session, context: ExecutionContext) -> str | None:
+    """The signed-in customer's own name, within their tenant; None if it can't be read."""
+
+    try:
+        customer = session.get(Customer, context.effective_customer_id)
+    except Exception:  # noqa: BLE001 - the reply says it can't see the name
+        return None
+    if customer is None or customer.tenant_id != context.tenant_id:
+        return None
+    return customer.name
+
+
 def _handoff_response(
     context: ExecutionContext,
     owner: ConversationOwner,
     execution_mode: AgentExecutionMode,
+    *,
+    turkish: bool = False,
 ) -> AgentResponse:
     return AgentResponse(
         conversation_id=context.conversation_id,
         agent_run_id=str(uuid4()),
-        message=HANDOFF_ACKNOWLEDGEMENT,
+        message=_handoff_text(turkish),
         intent=Intent.HUMAN_ESCALATION,
         request_type=AgentRequestType.ESCALATION,
         decision_reason="conversation_handoff_active",
@@ -594,7 +628,8 @@ def _apply_current_ownership(
 def _withheld_response(response: AgentResponse, owner: ConversationOwner) -> AgentResponse:
     return response.model_copy(
         update={
-            "message": HANDOFF_ACKNOWLEDGEMENT,
+            # The withheld reply was already in the customer's language; the notice follows it.
+            "message": _handoff_text(detect_language(response.message) == "Turkish"),
             "blocks": [],
             "decision_reason": "conversation_ownership_changed",
             "tool_call": None,

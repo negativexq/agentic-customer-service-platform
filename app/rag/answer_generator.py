@@ -309,6 +309,12 @@ class GroundedAnswerGenerator:
         )
 
 
+def insufficient_evidence_answer() -> GroundedAnswer:
+    """The honest "the articles don't cover this" answer."""
+
+    return _uncertain_answer()
+
+
 def _uncertain_answer() -> GroundedAnswer:
     return GroundedAnswer(
         answer=_SAFE_UNCERTAINTY,
@@ -526,6 +532,12 @@ def _is_relevant(query: str, chunk: RetrievedChunk) -> bool:
     if not distinctive:
         return bool(covered)
     return bool(matched) and len(matched) / len(distinctive) >= 0.5
+
+
+def term_matches(term: str, evidence_terms: set[str]) -> bool:
+    """A question term appears in the evidence, allowing the same word stem."""
+
+    return _term_matches(term, evidence_terms)
 
 
 def _term_matches(term: str, evidence_terms: set[str]) -> bool:

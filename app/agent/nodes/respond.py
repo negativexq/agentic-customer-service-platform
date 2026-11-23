@@ -252,8 +252,17 @@ _RECAP = re.compile(
 
 
 def _recap(state: AgentState) -> str:
-    """A short recap from this conversation's own replies; nothing is stored."""
+    """A short recap of what the conversation actually did: lookups, answers, actions.
 
+    Each turn that executed a tool or answered from an article leaves one line in ``covered``;
+    greetings, clarifications and "I couldn't find that" replies leave none, and a line said
+    twice is listed once.
+    """
+
+    covered = list(dict.fromkeys(state.get("covered") or []))
+    if covered:
+        lines = "\n".join(f"• {line}" for line in covered[-5:])
+        return f"Here's what we've covered so far:\n{lines}"
     replies = [
         item["content"].split(". ")[0].rstrip(".")
         for item in state.get("messages", [])[:-1]
@@ -286,6 +295,51 @@ def _asks_arrival(text: str) -> bool:
 def _shipped(state: AgentState) -> bool:
     result = state.get("tool_result")
     return isinstance(result, dict) and result.get("status") == "shipped"
+
+
+_MOVE_REPLIES = {
+    "greeting": "Hi! How can I help you today?",
+    "small_talk": (
+        "Thanks for chatting! I'm here to help with your orders, refunds and cancellations, "
+        "support tickets, and our store policies. What can I do for you?"
+    ),
+    "closing": "Thanks for reaching out! Have a great day, and I'm here if you need anything else.",
+    "off_topic": (
+        "Sorry, I can't help with that here. I can help with your orders, refunds and "
+        "cancellations, support tickets, and our store policies. Is there anything along those "
+        "lines I can do for you?"
+    ),
+}
+
+
+_MOVES = {*_MOVE_REPLIES, "about_assistant", "own_name"}
+
+
+def _move_reply(state: AgentState) -> str:
+    move = str(state.get("conversation_move"))
+    if move == "about_assistant":
+        return _IDENTITY_REPLY
+    if move == "own_name":
+        name = state.get("customer_name")
+        if name:
+            return f"Your account is under the name {name}. How can I help you today?"
+        return "I can't see a name on your account here. How can I help you today?"
+    return _MOVE_REPLIES[move]
+
+
+def _covered(state: AgentState, message: str) -> list[str]:
+    """This turn's line for the recap, when it actually looked something up or did something."""
+
+    covered = list(state.get("covered") or [])
+    grounded = (state.get("answer_grounding") or {}).get("status") == "pass"
+    did_something = state.get("tool_execution_status") == "executed" or (
+        state.get("knowledge_answer") is not None and grounded
+    )
+    if did_something and state.get("error_category") is None:
+        first = message.split("\n")[0].split(". ")[0].strip().rstrip(".")
+        if first:
+            covered.append(f"{first}.")
+    return covered[-8:]
 
 
 _IDENTITY_REPLY = (
@@ -414,6 +468,13 @@ def respond(state: AgentState) -> AgentState:
         )
     elif state.get("decision_reason") == "customer_withdrew":
         message = "No problem, I've set that aside. Is there anything else I can help with?"
+    elif (
+        state.get("conversation_move") in _MOVES
+        and state.get("request_type") == AgentRequestType.UNCLEAR
+        and state.get("tool_execution_status") != "executed"
+        and pending_action is None
+    ):
+        message = _move_reply(state)
     elif (
         state.get("acknowledgement")
         and state.get("tool_execution_status") != "executed"
@@ -594,6 +655,7 @@ def respond(state: AgentState) -> AgentState:
             "help you."
         )
     return {
+        "covered": _covered(state, message),
         "last_reference": _last_reference(state),
         "final_response": message,
         "messages": [{"role": "assistant", "content": message}],

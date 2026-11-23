@@ -11,6 +11,8 @@ signals a keyword list used to guess are read here by the model instead, in one 
 * ``upset``: the customer is plainly frustrated, so a handoff starts with an apology and skips
   the offer step.
 * ``reply_language``: the customer asked for replies in a given language from now on.
+* ``conversation_move``: a message that asks nothing of the store (hello, chit-chat, goodbye, an
+  off-topic question, "who are you?") gets a short human reply instead of a policy search.
 
 Without a model (tests, offline) or when the call fails, the message is one request with no
 signals, and the callers fall back to their conservative defaults.
@@ -24,7 +26,7 @@ from typing import Literal, Protocol
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import Settings
 
@@ -33,13 +35,14 @@ logger = logging.getLogger(__name__)
 MAX_PARTS = 3
 _MAX_PART_LENGTH = 1000
 _NUMBER = re.compile(r"\d+")
+_MOVES = {"greeting", "small_talk", "closing", "off_topic", "about_assistant", "own_name"}
 
 _INSTRUCTION = (
     "You read one customer-support message and return JSON only, in this shape: "
     '{"requests": [{"text": "...", "status_question": false, "list_position": null}], '
     '"upset": false, '
     '"reply_language": null, "language": "turkish", "withdraws": false, '
-    '"asks_memory_summary": false, "acknowledgement": false}.\n'
+    '"asks_memory_summary": false, "acknowledgement": false, "conversation_move": null}.\n'
     "requests: the message's separate requests, in the order asked; one item when it is a "
     "single request. A separate request could be handled on its own: looking something up, an "
     "action such as a refund, cancellation or support ticket, or a policy question. Separate "
@@ -65,7 +68,16 @@ _INSTRUCTION = (
     '"vazgeçtim", "gerek yok") without asking for anything new.\n'
     "asks_memory_summary: true when the customer asks what you remember or know about them.\n"
     'acknowledgement: true when the whole message only acknowledges ("ok", "got it", '
-    "a thumbs up) and asks for nothing."
+    "a thumbs up) and asks for nothing.\n"
+    "conversation_move: set only when the whole message asks nothing about this store's "
+    "orders, refunds, cancellations, support tickets, delivery, payments, account or store "
+    'policies; otherwise null. "greeting": only says hello. "small_talk": chit-chat such as '
+    '"how are you?" or "I\'m tired today". "closing": ends the conversation, a thank-you or '
+    'goodbye ("thanks, have a nice day", "bye"). "off_topic": asks for something unrelated to '
+    "this store's customer support, such as general knowledge, weather, recipes, jokes, "
+    "coding, math, medical, legal, financial or political advice, or product recommendations. "
+    '"about_assistant": asks who or what the assistant is (its name, whether it is a person or '
+    'a bot). "own_name": asks whether the assistant knows the customer\'s name.'
 )
 
 
@@ -84,6 +96,16 @@ class MessageReading(BaseModel):
     withdraws: bool = False
     asks_memory_summary: bool = False
     acknowledgement: bool = False
+    conversation_move: (
+        Literal["greeting", "small_talk", "closing", "off_topic", "about_assistant", "own_name"]
+        | None
+    ) = None
+
+    @field_validator("conversation_move", mode="before")
+    @classmethod
+    def _unknown_move_is_none(cls, value: object) -> object:
+        # An unexpected label must not throw away the rest of the reading.
+        return value if value in _MOVES else None
 
 
 class MessageReader(Protocol):

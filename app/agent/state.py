@@ -144,6 +144,12 @@ class AgentState(TypedDict, total=False):
     list_position: int | None
     asks_memory_summary: bool
     acknowledgement: bool
+    # Hello, chit-chat, goodbye, off-topic, "who are you?", "do you know my name?" (model-read).
+    conversation_move: str | None
+    # The signed-in customer's own name, loaded only when they ask for it.
+    customer_name: str | None
+    # Short English lines for what each turn actually did, for "what did we talk about?".
+    covered: list[str]
     # The order or ticket the last reply was about, for "what was its number?".
     last_reference: dict[str, Any] | None
     workflow_validation_context: dict[str, object]
