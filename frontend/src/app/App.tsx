@@ -36,6 +36,7 @@ import { ActionsPage } from "../features/studio/ActionsPage";
 import { GuidancePage, type GuidanceSeed } from "../features/studio/GuidancePage";
 import { coachingSeed } from "../features/improve/coaching";
 import { ErrorsPage } from "../features/improve/ErrorsPage";
+import { AuditPage } from "../features/audit/AuditPage";
 import { OptimizePage } from "../features/improve/OptimizePage";
 import { PerformancePage } from "../features/improve/PerformancePage";
 import { QualityPage } from "../features/improve/QualityPage";
@@ -294,6 +295,8 @@ function Console({ onUnauthenticated, user, onSignOut }: { onUnauthenticated: ()
     content = <QualityPage onCoach={coach} onOpenConversation={showConversation} onOpenRun={openRun} />;
   } else if (view === "simulations") {
     content = <SimulationsPage />;
+  } else if (view === "audit") {
+    content = <AuditPage you={operatorMe.data ? { actorId: operatorMe.data.actor_id, name: user.name } : null} onOpenConversation={showConversation} onOpenRun={openRun} />;
   } else if (view === "errors") {
     content = <ErrorsPage onOpenRun={openRun} />;
   } else if (view === "settings") {

@@ -11,10 +11,12 @@ from app.api.routes.studio import recent_runs
 from app.auth.dependencies import require_studio_editor, require_support_operator
 from app.auth.models import Principal
 from app.auth.scope import operator_customer_filter
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.time import utc_now_naive
-from app.models.entities import QualityMonitor
-from app.services import insights, quality, simulations
+from app.models.entities import Conversation, QualityMonitor
+from app.services import audit, insights, quality, simulations
+from app.ui.audit_schemas import AuditLogView
 from app.ui.insights_schemas import (
     ErrorLogView,
     GapView,
@@ -28,6 +30,7 @@ from app.ui.insights_schemas import (
     SimulationInput,
     SimulationRunView,
 )
+from app.ui.repository import build_agent_run_projection_repository
 
 router = APIRouter(prefix="/ui", tags=["improve"])
 
@@ -265,3 +268,40 @@ def run_simulation(
         ) from error
     except simulations.SimulationUnavailableError as error:
         raise _unavailable(error) from error
+
+
+@router.get("/audit", response_model=AuditLogView)
+def audit_log(
+    days: int = Days,
+    conversation: int | None = Query(default=None, ge=1),
+    kind: list[str] | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=500, ge=1, le=2000),
+    principal: Principal = Depends(require_support_operator),
+    session: Session = Depends(get_db),
+) -> AuditLogView:
+    """Who did what to which conversation, and when: handoffs, takeovers, closes, decisions."""
+
+    tenant = _tenant(principal)
+    if conversation is not None:
+        record = session.get(Conversation, conversation)
+        if record is None or record.tenant_id != tenant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found."
+            )
+        repository = build_agent_run_projection_repository(get_settings(), session)
+        runs = repository.list_for_conversation(record.conversation_id, tenant_id=tenant)
+    else:
+        runs = recent_runs(session, principal, days)
+    return audit.audit_log(
+        session,
+        tenant,
+        runs,
+        since=utc_now_naive() - timedelta(days=days),
+        customer_ids=_scope(principal),
+        operator_names={principal.actor_id: principal.display_name or "Operator"},
+        conversation_pk=conversation,
+        kinds=kind,
+        search=q,
+        limit=limit,
+    )

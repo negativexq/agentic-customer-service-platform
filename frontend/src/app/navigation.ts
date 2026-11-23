@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Beaker, BarChart3, FlaskConical, Lightbulb, ScanEye, BookOpen, Compass, Gauge, Library, Workflow, Zap, LayoutDashboard, MessagesSquare, Network, Settings, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, ScrollText, AlertTriangle, Beaker, BarChart3, FlaskConical, Lightbulb, ScanEye, BookOpen, Compass, Gauge, Library, Workflow, Zap, LayoutDashboard, MessagesSquare, Network, Settings, ShieldCheck, Sparkles, type LucideIcon } from "lucide-react";
 import type { ConsoleView } from "./routes";
 
 export type NavItem = { view: ConsoleView; label: string; icon: LucideIcon; shortcut?: string };
@@ -12,6 +12,7 @@ export const navigation: NavGroup[] = [
       { view: "workspace", label: "Conversations", icon: MessagesSquare, shortcut: "G C" },
       { view: "traces", label: "Runs", icon: Activity, shortcut: "G R" },
       { view: "monitoring", label: "Monitoring", icon: Gauge, shortcut: "G M" },
+      { view: "audit", label: "Audit log", icon: ScrollText },
     ],
   },
   {
