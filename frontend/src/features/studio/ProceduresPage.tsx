@@ -1,11 +1,13 @@
 import { BookOpen, CheckCircle2, ClipboardList, Hand, MessageSquare, Search, ShieldCheck, Sparkles, UserRound, Wrench, type LucideIcon } from "lucide-react";
+import type { CSSProperties } from "react";
+import { EntityChip, entityColor } from "../../components/EntityChip";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/primitives/input";
 import { Skeleton } from "@/components/primitives/skeleton";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
 import { ProcedureSimulations } from "../improve/ProcedureSimulations";
-import { useProcedures } from "./queries";
+import { useKnowledge, useProcedures } from "./queries";
 import type { ProcedureStepKind, ProcedureView } from "./types";
 
 const stepIcons: Record<ProcedureStepKind, LucideIcon> = {
@@ -21,7 +23,8 @@ function rate(part: number, total: number): string {
   return total === 0 ? "—" : `${Math.round((part / total) * 100)}%`;
 }
 
-export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpenKnowledge }: { procedure: ProcedureView; onOpenAction: (name: string) => void; onOpenGuidance: () => void; onOpenKnowledge: (id: string) => void }) {
+export function ProcedureDetail({ procedure, articleTitles = {}, onOpenAction, onOpenGuidance, onOpenKnowledge }: { procedure: ProcedureView; articleTitles?: Record<string, string>; onOpenAction: (name: string) => void; onOpenGuidance: () => void; onOpenKnowledge: (id: string) => void }) {
+  const titleOf = (id: string) => articleTitles[id] ?? humanize(id);
   return (
     <article className="grid content-start gap-6" aria-label={`${procedure.name} procedure`}>
       <header className="grid gap-1">
@@ -49,15 +52,18 @@ export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpe
             return (
               <li key={`${step.kind}-${index}`} className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-3 pb-4">
                 {!last && <span className="absolute top-8 bottom-0 left-4 w-px bg-border" aria-hidden="true" />}
-                <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground"><Icon className="size-3.5" aria-hidden="true" /></span>
+                {step.action ? (
+                  // A step that calls an action wears the action colour, so tool steps stand out in the path.
+                  <span style={{ "--entity": entityColor("action") } as CSSProperties} className="flex size-8 items-center justify-center rounded-full border border-[color-mix(in_oklab,var(--entity)_35%,var(--border))] bg-[color-mix(in_oklab,var(--entity)_10%,var(--card))] text-(--entity)"><Icon className="size-3.5" aria-hidden="true" /></span>
+                ) : (
+                  <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground"><Icon className="size-3.5" aria-hidden="true" /></span>
+                )}
                 <div className="grid gap-0.5 pt-1">
                   <span className="text-sm font-medium text-foreground">{step.title}</span>
                   <span className="text-sm text-muted-foreground">{step.detail}</span>
                   {step.operator_note && <span className="text-xs text-warning">{step.operator_note}</span>}
                   {step.action && (
-                    <button type="button" onClick={() => onOpenAction(step.action!)} className="mt-1 inline-flex min-h-6 w-fit items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-mono pointer-coarse:min-h-9 text-[11px] text-foreground hover:bg-accent">
-                      <Wrench className="size-3" aria-hidden="true" />{step.action}
-                    </button>
+                    <span className="mt-1.5"><EntityChip kind="action" label={humanize(step.action)} code={step.action} onOpen={() => onOpenAction(step.action!)} /></span>
                   )}
                 </div>
               </li>
@@ -71,16 +77,16 @@ export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpe
           <h3 className="text-sm font-medium text-foreground">Knowledge</h3>
           {procedure.knowledge.length === 0 ? <p className="text-sm text-muted-foreground">Does not search the knowledge base.</p> : (
             <div className="flex flex-wrap gap-1.5">
-              {procedure.knowledge.map((id) => <button key={id} type="button" onClick={() => onOpenKnowledge(id)} className="min-h-7 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent pointer-coarse:min-h-9">{humanize(id)}</button>)}
+              {procedure.knowledge.map((id) => <EntityChip key={id} kind="knowledge" label={titleOf(id)} onOpen={() => onOpenKnowledge(id)} />)}
             </div>
           )}
         </section>
         <section className="grid content-start gap-2">
           <h3 className="text-sm font-medium text-foreground">Guidance</h3>
           <p className="text-sm text-muted-foreground">
-            {procedure.guidance_count === 0 ? "No rules target this request type." : `${procedure.guidance_count} rule${procedure.guidance_count === 1 ? "" : "s"} shape how it is interpreted.`}{" "}
-            <button type="button" className="text-foreground underline-offset-4 hover:underline" onClick={onOpenGuidance}>Edit guidance</button>
+            {procedure.guidance_count === 0 ? "No rules target this request type." : `${procedure.guidance_count} rule${procedure.guidance_count === 1 ? "" : "s"} shape how it is interpreted.`}
           </p>
+          <div><EntityChip kind="guidance" label={procedure.guidance_count === 0 ? "Add a rule" : "Edit guidance"} onOpen={onOpenGuidance} /></div>
         </section>
       </div>
     </article>
@@ -89,6 +95,8 @@ export function ProcedureDetail({ procedure, onOpenAction, onOpenGuidance, onOpe
 
 export function ProceduresPage({ initialIntent, onOpenAction, onOpenGuidance, onOpenKnowledge }: { initialIntent: string | null; onOpenAction: (name: string) => void; onOpenGuidance: () => void; onOpenKnowledge: (id: string) => void }) {
   const procedures = useProcedures();
+  const articles = useKnowledge();
+  const articleTitles = useMemo(() => Object.fromEntries((articles.data ?? []).map((doc) => [doc.document_id, doc.title])), [articles.data]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(initialIntent);
   const filtered = useMemo(() => {
@@ -125,7 +133,7 @@ export function ProceduresPage({ initialIntent, onOpenAction, onOpenGuidance, on
         <div className="min-w-0 p-4 sm:p-6">
           {current ? (
             <div className="grid gap-6">
-              <ProcedureDetail key={current.intent} procedure={current} onOpenAction={onOpenAction} onOpenGuidance={onOpenGuidance} onOpenKnowledge={onOpenKnowledge} />
+              <ProcedureDetail key={current.intent} procedure={current} articleTitles={articleTitles} onOpenAction={onOpenAction} onOpenGuidance={onOpenGuidance} onOpenKnowledge={onOpenKnowledge} />
               <ProcedureSimulations key={`sim-${current.intent}`} intent={current.intent} />
             </div>
           )

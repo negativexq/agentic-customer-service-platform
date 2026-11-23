@@ -269,7 +269,7 @@ function Console({ onUnauthenticated, user, onSignOut }: { onUnauthenticated: ()
   } else if (view === "traces") {
     content = <RunsPage runs={allRuns} loading={runsQuery.isPending} error={runsQuery.error ? errorMessage(runsQuery.error, "Runs are unavailable.") : null} onOpenRun={openRun} />;
   } else if (view === "knowledge") {
-    content = <KnowledgePage key={locationSearch} initialDocument={searchParam("document")} />;
+    content = <KnowledgePage key={locationSearch} initialDocument={searchParam("document")} onOpenProcedure={(intent) => navigate(`/procedures?intent=${encodeURIComponent(intent)}`)} />;
   } else if (view === "guidance") {
     content = <GuidancePage key={guidanceSeed ? "seeded" : "plain"} seed={guidanceSeed} onSeedUsed={() => setGuidanceSeed(null)} />;
   } else if (view === "procedures") {

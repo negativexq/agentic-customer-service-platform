@@ -9,7 +9,8 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
 import { when } from "./DraftBar";
 import { Markdown } from "./Markdown";
-import { studioApi, useKnowledge, useKnowledgeDocument, useKnowledgeMutation, useKnowledgeStatus } from "./queries";
+import { studioApi, useKnowledge, useKnowledgeDocument, useKnowledgeMutation, useKnowledgeStatus, useProcedures } from "./queries";
+import { EntityChip } from "../../components/EntityChip";
 import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResult } from "./types";
 
 function IndexStatusBar() {
@@ -93,7 +94,9 @@ function ArticleEditor({ initial, saving, error, onSave, onCancel }: { initial: 
   );
 }
 
-function DocumentView({ summary, detail }: { summary: KnowledgeDocument; detail: KnowledgeDocumentDetail }) {
+function DocumentView({ summary, detail, onOpenProcedure }: { summary: KnowledgeDocument; detail: KnowledgeDocumentDetail; onOpenProcedure: (intent: string) => void }) {
+  const procedures = useProcedures();
+  const usedBy = (procedures.data ?? []).filter((item) => item.knowledge.includes(detail.document_id));
   const [editing, setEditing] = useState(false);
   const save = useKnowledgeMutation((input: { title: string; content: string }) => studioApi.saveArticle(detail.document_id, input.title, input.content));
   const action = useKnowledgeMutation((name: "archive" | "unarchive" | "revert") => studioApi.articleAction(detail.document_id, name));
@@ -124,6 +127,12 @@ function DocumentView({ summary, detail }: { summary: KnowledgeDocument; detail:
             : <Button size="sm" variant="ghost" disabled={action.isPending} onClick={() => action.mutate("archive")}><Archive />Archive</Button>}
         </div>
       </header>
+      {procedures.data && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs text-muted-foreground">{usedBy.length ? "Used by" : "No procedure cites this article by name; the assistant finds it through search only."}</span>
+          {usedBy.map((item) => <EntityChip key={item.intent} kind="procedure" label={item.name} onOpen={() => onOpenProcedure(item.intent)} />)}
+        </div>
+      )}
       {detail.archived && <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">Archived. The assistant no longer retrieves this article once the index is published.</p>}
       {action.error && <p role="alert" className="text-sm text-danger">{action.error.message}</p>}
 
@@ -161,7 +170,7 @@ function DocumentView({ summary, detail }: { summary: KnowledgeDocument; detail:
   );
 }
 
-export function KnowledgePage({ initialDocument }: { initialDocument: string | null }) {
+export function KnowledgePage({ initialDocument, onOpenProcedure }: { initialDocument: string | null; onOpenProcedure: (intent: string) => void }) {
   const documents = useKnowledge();
   const [selected, setSelected] = useState<string | null>(initialDocument);
   const [creating, setCreating] = useState(false);
@@ -220,7 +229,7 @@ export function KnowledgePage({ initialDocument }: { initialDocument: string | n
                 onSave={(title, content) => create.mutate({ title, content }, { onSuccess: (doc) => { setCreating(false); setSelected(doc.document_id); } })} />
             </div>
           ) : detail.data && summary ? (
-            <DocumentView key={detail.data.document_id} summary={summary} detail={detail.data} />
+            <DocumentView key={detail.data.document_id} summary={summary} detail={detail.data} onOpenProcedure={onOpenProcedure} />
           ) : detail.isPending && currentId ? <div className="grid gap-3"><Skeleton className="h-8 w-1/2" /><Skeleton className="h-64" /></div>
             : <p className="text-sm text-muted-foreground">{documents.isError ? "Articles could not be loaded." : "Select an article."}</p>}
         </div>

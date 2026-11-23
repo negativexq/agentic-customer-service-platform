@@ -5,7 +5,8 @@ import { Skeleton } from "@/components/primitives/skeleton";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
 import { DraftBar, when } from "./DraftBar";
-import { useActions } from "./queries";
+import { useActions, useProcedures } from "./queries";
+import { EntityChip, EntityMark } from "../../components/EntityChip";
 import type { ActionMode, ActionView, HandoffMode } from "./types";
 import { useDraft } from "./useDraft";
 
@@ -31,7 +32,7 @@ export function ModePicker({ action, value, onChange, disabled }: { action: Acti
 }
 
 const handoffOptions: { value: HandoffMode; label: string; detail: string }[] = [
-  { value: "offer_first", label: "Offer help first", detail: "The assistant asks what it is about and tries once. It connects a person straight away if the customer asks again, sounds upset, or the matter is sensitive, such as a disputed charge or account security." },
+  { value: "offer_first", label: "Offer help first", detail: "When the customer only asks for a person, the assistant asks what it is about and tries once. It connects a person straight away if the customer already said what it is about, asks again, sounds upset, or the matter is sensitive, such as a disputed charge or account security." },
   { value: "immediate", label: "Connect right away", detail: "Every request for a person is handed to your team on the first message." },
 ];
 
@@ -67,6 +68,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction: string | null; onOpenProcedure: (intent: string) => void }) {
   const actions = useActions();
+  const procedures = useProcedures();
+  const procedureName = (intent: string) => procedures.data?.find((item) => item.intent === intent)?.name ?? humanize(intent);
   const draft = useDraft();
   const [selected, setSelected] = useState<string | null>(initialAction);
   const groups = useMemo(() => {
@@ -106,9 +109,11 @@ export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction:
                     <li key={action.name}>
                       <div role="button" tabIndex={0} onClick={() => setSelected(action.name)} onKeyDown={(event) => { if (event.key === "Enter") setSelected(action.name); }}
                         className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none" aria-label={`Open ${humanize(action.name)}`}>
+                        <EntityMark kind="action" className="size-8" />
                         <span className="grid min-w-0 flex-1 gap-0.5">
                           <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                             {humanize(action.name)}
+                            <span className="font-mono text-[11px] font-normal text-muted-foreground">{action.name}</span>
                             {changed && <span className="text-xs font-normal text-warning">changed in draft</span>}
                           </span>
                           <span className="truncate text-xs text-muted-foreground">{action.description}</span>
@@ -132,7 +137,7 @@ export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction:
           {current && (
             <>
               <SheetHeader className="border-b border-border px-5 py-4 pr-12">
-                <SheetTitle>{humanize(current.name)}</SheetTitle>
+                <SheetTitle className="flex items-center gap-2.5"><EntityMark kind="action" />{humanize(current.name)}<span className="font-mono text-xs font-normal text-muted-foreground">{current.name}</span></SheetTitle>
                 <SheetDescription>{current.description}</SheetDescription>
               </SheetHeader>
               <div className="grid gap-6 overflow-y-auto p-5">
@@ -166,7 +171,7 @@ export function ActionsPage({ initialAction, onOpenProcedure }: { initialAction:
                   {current.procedures.length === 0 ? <p className="text-sm text-muted-foreground">No procedure uses this action.</p> : (
                     <div className="flex flex-wrap gap-1.5">
                       {current.procedures.map((intent) => (
-                        <button key={intent} type="button" onClick={() => onOpenProcedure(intent)} className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent">{humanize(intent)}</button>
+                        <EntityChip key={intent} kind="procedure" label={procedureName(intent)} onOpen={() => onOpenProcedure(intent)} />
                       ))}
                     </div>
                   )}
