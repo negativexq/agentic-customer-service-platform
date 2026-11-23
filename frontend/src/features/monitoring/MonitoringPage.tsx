@@ -49,8 +49,8 @@ function BarList({ items, format }: { items: { label: string; value: number; det
             <span className="truncate text-foreground">{item.label}</span>
             <span className="shrink-0 font-mono tabular-nums text-muted-foreground">{format(item.value)}{item.detail ? ` · ${item.detail}` : ""}</span>
           </div>
-          <div className="h-1.5 rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }} />
+          <div className="track-hatched h-1.5 overflow-hidden rounded-full">
+            <div className="h-full rounded-full bg-[var(--chart-1)] transition-[width] duration-500 ease-out" style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }} />
           </div>
         </li>
       ))}

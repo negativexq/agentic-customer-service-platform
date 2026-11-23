@@ -23,7 +23,19 @@ describe("improve loop", () => {
     expect(html).toContain("70%");
     expect(html).toContain("30%");
     expect(html).toContain("4.3");
-    expect(html).toContain("4.5 / —");
+    expect(html).toContain("Resolved by AI");
+    expect(html).toContain("4.5");
+  });
+
+  it("compares the window with the one before it", () => {
+    const html = renderToStaticMarkup(<PerformanceSummaryStrip summary={{
+      window_days: 7, conversations: 10, ai_resolved: 7, handed_off: 3, ai_resolution_rate: 0.7, handoff_rate: 0.3,
+      csat_average: null, csat_responses: 0, csat_ai_average: null, csat_human_average: null, ai_runs: 12, failed_runs: 0,
+    }} current={{ conversations: 10, ai_resolved: 7, handed_off: 3 }} previous={{ conversations: 8, ai_resolved: 4, handed_off: 4 }} />);
+    expect(html).toContain("+25.0%");
+    expect(html).toContain("+20.0 pts");
+    expect(html).toContain("-20.0 pts");
+    expect(html).toContain("vs previous 7 days");
   });
 
   it("shows a gap with its examples and the fix that resolves it", () => {

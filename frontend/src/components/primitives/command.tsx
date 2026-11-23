@@ -58,7 +58,8 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/* cmdk's parts read their store from this root; without it the first input crashes the app. */}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )

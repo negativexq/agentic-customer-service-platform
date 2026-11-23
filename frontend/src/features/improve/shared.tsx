@@ -1,18 +1,10 @@
+import { Segmented } from "../../components/layout/Segmented";
 import type { ReactNode } from "react";
 
 export const windows = [7, 30, 90] as const;
 
 export function WindowPicker({ value, onChange }: { value: number; onChange: (days: number) => void }) {
-  return (
-    <div role="radiogroup" aria-label="Time window" className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
-      {windows.map((days) => (
-        <button key={days} type="button" role="radio" aria-checked={value === days} onClick={() => onChange(days)}
-          className={`h-7 rounded-md px-2.5 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${value === days ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          {days} days
-        </button>
-      ))}
-    </div>
-  );
+  return <Segmented label="Time window" value={value} onChange={onChange} options={windows.map((days) => ({ value: days as number, label: `${days} days` }))} />;
 }
 
 export function Section({ title, description, actions, children, className = "" }: { title: string; description?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
@@ -40,4 +32,26 @@ export function rating(value: number | null | undefined): string {
 
 export function EmptyNote({ children }: { children: ReactNode }) {
   return <p className="px-4 py-8 text-center text-sm text-muted-foreground">{children}</p>;
+}
+
+/** Longest window the insights API serves; comparisons need twice the chosen window. */
+export const MAX_WINDOW_DAYS = 90;
+export const compareWindow = (days: number) => (days * 2 <= MAX_WINDOW_DAYS ? days * 2 : null);
+
+/**
+ * Splits daily rows from a doubled window into the chosen window and the one before it,
+ * summing the numeric fields of each half.
+ */
+export function windowHalves<T extends { day: string }>(daily: T[], days: number, keys: (keyof T & string)[]): [Record<string, number>, Record<string, number>] {
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const edge = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+  const current: Record<string, number> = Object.fromEntries(keys.map((key) => [key, 0]));
+  const previous: Record<string, number> = Object.fromEntries(keys.map((key) => [key, 0]));
+  for (const row of daily) {
+    const half = row.day >= edge ? current : previous;
+    for (const key of keys) half[key] += Number(row[key] ?? 0);
+  }
+  return [current, previous];
 }

@@ -2,26 +2,50 @@ import { Skeleton } from "@/components/primitives/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/primitives/table";
 import { useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Stat, StatStrip } from "../../components/layout/StatStrip";
+import { change, KpiCard, KpiGrid } from "../../components/layout/KpiCard";
+import { Bot, MessagesSquare, Star, UserRound } from "lucide-react";
 import { humanize } from "../runs/runPresentation";
 import { usePerformance } from "./queries";
-import { EmptyNote, percent, rating, Section, WindowPicker } from "./shared";
+import { compareWindow, EmptyNote, percent, rating, Section, WindowPicker, windowHalves } from "./shared";
 import type { PerformanceView } from "./types";
 import { UI_LOCALE } from "@/lib/utils";
 import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 
 const dayLabel = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" });
 
-export function PerformanceSummaryStrip({ summary }: { summary: PerformanceView["summary"] }) {
+type Comparison = { conversations: number; ai_resolved: number; handed_off: number };
+
+const rate = (part: number, whole: number) => (whole > 0 ? part / whole : null);
+const pointsBetween = (current: number | null, previous: number | null) => (current === null || previous === null ? null : (current - previous) * 100);
+
+export function PerformanceSummaryStrip({ summary, daily = [], previous, current }: {
+  summary: PerformanceView["summary"];
+  daily?: PerformanceView["daily"];
+  /** Totals of the window before this one, and of this one counted the same way; omitted when there is nothing to compare. */
+  previous?: Comparison;
+  current?: Comparison;
+}) {
+  const compare = previous && current;
+  const period = `vs previous ${summary.window_days} days`;
   return (
-    <StatStrip label="Performance summary">
-      <Stat label="Conversations" value={summary.conversations} detail={`${summary.ai_runs} AI runs`} />
-      <Stat label="AI resolution rate" value={percent(summary.ai_resolution_rate)} detail={`${summary.ai_resolved} without a person`} />
-      <Stat label="Handoff rate" value={percent(summary.handoff_rate)} detail={`${summary.handed_off} handed off`} />
-      <Stat label="CSAT" value={rating(summary.csat_average)} detail={summary.csat_responses ? `${summary.csat_responses} ratings out of 5` : "No ratings yet"} />
-      <Stat label="CSAT by who resolved" value={<span className="text-base">{rating(summary.csat_ai_average)} / {rating(summary.csat_human_average)}</span>} detail="AI / person" />
-      <Stat label="Failed runs" value={summary.failed_runs} detail={summary.ai_runs ? percent(summary.failed_runs / summary.ai_runs) + " of runs" : undefined} />
-    </StatStrip>
+    <KpiGrid label="Performance summary">
+      <KpiCard label="Conversations" icon={MessagesSquare} value={summary.conversations.toLocaleString(UI_LOCALE)} period={period}
+        delta={compare ? { value: change(current.conversations, previous.conversations) } : undefined}
+        detail={compare ? undefined : `${summary.ai_runs} AI runs`}
+        spark={daily.map((point) => point.conversations)} sparkTone="var(--foreground)"
+        footer={[["AI runs", summary.ai_runs], ["Failed runs", summary.ai_runs ? `${summary.failed_runs} · ${percent(summary.failed_runs / summary.ai_runs)}` : summary.failed_runs]]} />
+      <KpiCard label="AI resolution rate" icon={Bot} value={percent(summary.ai_resolution_rate)} period={period}
+        delta={compare ? { value: pointsBetween(rate(current.ai_resolved, current.conversations), rate(previous.ai_resolved, previous.conversations)), unit: "pts" } : undefined}
+        detail={`${summary.ai_resolved} without a person`}
+        spark={daily.map((point) => point.ai_resolved)} />
+      <KpiCard label="Handoff rate" icon={UserRound} value={percent(summary.handoff_rate)} period={period}
+        delta={compare ? { value: pointsBetween(rate(current.handed_off, current.conversations), rate(previous.handed_off, previous.conversations)), unit: "pts", goodWhenUp: false } : undefined}
+        detail={`${summary.handed_off} handed off`}
+        spark={daily.map((point) => point.handed_off)} sparkTone="var(--foreground)" />
+      <KpiCard label="CSAT" icon={Star} value={rating(summary.csat_average)} unit={summary.csat_average === null ? undefined : "/ 5"}
+        detail={summary.csat_responses ? `${summary.csat_responses} ratings` : "No ratings yet"}
+        footer={[["Resolved by AI", rating(summary.csat_ai_average)], ["Resolved by a person", rating(summary.csat_human_average)]]} />
+    </KpiGrid>
   );
 }
 
@@ -29,6 +53,10 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
   const [days, setDays] = useState(30);
   const query = usePerformance(days);
   const data = query.data;
+  const span = compareWindow(days);
+  const wide = usePerformance(span ?? days);
+  const halves = span && wide.data && !wide.isPlaceholderData ? windowHalves(wide.data.daily, days, ["conversations", "ai_resolved", "handed_off"]) : null;
+  const toComparison = (half: Record<string, number>): Comparison => ({ conversations: half.conversations, ai_resolved: half.ai_resolved, handed_off: half.handed_off });
   const trend = (data?.daily ?? []).map((point) => ({ ...point, label: dayLabel(point.day) }));
 
   return (
@@ -37,7 +65,7 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
         actions={<WindowPicker value={days} onChange={setDays} />} />
       <div className="grid gap-4 p-4 sm:p-6">
         {query.isError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">Performance data is unavailable. Check that the operator API is running.</p>}
-        {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : <PerformanceSummaryStrip summary={data.summary} />}
+        {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : <PerformanceSummaryStrip summary={data.summary} daily={data.daily} current={halves ? toComparison(halves[0]) : undefined} previous={halves ? toComparison(halves[1]) : undefined} />}
 
         <Section title="Resolutions per day" description="A conversation counts as handed off once it reached a person, even if the AI answered first.">
           {!data ? <Skeleton className="m-4 h-56" /> : data.summary.conversations === 0 ? <EmptyNote>No conversations in this window.</EmptyNote> : (
@@ -71,7 +99,14 @@ export function PerformancePage({ onOpenProcedure }: { onOpenProcedure: (intent:
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{topic.conversations}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{topic.runs}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{percent(topic.handoff_rate)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className="inline-flex items-center justify-end gap-2">
+                        <span className="track-hatched hidden h-1.5 w-16 overflow-hidden rounded-full sm:block" aria-hidden="true">
+                          <span className="block h-full rounded-full bg-foreground/70" style={{ width: `${Math.round((topic.handoff_rate ?? 0) * 100)}%` }} />
+                        </span>
+                        <span className="w-9 font-mono tabular-nums">{percent(topic.handoff_rate)}</span>
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{topic.clarifications}</TableCell>
                     <TableCell className={`text-right font-mono tabular-nums ${topic.failures ? "text-danger" : ""}`}>{topic.failures}</TableCell>
                     <TableCell className="pr-4 text-right font-mono tabular-nums">{rating(topic.csat_average)}</TableCell>

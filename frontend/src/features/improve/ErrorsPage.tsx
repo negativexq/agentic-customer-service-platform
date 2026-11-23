@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Skeleton } from "@/components/primitives/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/primitives/table";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Stat, StatStrip } from "../../components/layout/StatStrip";
+import { change, KpiCard, KpiGrid } from "../../components/layout/KpiCard";
+import { RankedBars } from "../../components/charts/RankedBars";
+import { AlertTriangle, Activity } from "lucide-react";
 import { formatRelative, humanize } from "../runs/runPresentation";
 import { useErrorLog } from "./queries";
-import { EmptyNote, percent, Section, WindowPicker } from "./shared";
+import { compareWindow, EmptyNote, percent, Section, WindowPicker, windowHalves } from "./shared";
 import { UI_LOCALE } from "@/lib/utils";
 import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 
@@ -18,6 +20,12 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
   const data = query.data;
   const names = (data?.categories ?? []).map((item) => item.category);
   const chart = (data?.daily ?? []).map((point) => ({ ...point, label: new Date(`${point.day}T00:00:00`).toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" }) }));
+  const span = compareWindow(days);
+  const wide = useErrorLog(span ?? days);
+  const halves = span && wide.data && !wide.isPlaceholderData ? windowHalves(wide.data.daily, days, ["total", ...names]) : null;
+  const period = `vs previous ${days} days`;
+  const series = (key: string) => (data?.daily ?? []).map((point) => Number((point as Record<string, unknown>)[key] ?? 0));
+  const colorOf = (name: string) => palette[Math.max(0, names.indexOf(name)) % palette.length];
   const errors = (data?.errors ?? []).filter((row) => !category || row.category === category);
 
   return (
@@ -26,12 +34,20 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
       <div className="grid gap-4 p-4 sm:p-6">
         {query.isError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">The error log is unavailable.</p>}
         {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : (
-          <StatStrip label="Error summary">
-            <Stat label="Runs" value={data.total_runs} />
-            <Stat label="Failed or degraded" value={data.failed_runs} detail={data.total_runs ? `${percent(data.failed_runs / data.total_runs)} of runs` : undefined} />
-            {data.categories.slice(0, 4).map((item) => <Stat key={item.category} label={humanize(item.category)} value={item.count} detail={`Last ${formatRelative(item.last_seen)}`} />)}
-          </StatStrip>
+          <KpiGrid label="Error summary">
+            <KpiCard label="Failed or degraded" icon={AlertTriangle} value={data.failed_runs.toLocaleString(UI_LOCALE)} period={period}
+              delta={halves ? { value: change(halves[0].total, halves[1].total), goodWhenUp: false } : undefined}
+              detail={data.total_runs ? `${percent(data.failed_runs / data.total_runs)} of ${data.total_runs.toLocaleString(UI_LOCALE)} runs` : "No runs yet"}
+              spark={series("total")} sparkTone="var(--danger)" />
+            {data.categories.slice(0, 3).map((item) => (
+              <KpiCard key={item.category} label={humanize(item.category)} icon={Activity} value={item.count.toLocaleString(UI_LOCALE)} period={period}
+                delta={halves ? { value: change(halves[0][item.category] ?? 0, halves[1][item.category] ?? 0), goodWhenUp: false } : undefined}
+                detail={`Last ${formatRelative(item.last_seen)}`}
+                spark={series(item.category)} sparkTone={colorOf(item.category)} />
+            ))}
+          </KpiGrid>
         )}
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Section title="Errors per day">
           {!data ? <Skeleton className="m-4 h-52" /> : data.failed_runs === 0 ? <EmptyNote>No failed runs in the last {days} days.</EmptyNote> : (
             <DotMatrixChart label="Errors per day" rows={14}
@@ -39,6 +55,17 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
               data={chart.map((point) => ({ label: point.label, values: Object.fromEntries(names.map((name) => [name, Number((point as Record<string, unknown>)[name] ?? 0)])) }))} />
           )}
         </Section>
+        <Section title="Top causes" description="Select one to filter the runs below.">
+          {!data ? <Skeleton className="m-4 h-40" /> : data.categories.length === 0 ? <EmptyNote>Nothing failed.</EmptyNote> : (
+            <RankedBars label="Top causes" items={data.categories.slice(0, 6).map((item) => ({
+              label: humanize(item.category), value: item.count, color: colorOf(item.category),
+              detail: data.failed_runs ? percent(item.count / data.failed_runs) : undefined,
+              selected: category === item.category,
+              onSelect: () => setCategory(category === item.category ? null : item.category),
+            }))} />
+          )}
+        </Section>
+        </div>
         <Section title="Failed runs" description={category ? humanize(category) : undefined}
           actions={names.length > 0 && (
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Error category">

@@ -6,7 +6,7 @@ import { Kbd, KbdGroup } from "@/components/primitives/kbd";
 import { Separator } from "@/components/primitives/separator";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
-  SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar,
+  SidebarInset, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar,
 } from "@/components/primitives/sidebar";
 import type { Health, RuntimeConfig } from "../types";
 import { navigation } from "./navigation";
@@ -21,14 +21,24 @@ type AppShellProps = {
   runtimeConfig: RuntimeConfig | undefined;
   onNavigate: (view: ConsoleView) => void;
   onOpenSearch: () => void;
+  /** Counts that need someone's attention, shown beside their page in the sidebar. */
+  badges?: Partial<Record<ConsoleView, NavBadge>>;
   children: ReactNode;
+};
+
+export type NavBadge = { count: number; tone: "warning" | "danger" | "neutral"; label: string };
+
+const badgeTone: Record<NavBadge["tone"], string> = {
+  warning: "bg-warning/14 text-warning!",
+  danger: "bg-danger/14 text-danger!",
+  neutral: "bg-foreground/[0.07] text-sidebar-foreground/75!",
 };
 
 function isPlainClick(event: MouseEvent<HTMLAnchorElement>) {
   return !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0);
 }
 
-function NavigationLinks({ activeView, onNavigate }: Pick<AppShellProps, "activeView" | "onNavigate">) {
+function NavigationLinks({ activeView, onNavigate, badges = {} }: Pick<AppShellProps, "activeView" | "onNavigate" | "badges">) {
   const { isMobile, setOpenMobile } = useSidebar();
   return (
     <nav aria-label="Console views">
@@ -57,7 +67,14 @@ function NavigationLinks({ activeView, onNavigate }: Pick<AppShellProps, "active
                   >
                     <Icon aria-hidden="true" />
                     <span>{label}</span>
+                    {badges[view] && badges[view].count > 0 && <span className="sr-only">, {badges[view].count} {badges[view].label}</span>}
                   </SidebarMenuButton>
+                  {badges[view] && badges[view].count > 0 && (
+                    <SidebarMenuBadge aria-hidden="true" title={`${badges[view].count} ${badges[view].label}`}
+                      className={`top-1.5! h-5 rounded-full px-1.5 text-[11px] ${badgeTone[badges[view].tone]}`}>
+                      {badges[view].count > 99 ? "99+" : badges[view].count}
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -80,7 +97,7 @@ function HealthIndicator({ health, unavailable }: { health: Health | null | unde
   );
 }
 
-export function AppShell({ activeView, detailLabel, health, healthUnavailable, runtimeConfig, onNavigate, onOpenSearch, children }: AppShellProps) {
+export function AppShell({ activeView, detailLabel, health, healthUnavailable, runtimeConfig, onNavigate, onOpenSearch, badges, children }: AppShellProps) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="inset">
@@ -102,7 +119,7 @@ export function AppShell({ activeView, detailLabel, health, healthUnavailable, r
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          <NavigationLinks activeView={activeView} onNavigate={onNavigate} />
+          <NavigationLinks activeView={activeView} onNavigate={onNavigate} badges={badges} />
         </SidebarContent>
         <SidebarFooter>
           <div className="grid gap-0.5 rounded-lg px-2 py-1.5 text-xs group-data-[collapsible=icon]:hidden">

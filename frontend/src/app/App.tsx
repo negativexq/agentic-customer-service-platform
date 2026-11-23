@@ -18,6 +18,8 @@ import { MonitoringPage } from "../features/monitoring/MonitoringPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { RunsPage } from "../features/runs/RunsPage";
 import { ChatWindow } from "../features/chat/ChatWindow";
+import { useErrorLog, useQuality } from "../features/improve/queries";
+import type { NavBadge } from "./AppShell";
 import { queryClient, useChatMutation, useConversationAction, useConversationRuns, useDemoScenarios, useInbox, useOperatorConversation, useOperatorMe, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
 import type { ConversationTurn, OperatorConversation, PlaygroundExecution, PlaygroundRequest } from "../types";
 import { AppShell } from "./AppShell";
@@ -107,6 +109,20 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
   const routeRun = useRun(routeRunId, scenarios.data, true);
   const inspectRun = useRun(inspectRunId, scenarios.data, true);
   const inbox = useInbox(true);
+  const quality = useQuality(30);
+  const errorLog = useErrorLog(7);
+  const badges = useMemo(() => {
+    const waiting = (inbox.data ?? []).filter((item) => item.owner === "queued").length;
+    const flags = (quality.data?.monitors ?? []).reduce((sum, monitor) => sum + monitor.open_flags, 0);
+    const daily = errorLog.data?.daily ?? [];
+    const today = daily[daily.length - 1];
+    const failedToday = today && today.day === new Date().toLocaleDateString("en-CA") ? today.total : 0;
+    return {
+      workspace: { count: waiting, tone: "warning", label: "waiting for a person" },
+      quality: { count: flags, tone: "neutral", label: "open flags" },
+      errors: { count: failedToday, tone: "danger", label: "failed today" },
+    } satisfies Partial<Record<ConsoleView, NavBadge>>;
+  }, [inbox.data, quality.data, errorLog.data]);
   const operatorMe = useOperatorMe(true);
   const openConversation = useOperatorConversation(target?.kind === "conversation" ? target.id : null);
   const conversationAction = useConversationAction();
@@ -373,6 +389,7 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         runtimeConfig={runtimeConfig.data}
         onNavigate={navigateToView}
         onOpenSearch={() => setSearchOpen(true)}
+        badges={badges}
       >
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">{content}</main>
       </AppShell>

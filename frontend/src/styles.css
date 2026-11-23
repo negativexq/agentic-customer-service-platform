@@ -2818,3 +2818,27 @@
 :is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) h1 + p,
 :is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) p { font-size: 0.875rem; }
 .eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* Remaining part of a bar: a quiet diagonal hatch, so empty reads as "not yet" rather than missing. */
+@utility track-hatched {
+  background-color: color-mix(in oklab, var(--foreground) 4%, transparent);
+  background-image: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--foreground) 9%, transparent) 0 1px, transparent 1px 4px);
+}
+
+/* Menus: items settle in one after another as the popup opens from its trigger. */
+@keyframes menu-item-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+.menu-stagger[data-open] :is([data-slot="dropdown-menu-item"], [data-slot="dropdown-menu-checkbox-item"], [data-slot="dropdown-menu-radio-item"], [data-slot="dropdown-menu-label"]) {
+  animation: menu-item-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.menu-stagger[data-open] :nth-child(2 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 18ms; }
+.menu-stagger[data-open] :nth-child(3 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 36ms; }
+.menu-stagger[data-open] :nth-child(4 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 54ms; }
+.menu-stagger[data-open] :nth-child(5 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 72ms; }
+.menu-stagger[data-open] :nth-child(n + 6 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .menu-stagger[data-open] * { animation: none !important; }
+}
