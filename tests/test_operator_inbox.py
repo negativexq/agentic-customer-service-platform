@@ -1,5 +1,6 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from datetime import timedelta
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,6 +26,9 @@ from app.services.conversation_messages import (
 
 TEST_CUSTOMER_ONE_TOKEN = "test-customer-one-token"
 TEST_CUSTOMER_TWO_TOKEN = "test-customer-two-token"
+
+
+UseDecisions = Callable[[Sequence[StructuredDecision]], None]
 
 
 def _orders() -> StructuredDecision:
@@ -63,22 +67,26 @@ def use_decisions() -> Generator[object, None, None]:
     app.dependency_overrides.pop(get_agent_runtime, None)
 
 
-def _chat(client: TestClient, conversation_id: str, message: str) -> dict[str, object]:
+def _chat(client: TestClient, conversation_id: str, message: str) -> dict[str, Any]:
     response = client.post(
         "/agent/chat",
         json={"conversation_id": conversation_id, "customer_id": 1, "message": message},
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    body: dict[str, Any] = response.json()
+    return body
 
 
-def _inbox_entry(client: TestClient, conversation_id: str) -> dict[str, object]:
+def _inbox_entry(client: TestClient, conversation_id: str) -> dict[str, Any]:
     entries = client.get("/operator/conversations").json()
-    return next(item for item in entries if item["conversation_id"] == conversation_id)
+    entry: dict[str, Any] = next(
+        item for item in entries if item["conversation_id"] == conversation_id
+    )
+    return entry
 
 
 def test_every_chat_turn_is_recorded_with_redaction(
-    client: TestClient, db_session: Session, use_decisions
+    client: TestClient, db_session: Session, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders()])
 
@@ -96,7 +104,7 @@ def test_every_chat_turn_is_recorded_with_redaction(
 
 
 def test_inbox_lists_conversations_with_customer_last_message_and_escalation(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders(), _escalation()])
     _chat(client, "inbox-list", "Show my orders")
@@ -116,7 +124,7 @@ def test_inbox_lists_conversations_with_customer_last_message_and_escalation(
 
 
 def test_operator_claims_replies_and_customer_sees_it_live(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_escalation()])
     _chat(client, "inbox-claim", "Get me a human")
@@ -166,7 +174,7 @@ def test_operator_claims_replies_and_customer_sees_it_live(
 
 
 def test_reply_is_idempotent_and_requires_current_assignee_version(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_escalation()])
     _chat(client, "inbox-idem", "Human please")
@@ -202,7 +210,7 @@ def test_reply_is_idempotent_and_requires_current_assignee_version(
 
 
 def test_operator_can_take_over_a_live_ai_conversation_and_hand_it_back(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders(), _orders()])
     _chat(client, "inbox-takeover", "Orders?")
@@ -226,7 +234,7 @@ def test_operator_can_take_over_a_live_ai_conversation_and_hand_it_back(
 
 
 def test_resolve_closes_and_the_next_customer_message_reopens_to_ai(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_escalation(), _orders()])
     _chat(client, "inbox-resolve", "Human")
@@ -247,7 +255,7 @@ def test_resolve_closes_and_the_next_customer_message_reopens_to_ai(
 
 
 def test_customer_cannot_read_another_customers_transcript(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders()])
     _chat(client, "inbox-private", "Orders?")
@@ -259,7 +267,9 @@ def test_customer_cannot_read_another_customers_transcript(
     assert other.status_code == 404
 
 
-def test_oidc_operator_scope_and_optional_tenant_wide_role(monkeypatch) -> None:
+def test_oidc_operator_scope_and_optional_tenant_wide_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     operator = Principal(
         actor_id="oidc:abc",
         actor_type=ActorType.SUPPORT_OPERATOR,
@@ -274,7 +284,7 @@ def test_oidc_operator_scope_and_optional_tenant_wide_role(monkeypatch) -> None:
 
 
 def test_expired_and_deleted_messages_are_not_served(
-    client: TestClient, db_session: Session, use_decisions
+    client: TestClient, db_session: Session, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders()])
     _chat(client, "inbox-ttl", "Orders?")
@@ -301,7 +311,7 @@ def test_projection_keeps_chunk_text_and_only_memory_references() -> None:
     from app.ui.projection import _memory_item, _preview
 
     assert _preview("  Damaged   items\nare refundable. ") == "Damaged items are refundable."
-    assert _preview("x" * 900).endswith("…")
+    assert (_preview("x" * 900) or "").endswith("…")
     item = _memory_item(
         {
             "id": 7,
@@ -316,7 +326,7 @@ def test_projection_keeps_chunk_text_and_only_memory_references() -> None:
 
 
 def test_run_memory_endpoint_resolves_live_content_and_hides_deleted(
-    client: TestClient, db_session: Session
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.memory.models import MemoryRecord
     from app.memory.schemas import MemorySource, MemoryStatus, MemoryType
@@ -363,12 +373,8 @@ def test_run_memory_endpoint_resolves_live_content_and_hides_deleted(
         def get_by_run_id(self, run_id: str, tenant_id: str):  # type: ignore[no-untyped-def]
             return patched if run_id == response else repository_get(run_id, tenant_id=tenant_id)
 
-    original = ui_routes.build_agent_run_projection_repository
-    ui_routes.build_agent_run_projection_repository = lambda *_: _Repo()  # type: ignore[assignment]
-    try:
-        body = client.get(f"/ui/agent-runs/{response}/memory").json()
-    finally:
-        ui_routes.build_agent_run_projection_repository = original
+    monkeypatch.setattr(ui_routes, "build_agent_run_projection_repository", lambda *_: _Repo())
+    body = client.get(f"/ui/agent-runs/{response}/memory").json()
     assert [item["content"] for item in body["read_items"]] == ["Prefers short answers", None]
     assert body["read_items"][1]["status"] == "deleted"
 

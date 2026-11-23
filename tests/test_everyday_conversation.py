@@ -9,7 +9,8 @@ from app.agent.compound import read_message
 from app.agent.llm.fake import FakeSemanticDecisionV3Provider
 from app.agent.nodes.retrieve_knowledge import _names_what_the_article_lacks
 from app.agent.runtime import HANDOFF_ACKNOWLEDGEMENT_TR, AgentRuntime
-from app.agent.schemas import AgentRequestType, Intent, SemanticDecisionV3
+from app.agent.schemas import AgentRequestType, AgentResponse, Intent, SemanticDecisionV3
+from app.rag.interfaces import RetrievalResult
 from app.rag.schemas import RetrievedChunk
 
 
@@ -25,11 +26,11 @@ class MoveReader:
 
 
 class NoRetrieval:
-    def retrieve(self, query: str) -> object:
+    def retrieve(self, query: str) -> RetrievalResult:
         raise AssertionError(f"a conversation move must not search the articles: {query}")
 
 
-def _say(runtime: AgentRuntime, session: Session, conversation: str, message: str):
+def _say(runtime: AgentRuntime, session: Session, conversation: str, message: str) -> AgentResponse:
     return runtime.run(
         conversation_id=conversation, customer_id=1, message=message, session=session
     )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -135,7 +137,7 @@ def test_openai_compatible_provider_binds_semantic_schema(
 )
 def test_openai_provider_sends_reasoning_without_sampling_parameters(
     monkeypatch: pytest.MonkeyPatch,
-    settings_overrides: dict[str, object],
+    settings_overrides: dict[str, Any],
     expected: dict[str, object],
     absent: set[str],
 ) -> None:

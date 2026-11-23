@@ -442,9 +442,9 @@ def _from_record(record: AgentRunProjectionRecord) -> AgentRunView:
             "status": normalize_stored_status(
                 record.status,
                 failure_category=record.failure_category,
-                decision_reason=decision_reason,
+                decision_reason=decision_reason if isinstance(decision_reason, str) else None,
                 path=list(record.path or []),
-                security_signal=security_signal,
+                security_signal=security_signal if isinstance(security_signal, str) else None,
             ),
             "started_at": record.started_at,
             "duration_ms": record.duration_ms,

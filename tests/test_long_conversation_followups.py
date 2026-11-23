@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.llm.fake import FakeSemanticDecisionV3Provider
 from app.agent.runtime import AgentRuntime
-from app.agent.schemas import AgentRequestType, Intent, SemanticDecisionV3
+from app.agent.schemas import AgentRequestType, AgentResponse, Intent, SemanticDecisionV3
 from app.models import Order, RefundRequest
 from app.models.entities import OrderStatus, RefundStatus
 
@@ -18,7 +18,7 @@ class StatusReader:
         return {"requests": [{"text": message, "status_question": True}]}
 
 
-def _say(runtime: AgentRuntime, session: Session, conversation: str, message: str):
+def _say(runtime: AgentRuntime, session: Session, conversation: str, message: str) -> AgentResponse:
     return runtime.run(
         conversation_id=conversation, customer_id=1, message=message, session=session
     )
@@ -69,7 +69,9 @@ def test_read_while_a_cancellation_waits_answers_and_keeps_it(db_session: Sessio
     assert pending.pending_action is not None
     assert answer.message.startswith("Order #4201: pending")
     assert "still saved and waiting for your confirmation" in answer.message
-    assert db_session.get(Order, 4201).status == OrderStatus.PENDING
+    order = db_session.get(Order, 4201)
+    assert order is not None
+    assert order.status == OrderStatus.PENDING
 
 
 def test_refund_status_question_reads_the_order_instead_of_a_new_refund(

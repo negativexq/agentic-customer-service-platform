@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.llm.fake import FakeSemanticDecisionV3Provider
 from app.agent.runtime import AgentRuntime
-from app.agent.schemas import AgentRequestType, Intent, SemanticDecisionV3
+from app.agent.schemas import AgentRequestType, AgentResponse, Intent, SemanticDecisionV3
 from app.models import Order, RefundRequest
 from app.models.entities import OrderStatus
 from app.policies.models import PendingActionStatus
@@ -517,7 +517,7 @@ def test_yes_after_a_side_question_restores_but_never_confirms(db_session: Sessi
     provider = FakeSemanticDecisionV3Provider([_refund_decision(), _refund_policy_decision()])
     runtime = AgentRuntime(provider=provider, knowledge_retriever=FixedKnowledgeRetriever())
 
-    def say(message: str):
+    def say(message: str) -> AgentResponse:
         return runtime.run(
             conversation_id="yes-after-question",
             customer_id=1,

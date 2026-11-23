@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import datetime
+from typing import TypedDict
 
 from sqlalchemy import select, true
 from sqlalchemy.orm import Session
@@ -97,6 +98,13 @@ _ASKED = {
     "cancel_order": "an order cancellation",
     "create_support_ticket": "a support ticket",
 }
+
+
+class _ConversationFields(TypedDict):
+    conversation_pk: int
+    conversation_id: str
+    customer_id: int
+    customer_name: str
 
 
 def _words(value: str) -> str:
@@ -244,7 +252,7 @@ def audit_log(
     def operator(actor_id: str) -> AuditActor:
         return AuditActor(type="operator", id=actor_id, name=names.get(actor_id, "Operator"))
 
-    def base(conversation: Conversation) -> dict[str, object]:
+    def base(conversation: Conversation) -> _ConversationFields:
         return {
             "conversation_pk": conversation.id,
             "conversation_id": conversation.conversation_id,
@@ -269,17 +277,17 @@ def audit_log(
                         name=customers.get(conversation.customer_id, "Customer"),
                     ),
                     summary="Started a conversation; the AI assistant is answering",
-                    **base(conversation),  # type: ignore[arg-type]
+                    **base(conversation),
                 )
             )
 
     escalations: dict[int, list[Escalation]] = {}
-    for item in session.scalars(
+    for escalation in session.scalars(
         select(Escalation)
         .where(Escalation.conversation_pk.in_(pks))
         .order_by(Escalation.created_at)
     ):
-        escalations.setdefault(item.conversation_pk or 0, []).append(item)
+        escalations.setdefault(escalation.conversation_pk or 0, []).append(escalation)
 
     for record in session.scalars(
         select(ConversationOwnershipEvent)
@@ -325,7 +333,7 @@ def audit_log(
                 actor=actor,
                 summary=summary,
                 detail=detail,
-                **base(conversation),  # type: ignore[arg-type]
+                **base(conversation),
             )
         )
 
@@ -345,7 +353,7 @@ def audit_log(
                 action="operator.replied",
                 actor=operator(message.sender_actor_id or "operator"),
                 summary="Replied to the customer",
-                **base(conversation),  # type: ignore[arg-type]
+                **base(conversation),
             )
         )
 
@@ -365,15 +373,15 @@ def audit_log(
                 action="note.added",
                 actor=operator(note.author_actor_id),
                 summary="Added an internal note",
-                **base(conversation),  # type: ignore[arg-type]
+                **base(conversation),
             )
         )
 
     for run in runs:
-        conversation = by_public_id.get(run.conversation_id)
-        if conversation is None or run.operation_type != "agent_request":
+        run_conversation = by_public_id.get(run.conversation_id)
+        if run_conversation is None or run.operation_type != "agent_request":
             continue
-        events.extend(_run_events(run, conversation, str(base(conversation)["customer_name"])))
+        events.extend(_run_events(run, run_conversation, base(run_conversation)["customer_name"]))
 
     wanted = set(kinds or [])
     if wanted:

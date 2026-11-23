@@ -1,4 +1,5 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,9 @@ from app.core.config import get_settings
 from app.main import app
 
 CUSTOMER_ONE = {"Authorization": "Bearer test-customer-one-token"}
+
+
+UseDecisions = Callable[[Sequence[StructuredDecision]], None]
 
 
 def _orders() -> StructuredDecision:
@@ -63,17 +67,18 @@ def use_decisions() -> Generator[object, None, None]:
     app.dependency_overrides.pop(get_agent_runtime, None)
 
 
-def _chat(client: TestClient, conversation_id: str, message: str) -> dict:
+def _chat(client: TestClient, conversation_id: str, message: str) -> dict[str, Any]:
     response = client.post(
         "/agent/chat",
         json={"conversation_id": conversation_id, "customer_id": 1, "message": message},
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    body: dict[str, Any] = response.json()
+    return body
 
 
 def test_performance_counts_ai_resolution_handoffs_and_csat(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_orders(), _escalation()])
     _chat(client, "perf-ai", "Show my orders")
@@ -100,7 +105,7 @@ def test_performance_counts_ai_resolution_handoffs_and_csat(
 
 
 def test_gaps_surface_unknown_requests_handoff_reasons_and_disabled_actions(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_unknown(), _escalation(), _orders()])
     _chat(client, "gap-unknown", "Can you change my billing currency to yen?")
@@ -123,7 +128,7 @@ def test_gaps_surface_unknown_requests_handoff_reasons_and_disabled_actions(
 
 
 def test_quality_monitors_flag_conversations_and_reviews_stick(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     use_decisions([_unknown(), _unknown(), _orders()])
     _chat(client, "qa-angry", "This is useless, I want a real person")
@@ -181,7 +186,7 @@ def test_quality_monitors_flag_conversations_and_reviews_stick(
     assert client.delete(f"/ui/quality/monitors/{monitor_id}").status_code == 404
 
 
-def test_error_log_groups_failed_runs(client: TestClient, use_decisions) -> None:
+def test_error_log_groups_failed_runs(client: TestClient, use_decisions: UseDecisions) -> None:
     use_decisions([_orders()])
     _chat(client, "err-ok", "Orders please")
     body = client.get("/ui/errors").json()
@@ -190,7 +195,9 @@ def test_error_log_groups_failed_runs(client: TestClient, use_decisions) -> None
     assert len(body["daily"]) == 31
 
 
-def test_simulation_runs_scenarios_in_isolation(client: TestClient, monkeypatch) -> None:
+def test_simulation_runs_scenarios_in_isolation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     scenarios = client.get("/ui/simulations/scenarios").json()
     assert len(scenarios) >= 100
     chosen = [item["id"] for item in scenarios if item["category"] == "prompt_injection"][:2]

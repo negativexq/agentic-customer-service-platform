@@ -123,7 +123,9 @@ def test_second_request_waits_for_the_first_confirmation(db_session: Session) ->
         conversation_id="compound-write", customer_id=1, message="Yes", session=db_session
     )
 
-    assert db_session.get(Order, 4401).status == OrderStatus.CANCELLED
+    order = db_session.get(Order, 4401)
+    assert order is not None
+    assert order.status == OrderStatus.CANCELLED
     assert len(provider.calls) == 2
     assert len(done.earlier_replies) == 1 and "4401" in done.earlier_replies[0].message
     assert any(isinstance(block, OrdersBlock) for block in done.blocks)
@@ -155,6 +157,7 @@ def test_each_reply_is_recorded_as_its_own_message(db_session: Session) -> None:
     conversation = db_session.scalar(
         select(Conversation).where(Conversation.conversation_id == "compound-record")
     )
+    assert conversation is not None
     recorded = list_messages(db_session, conversation)
     assert [item.content for item in recorded] == [
         message,

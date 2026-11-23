@@ -1,5 +1,6 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from datetime import timedelta
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,6 +18,9 @@ from app.models import Conversation, Escalation
 from app.services.workspace import sla_statuses, sla_targets
 
 CUSTOMER_ONE = {"Authorization": "Bearer test-customer-one-token"}
+
+
+UseDecisions = Callable[[Sequence[StructuredDecision]], None]
 
 
 def _escalation(priority: str = "high") -> StructuredDecision:
@@ -45,7 +49,9 @@ def use_decisions() -> Generator[object, None, None]:
     app.dependency_overrides.pop(get_agent_runtime, None)
 
 
-def _escalated(client: TestClient, use_decisions, conversation_id: str) -> dict:
+def _escalated(
+    client: TestClient, use_decisions: UseDecisions, conversation_id: str
+) -> dict[str, Any]:
     use_decisions([_escalation()])
     response = client.post(
         "/agent/chat",
@@ -53,10 +59,15 @@ def _escalated(client: TestClient, use_decisions, conversation_id: str) -> dict:
     )
     assert response.status_code == 200, response.text
     entries = client.get("/operator/conversations").json()
-    return next(item for item in entries if item["conversation_id"] == conversation_id)
+    entry: dict[str, Any] = next(
+        item for item in entries if item["conversation_id"] == conversation_id
+    )
+    return entry
 
 
-def test_internal_notes_stay_with_operators(client: TestClient, use_decisions) -> None:
+def test_internal_notes_stay_with_operators(
+    client: TestClient, use_decisions: UseDecisions
+) -> None:
     entry = _escalated(client, use_decisions, "ws-notes")
     url = f"/operator/conversations/{entry['id']}/notes"
 
@@ -80,7 +91,7 @@ def test_internal_notes_stay_with_operators(client: TestClient, use_decisions) -
 
 
 def test_customer_context_lists_orders_tickets_and_history(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     first = _escalated(client, use_decisions, "ws-context-1")
     second = _escalated(client, use_decisions, "ws-context-2")
@@ -115,7 +126,10 @@ def test_saved_replies_crud_and_usage(client: TestClient) -> None:
 
 
 def test_sla_targets_and_waiting_state(
-    client: TestClient, db_session: Session, use_decisions, monkeypatch
+    client: TestClient,
+    db_session: Session,
+    use_decisions: UseDecisions,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     targets = {
         item["priority"]: item["first_response_minutes"]
@@ -183,7 +197,7 @@ def test_sla_targets_and_waiting_state(
 
 
 def test_customer_rates_conversation_and_operator_sees_it(
-    client: TestClient, use_decisions
+    client: TestClient, use_decisions: UseDecisions
 ) -> None:
     entry = _escalated(client, use_decisions, "ws-csat")
     rated = client.post(

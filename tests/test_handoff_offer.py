@@ -1,4 +1,5 @@
 from collections.abc import Generator, Sequence
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -43,13 +44,14 @@ def _use(decisions: Sequence[StructuredDecision]) -> None:
     app.dependency_overrides[get_agent_runtime] = lambda: runtime
 
 
-def _chat(client: TestClient, conversation_id: str, message: str) -> dict:
+def _chat(client: TestClient, conversation_id: str, message: str) -> dict[str, Any]:
     response = client.post(
         "/agent/chat",
         json={"conversation_id": conversation_id, "customer_id": 1, "message": message},
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    body: dict[str, Any] = response.json()
+    return body
 
 
 def test_plain_request_gets_one_offer_then_a_person(client: TestClient) -> None:
@@ -102,7 +104,7 @@ class _Reader:
     def __init__(self, explains_issue: bool) -> None:
         self.explains_issue = explains_issue
 
-    def read(self, message: str) -> dict[str, object]:
+    def read(self, message: str) -> dict[str, Any]:
         return {"requests": [{"text": message}], "explains_issue": self.explains_issue}
 
 
