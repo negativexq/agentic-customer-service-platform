@@ -67,21 +67,28 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
         if settings.llm_api == "responses":
             model_kwargs["use_responses_api"] = True
         model = ChatOpenAI(**model_kwargs)
-        if settings.llm_structured_output_mode == "function_calling":
+        structured_output = model.with_structured_output
+        parameters = inspect.signature(structured_output).parameters
+        supports_options = "method" in parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
+        )
+        if not supports_options:
+            self._model = structured_output(self._decision_schema)
+        elif settings.llm_structured_output_mode == "function_calling":
             # The decision schema is the only synthetic tool exposed to the model. It is
             # transport-only; business tools remain selected and authorized by the control plane.
-            structured_output = model.with_structured_output
-            parameters = inspect.signature(structured_output).parameters
-            supports_method = "method" in parameters or any(
-                parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
-            )
-            self._model = (
-                structured_output(self._decision_schema, method="function_calling")
-                if supports_method
-                else structured_output(self._decision_schema)
-            )
+            self._model = structured_output(self._decision_schema, method="function_calling")
         else:
-            self._model = model.with_structured_output(self._decision_schema)
+            # The decision contract uses discriminated unions and optional objects, which strict
+            # provider-side schema enforcement rejects. A model class would make the OpenAI SDK
+            # force strict mode, so the plain JSON schema is sent with strict off. It still
+            # guides the model, and every decision is validated against the contract below
+            # before anything acts on it.
+            self._model = structured_output(
+                _non_strict_json_schema(self._decision_schema),
+                method="json_schema",
+                strict=False,
+            )
         self._last_validation_diagnostic: StructuredDecisionValidationDiagnostic | None = None
         self._last_structured_call_metadata: StructuredCallMetadata = {
             "structured_call_present": None,
@@ -256,6 +263,17 @@ class OpenAICompatibleProvider(DecisionProposalProvider):
                 **response_metadata,
             )
             raise
+
+
+def _non_strict_json_schema(schema: type[BaseModel]) -> dict[str, Any]:
+    response_schema: dict[str, Any] = {
+        "name": schema.__name__,
+        "schema": schema.model_json_schema(),
+        "strict": False,
+    }
+    if schema.__doc__:
+        response_schema["description"] = inspect.cleandoc(schema.__doc__)
+    return response_schema
 
 
 def _call_metadata(

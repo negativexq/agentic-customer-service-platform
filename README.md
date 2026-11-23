@@ -244,16 +244,66 @@ Runtime acceptance exercises real SIGTERM shutdown, in-flight request draining, 
 
 ## Run locally
 
-Requirements: Docker Compose, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node.js, and npm.
+Running the stack needs only Docker with Docker Compose v2. Python 3.12 with [uv](https://docs.astral.sh/uv/), Node.js, and npm are needed only to run the tests below.
+
+### 1. Get the code and create `.env`
 
 ~~~bash
+git clone https://github.com/negativexq/agentic-customer-service-platform.git
+cd agentic-customer-service-platform
 cp .env.example .env
+~~~
+
+`.env` is ignored by git, so keys you put there stay on your machine.
+
+### 2. Choose a model
+
+The console and the knowledge base work without a model. The assistant needs an OpenAI-compatible model to answer new messages; without one, new runs fail safely and nothing is executed.
+
+**OpenAI.** In `.env`, set:
+
+~~~bash
+LLM_MODEL=gpt-4.1-mini
+COMPOSE_LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+~~~
+
+To keep the key out of the file, write `LLM_API_KEY=${OPENAI_API_KEY}` instead and export `OPENAI_API_KEY` in the shell before every `docker compose up`. If it is not set, Compose warns that the variable is not set and the assistant runs without a key.
+
+**Ollama on your machine.** Run `ollama pull qwen2.5:7b`, then set `LLM_MODEL=qwen2.5:7b` and `LLM_API_KEY=ollama` in `.env`. The default `COMPOSE_LLM_BASE_URL` already points the backend container at Ollama on the host, on macOS, Windows, and Linux.
+
+Reasoning models and the Responses API are covered in [deployment](docs/deployment.md).
+
+### 3. Start the stack
+
+~~~bash
 docker compose up --build --detach
 ~~~
 
-Open <http://localhost:5173>. Setup applies migrations, seeds records, and loads the bundled knowledge base; stop with `docker compose down`. The optional live path uses an OpenAI-compatible provider for semantic proposals only; grounding, compilation, policy, confirmation, idempotency, and execution authority remain server-owned.
+The first build takes a few minutes. A one-off `demo-setup` container applies the database migrations, seeds demo customers and orders, and loads the bundled knowledge base, then exits. The backend and the console start after it.
 
-See [deployment](docs/deployment.md) for health, readiness, and topology details.
+| Service | Address | Change the port with |
+|---|---|---|
+| Operator console | <http://localhost:5173> | `FRONTEND_PORT` |
+| Backend API | <http://localhost:8000> | `BACKEND_PORT` |
+| PostgreSQL | `localhost:5432` | `POSTGRES_PORT` |
+| Qdrant | <http://localhost:6333> | `QDRANT_HTTP_PORT`, `QDRANT_GRPC_PORT` |
+| Jaeger traces | <http://localhost:16686> | `JAEGER_UI_PORT` |
+
+If a port is already taken, set its variable in `.env` (for example `FRONTEND_PORT=5174`) and run the command again.
+
+### 4. Sign in and try it
+
+Open <http://localhost:5173>. The sign-in form is filled in with the demo account; select **Sign in**. This is a local demo gate, not production authentication. Then open **Playground** and run the refund scenario: the assistant proposes a refund and waits for confirmation before anything changes.
+
+### Stop or reset
+
+~~~bash
+docker compose down      # stop; data is kept
+docker compose down -v   # stop and delete the database and knowledge index
+~~~
+
+The live path uses the model for semantic proposals only; grounding, compilation, policy, confirmation, idempotency, and execution authority remain server-owned. See [deployment](docs/deployment.md) for health, readiness, and topology details.
 
 To enable optional domain and native HTTP metrics:
 
