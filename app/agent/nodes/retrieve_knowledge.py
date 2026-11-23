@@ -86,7 +86,9 @@ def make_retrieve_node(
         )
         grounded = generator.answer(policy_query or customer_query, chunks)
         knowledge_answer = grounded.answer
-        if tool_result is not None:
+        if tool_result is not None and _cancelled(tool_result, intent):
+            knowledge_answer = _cancelled_without_reason(tool_result)
+        elif tool_result is not None:
             knowledge_answer = _with_order_status(
                 tool_result, grounded.answer if grounded.status.value == "pass" else ""
             )
@@ -151,3 +153,18 @@ def _with_order_status(tool_result: dict[str, object], policy: str) -> str:
     lead = f"{subject} {phrase}."
     policy = policy.removeprefix("Based on the retrieved evidence: ")
     return f"{lead} {policy}".strip()
+
+
+def _cancelled(tool_result: dict[str, object], intent: object) -> bool:
+    return intent == Intent.CANCELLATION_EXPLANATION and tool_result.get("status") == "cancelled"
+
+
+def _cancelled_without_reason(tool_result: dict[str, object]) -> str:
+    """Orders keep no cancellation reason, so "why?" gets the fact and a next step, not policy."""
+
+    order_id = tool_result.get("id")
+    subject = f"Order #{order_id}" if order_id is not None else "This order"
+    return (
+        f"{subject} is cancelled. Our records don't show why it was cancelled. If you didn't "
+        "ask for this, I can open a support ticket or connect you with a person to look into it."
+    )

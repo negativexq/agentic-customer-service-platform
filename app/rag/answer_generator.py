@@ -433,7 +433,8 @@ def normalize_knowledge_query(query: str) -> str:
     ):
         return "shipping processing transit delivery business days"
     if re.search(r"\b(?:kargo|teslimat|gönderi)\w*", normalized) and re.search(
-        r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır)", normalized
+        r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır|politika|kural|koşul|hakkında|bilgi)",
+        normalized,
     ):
         return "shipping processing transit delivery business days"
     if re.search(r"\bgecik\w*", normalized) or re.search(

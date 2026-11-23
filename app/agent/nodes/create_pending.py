@@ -5,12 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.agent.nodes.common import error_category
 from app.agent.nodes.pending_payload import build_policy_inputs, hash_policy_inputs
+from app.agent.schemas import AgentErrorCategory
 from app.agent.state import AgentState
+from app.models.entities import OrderStatus
 from app.policies.confirmation import Clock
 from app.policies.models import PendingAction, PolicyOutcome
 from app.tools.base import ToolError
 from app.tools.orders import CancelOrderInput, validate_cancel_order
 from app.tools.refunds import RequestRefundInput, validate_refund_request
+
+# Cancelling an order that is already cancelled changes nothing; say so instead of asking.
+ALREADY_CANCELLED = "already_cancelled"
 
 
 def _business_state_error(
@@ -26,9 +31,15 @@ def _business_state_error(
         return None
     try:
         if tool_name == "cancel_order":
-            validate_cancel_order(
+            order = validate_cancel_order(
                 session, CancelOrderInput.model_validate(arguments), tenant_id=tenant_id
             )
+            if OrderStatus(order.status) == OrderStatus.CANCELLED:
+                return {
+                    "error_category": AgentErrorCategory.INVALID_STATE,
+                    "last_error": ALREADY_CANCELLED,
+                    "tool_execution_status": "failed",
+                }
         elif tool_name == "request_refund":
             validate_refund_request(
                 session, RequestRefundInput.model_validate(arguments), tenant_id=tenant_id

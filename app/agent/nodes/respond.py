@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.agent.decision_compiler import CompileStatus
 from app.agent.handoff import HANDOFF_OFFER_MESSAGE
+from app.agent.nodes.create_pending import ALREADY_CANCELLED
 from app.agent.schemas import (
     AgentErrorCategory,
     AgentRequestType,
@@ -30,6 +31,12 @@ def _order_id(state: AgentState) -> int | str | None:
             return order_id
     return None
 
+
+# What the assistant can help with, for a question outside it ("What's 2+2?").
+_OUT_OF_SCOPE = (
+    "I can only help with your orders, refunds and cancellations, support tickets, and our "
+    "store policies. What can I help you with?"
+)
 
 DISABLED_ACTION_MESSAGE = (
     "I can't do that here right now. I can connect you with a support specialist "
@@ -62,9 +69,14 @@ def _error_message(category: AgentErrorCategory | None, state: AgentState) -> st
         else (pending.tool_name if pending is not None else None)
     )
     subject = f"order #{order_id}" if order_id is not None else "this order"
-    if operation in {None, "cancel_order"}:
+    if state.get("last_error") == ALREADY_CANCELLED:
         invalid_state = (
-            "I can't cancel this order because it has already moved to a stage where "
+            f"{subject[0].upper()}{subject[1:]} is already cancelled, "
+            "so there's nothing more to do."
+        )
+    elif operation in {None, "cancel_order"}:
+        invalid_state = (
+            f"I can't cancel {subject} because it has already moved to a stage where "
             "cancellation is unavailable."
         )
     elif operation == "request_refund":
@@ -490,7 +502,7 @@ def respond(state: AgentState) -> AgentState:
         if _asks_arrival(_latest_user_text(state)) and _shipped(state):
             message += f" {_TRANSIT_NOTE}"
     else:
-        message = "Could you clarify what you need help with?"
+        message = _OUT_OF_SCOPE
     message = _apply_memory_context(state, message)
     return {
         "final_response": message,
@@ -549,14 +561,16 @@ def _memory_summary_message(state: AgentState) -> str:
 
 
 def _confirmation_request_message(action: PendingAction) -> str:
+    order_id = action.arguments.get("order_id")
+    for_order = f" for order #{order_id}" if isinstance(order_id, int | str) and order_id else ""
     if action.tool_name == "request_refund":
         return (
-            "I can submit your refund request. Before I continue, I need your confirmation. "
-            "Would you like me to proceed?"
+            f"I can submit your refund request{for_order}. Before I continue, I need your "
+            "confirmation. Would you like me to proceed?"
         )
     if action.tool_name == "cancel_order":
         return (
-            "I can submit your cancellation request. Before I continue, I need your "
+            f"I can submit your cancellation request{for_order}. Before I continue, I need your "
             "confirmation. Would you like me to proceed?"
         )
     return (

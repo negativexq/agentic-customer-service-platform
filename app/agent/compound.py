@@ -34,7 +34,9 @@ _INSTRUCTION = (
     "You split a customer-support message into its separate requests. A separate request is "
     "one that could be handled on its own: looking something up, an action such as a refund, "
     "cancellation or support ticket, or a policy question. Details of one request, such as the "
-    "reason for a refund, stay in that request. Write each request in the customer's own "
+    "reason for a refund, stay in that request. The same question about several orders or "
+    'tickets ("Where are orders 1 and 2?") becomes one request per order or ticket. '
+    "Write each request in the customer's own "
     "language and words; repeat an order or ticket number in a later request only when the "
     "customer clearly meant the same one. Never add facts, numbers or requests. Return JSON "
     'only: {"requests": ["...", "..."]}, in the order the customer asked, with one item when '

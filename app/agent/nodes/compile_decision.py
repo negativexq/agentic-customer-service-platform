@@ -271,10 +271,21 @@ _REFUND_STATUS_QUESTION = re.compile(
 
 
 def _status_question_as_lookup(decision: SemanticDecision, user_message: str) -> SemanticDecision:
-    if decision.intent != Intent.REFUND_REQUEST or not _REFUND_STATUS_QUESTION.search(user_message):
+    # "Where is my refund for order 6?" asks for that order's refund status, whether the model
+    # read it as a new refund or as a question about refund eligibility.
+    refund_reading = decision.intent == Intent.REFUND_REQUEST or (
+        decision.intent in {Intent.REFUND_ELIGIBILITY, Intent.REFUND_POLICY}
+        and decision.target is not None
+    )
+    if not refund_reading or not _REFUND_STATUS_QUESTION.search(user_message):
         return decision
     return decision.model_copy(
-        update={"intent": Intent.ORDER_LOOKUP, "request_type": AgentRequestType.READ_ACTION}
+        update={
+            "intent": Intent.ORDER_LOOKUP,
+            "request_type": AgentRequestType.READ_ACTION,
+            "requires_retrieval": False,
+            "knowledge_query": None,
+        }
     )
 
 
