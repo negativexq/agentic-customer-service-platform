@@ -96,9 +96,41 @@ _ENGLISH_WORDS = re.compile(
 )
 
 
-def conversation_language(user_messages: list[str]) -> str | None:
-    """The language of the latest message that shows one; "2" or "#5" keep the previous one."""
+# "Reply in English from now on" / "Türkçe yazar mısın": an explicit choice outranks detection.
+NO_REQUEST = "no_request"
+_ASKS_ENGLISH = re.compile(
+    r"\b(?:in|speak|reply|answer|respond|write|use)\b.{0,20}\benglish\b"
+    r"|\bingilizce\b.{0,30}(?:cevap|yanıt|konuş|yaz|söyle)",
+    re.I,
+)
+_ASKS_TURKISH = re.compile(
+    r"\b(?:in|speak|reply|answer|respond|write|use)\b.{0,20}\bturkish\b"
+    r"|\btürkçe\b.{0,30}(?:cevap|yanıt|konuş|yaz|söyle)",
+    re.I,
+)
 
+
+def requested_language(message: str) -> str | None:
+    """ "Turkish" or None (English) when the message asks for a reply language, else NO_REQUEST."""
+
+    text = message.replace("İ", "I").lower()
+    if _ASKS_ENGLISH.search(text):
+        return None
+    if _ASKS_TURKISH.search(text):
+        return "Turkish"
+    return NO_REQUEST
+
+
+def conversation_language(user_messages: list[str]) -> str | None:
+    """The language the customer asked for, else that of the latest message that shows one.
+
+    "2" or "#5" keep the previous language.
+    """
+
+    for message in reversed(user_messages):
+        choice = requested_language(message)
+        if choice != NO_REQUEST:
+            return choice
     for message in reversed(user_messages):
         if detect_language(message):
             return detect_language(message)
@@ -112,12 +144,18 @@ def localize_reply(
     customer_message: str,
     reply: str,
     *,
-    language: str | None = None,
+    language: str | None = NO_REQUEST,
 ) -> str:
-    language = language or detect_language(customer_message)
+    """Translate into `language` (None keeps English); by default detect it from the message."""
+
+    if language == NO_REQUEST:
+        language = detect_language(customer_message)
     if localizer is None or language is None or not reply.strip():
         return reply
-    if detect_language(reply) == language:
+    # Quoted customer text (a ticket description) does not make the reply itself Turkish, and a
+    # reply that still holds English words is translated whole, never sent half and half.
+    unquoted = re.sub(r'"[^"]*"', "", reply)
+    if detect_language(unquoted) == language and not _ENGLISH_WORDS.search(unquoted):
         return reply  # Already written in the customer's language.
     try:
         translated = localizer.translate(reply, language)

@@ -85,6 +85,11 @@ def make_retrieve_node(
             KNOWLEDGE_QUERIES.get(intent) if tool_result and isinstance(intent, Intent) else None
         )
         grounded = generator.answer(policy_query or customer_query, chunks)
+        topic_query = _TOPIC_QUERIES.get(intent) if isinstance(intent, Intent) else None
+        if grounded.status.value != "pass" and policy_query is None and topic_query:
+            # "When will it arrive?" or "what's your return window?" share few words with the
+            # article; the classified policy topic still names which article answers it.
+            grounded = generator.answer(topic_query, chunks)
         knowledge_answer = grounded.answer
         if tool_result is not None and _cancelled(tool_result, intent):
             knowledge_answer = _cancelled_without_reason(tool_result)
@@ -131,6 +136,12 @@ def _latest_user_message(state: AgentState) -> str:
             return message["content"]
     return ""
 
+
+_TOPIC_QUERIES = {
+    Intent.SHIPPING_POLICY: "shipping processing transit delivery business days",
+    Intent.REFUND_POLICY: "refund eligibility delivered damaged returned",
+    Intent.CANCELLATION_POLICY: "cancellation before shipment processing",
+}
 
 _STATUS_PHRASES = {
     "pending": "is still pending",

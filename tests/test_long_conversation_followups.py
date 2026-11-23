@@ -222,3 +222,67 @@ def test_refund_status_read_as_eligibility_still_reads_the_order(db_session: Ses
 
     assert answer.intent == Intent.ORDER_LOOKUP
     assert "has been submitted and is waiting for review" in answer.message
+
+
+def test_someone_elses_order_reads_like_a_missing_one(db_session: Session) -> None:
+    db_session.add(Order(id=4209, customer_id=2, status=OrderStatus.SHIPPED, total_amount="3.00"))
+    db_session.flush()
+    provider = FakeSemanticDecisionV3Provider(
+        [
+            SemanticDecisionV3(
+                intent=Intent.ORDER_LOOKUP,
+                request_type=AgentRequestType.READ_ACTION,
+                target={"type": "explicit_order", "order_id": 4209},
+            )
+        ]
+    )
+    answer = _say(AgentRuntime(provider=provider), db_session, "other-order", "Where is 4209?")
+
+    assert answer.message == "I couldn't find order #4209 on your account. Please check the number."
+
+
+def test_asked_reply_language_wins_over_detection() -> None:
+    from app.agent.localize import NO_REQUEST, conversation_language, requested_language
+
+    assert requested_language("Bundan sonra bana İngilizce cevap verir misin?") is None
+    assert requested_language("Can you reply in Turkish?") == "Turkish"
+    assert requested_language("Siparişim nerede?") == NO_REQUEST
+    asked = ["Bundan sonra bana İngilizce cevap verir misin?", "Siparişlerim neler?"]
+    assert conversation_language(asked) is None
+
+
+def test_quoted_customer_text_does_not_stop_translation() -> None:
+    from app.agent.localize import localize_reply
+
+    class Upper:
+        def translate(self, reply: str, language: str) -> str:
+            return "ÇEVRİLDİ " + reply
+
+    reply = 'Ticket #11 (shipping delay): open. "Kargom gecikti."'
+    assert localize_reply(Upper(), "11 numaralı talebim?", reply).startswith("ÇEVRİLDİ")
+
+
+def test_upset_handoff_apologises_first() -> None:
+    from app.agent.nodes.respond import respond
+
+    result = respond(
+        {
+            "intent": Intent.HUMAN_ESCALATION,
+            "request_type": AgentRequestType.ESCALATION,
+            "selected_tool": "escalate_to_human",
+            "tool_result": {},
+            "messages": [{"role": "user", "content": "Bu kaçıncı soruşum, çok sinir bozucu"}],
+        }
+    )
+    assert result["final_response"].startswith("I'm sorry for the trouble.")
+
+
+def test_half_turkish_reply_is_translated_whole() -> None:
+    from app.agent.localize import localize_reply
+
+    class Marked:
+        def translate(self, reply: str, language: str) -> str:
+            return "Üzgünüm. Sizi bir destek uzmanına bağlayacağım."
+
+    mixed = "Bunu yaşadığınız için üzgünüm. I'll connect you with a human support specialist."
+    assert localize_reply(Marked(), "Çok sinir bozucu", mixed).startswith("Üzgünüm.")

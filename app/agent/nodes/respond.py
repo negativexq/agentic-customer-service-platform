@@ -2,7 +2,8 @@ import re
 from datetime import datetime
 
 from app.agent.decision_compiler import CompileStatus
-from app.agent.handoff import HANDOFF_OFFER_MESSAGE
+from app.agent.handoff import FRUSTRATION_MARKERS, HANDOFF_OFFER_MESSAGE
+from app.agent.localize import NO_REQUEST, requested_language
 from app.agent.nodes.create_pending import ALREADY_CANCELLED
 from app.agent.schemas import (
     AgentErrorCategory,
@@ -90,7 +91,12 @@ def _error_message(category: AgentErrorCategory | None, state: AgentState) -> st
         )
     return {
         AgentErrorCategory.RESOURCE_NOT_FOUND: resource_not_found,
-        AgentErrorCategory.OWNERSHIP_VIOLATION: "I can't access another customer's information.",
+        # Saying "that belongs to someone else" would confirm the record exists.
+        AgentErrorCategory.OWNERSHIP_VIOLATION: (
+            f"I couldn't find order #{order_id} on your account. Please check the number."
+            if order_id is not None
+            else "I can't access another customer's information."
+        ),
         AgentErrorCategory.INVALID_STATE: invalid_state,
         AgentErrorCategory.DUPLICATE_ACTION: (
             "It looks like this refund request is already being processed."
@@ -153,7 +159,8 @@ def _order_line(order: dict[str, object]) -> str:
 
 def _ticket_line(ticket: dict[str, object]) -> str:
     about = f" about order #{ticket['order_id']}" if ticket.get("order_id") else ""
-    return f"#{ticket.get('id')} ({ticket.get('category')}{about}): {ticket.get('status')}"
+    category = str(ticket.get("category") or "support").replace("_", " ")
+    return f"#{ticket.get('id')} ({category}{about}): {ticket.get('status')}"
 
 
 def _items(result: dict[str, object] | None) -> list[dict[str, object]]:
@@ -204,7 +211,8 @@ def _tool_message(tool_name: str, result: dict[str, object] | None) -> str:
     if tool_name == "create_support_ticket":
         ticket_id = result.get("id")
         return (
-            f"I created support ticket #{ticket_id} ({result.get('category')}). "
+            f"I created support ticket #{ticket_id} "
+            f"({str(result.get('category') or 'support').replace('_', ' ')}). "
             "Our team will follow up on it."
             if ticket_id is not None
             else "Your support ticket was created."
@@ -304,6 +312,16 @@ def _latest_user_text(state: AgentState) -> str:
     return ""
 
 
+def _sorry(state: AgentState) -> str:
+    """An apology before the handoff when the customer is plainly upset."""
+
+    # English like the rest of the reply; translation turns the whole reply at once.
+    text = _latest_user_text(state).casefold()
+    if not any(marker in text for marker in FRUSTRATION_MARKERS):
+        return ""
+    return "I'm sorry for the trouble. "
+
+
 def _open_reply(text: str) -> str:
     """Answer greetings and thanks like a person would; otherwise ask what they need."""
 
@@ -322,10 +340,13 @@ def _open_reply(text: str) -> str:
         )
     return (
         "Ne yapmak istediğinizi biraz netleştirebilir misiniz? Siparişleriniz, iade ve "
-        "iptaller, destek talepleriniz ya da kargo ve politikalarımızla ilgili yardımcı olabilirim."
+        "iptaller, destek talepleriniz ya da kargo ve politikalarımızla ilgili yardımcı "
+        "olabilirim. Başka bir konuysa destek talebi açabilir ya da sizi bir temsilciye "
+        "bağlayabilirim."
         if turkish
         else "Could you clarify whether you need help with an order, a refund or cancellation, "
-        "a support ticket, or a question about shipping or our policies?"
+        "a support ticket, or a question about shipping or our policies? If it's something "
+        "else, I can open a support ticket or connect you with a person."
     )
 
 
@@ -350,6 +371,12 @@ def respond(state: AgentState) -> AgentState:
         message = (
             "I can remember preferences and support context, but I can't store permissions, "
             "roles, or authorization claims."
+        )
+    elif requested_language(_latest_user_text(state)) is not NO_REQUEST:
+        message = (
+            "Elbette, bundan sonra Türkçe yazacağım."
+            if requested_language(_latest_user_text(state)) == "Turkish"
+            else "Sure, I'll reply in English from now on."
         )
     elif state.get("handoff_offered") and error_category is None:
         message = HANDOFF_OFFER_MESSAGE
@@ -494,11 +521,13 @@ def respond(state: AgentState) -> AgentState:
             "you would like to speak with someone?"
         )
     elif not tool_name and state.get("intent") == Intent.HUMAN_ESCALATION:
-        message = "I'll connect you with a human support specialist."
+        message = f"{_sorry(state)}I'll connect you with a human support specialist."
     elif state.get("request_type") == AgentRequestType.UNCLEAR:
         message = _open_reply(_latest_user_text(state))
     elif tool_name:
         message = _tool_message(tool_name, state.get("tool_result"))
+        if tool_name == "escalate_to_human":
+            message = f"{_sorry(state)}{message}"
         if _asks_arrival(_latest_user_text(state)) and _shipped(state):
             message += f" {_TRANSIT_NOTE}"
     else:

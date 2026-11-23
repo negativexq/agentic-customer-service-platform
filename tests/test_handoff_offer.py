@@ -81,7 +81,7 @@ def test_sensitive_or_upset_requests_connect_immediately(
 
     response = _chat(client, f"handoff-now-{priority}", message)
 
-    assert response["message"] == CONNECTED
+    assert response["message"].endswith(CONNECTED)
     assert response["tool_call"]["status"] == "executed"
 
 
@@ -93,4 +93,4 @@ def test_operators_can_choose_immediate_handoff(client: TestClient) -> None:
 
     response = _chat(client, "handoff-config", "Can I talk to a person?")
 
-    assert response["message"] == CONNECTED
+    assert response["message"].endswith(CONNECTED)

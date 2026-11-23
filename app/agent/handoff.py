@@ -48,6 +48,9 @@ FRUSTRATION_MARKERS = (
     "rezalet",
     "saçma",
     "işe yaramıyor",
+    "sinir bozucu",
+    "kaçıncı",
+    "bıktım",
 )
 
 

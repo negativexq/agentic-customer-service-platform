@@ -36,6 +36,7 @@ _INSTRUCTION = (
     "cancellation or support ticket, or a policy question. Details of one request, such as the "
     "reason for a refund, stay in that request. The same question about several orders or "
     'tickets ("Where are orders 1 and 2?") becomes one request per order or ticket. '
+    "Separate questions are separate requests, even about the same order. "
     "Write each request in the customer's own "
     "language and words; repeat an order or ticket number in a later request only when the "
     "customer clearly meant the same one. Never add facts, numbers or requests. Return JSON "
