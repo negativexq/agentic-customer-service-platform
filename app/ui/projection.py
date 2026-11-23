@@ -14,6 +14,7 @@ from app.agent.state import AgentState
 from app.core.config import get_settings
 from app.core.context import ExecutionContext
 from app.policies.models import PendingActionStatus, PolicyAuditEvent
+from app.ui.outcome import run_status_for_error
 from app.ui.repository import InMemoryAgentRunProjectionRepository
 from app.ui.schemas import (
     AgentRunView,
@@ -273,7 +274,16 @@ class UIProjectionStore(InMemoryAgentRunProjectionRepository):
                 )
             )
         pending_action = state.get("pending_action")
-        run_status = "error" if response.error_category else "completed"
+        run_status = (
+            run_status_for_error(
+                response.error_category,
+                security_signal=state.get("security_signal"),
+                failure_category=response.failure_category,
+                memory_operation=state.get("memory_policy_outcome") is not None,
+            )
+            if response.error_category
+            else "completed"
+        )
         if (
             not response.error_category
             and pending_action is not None

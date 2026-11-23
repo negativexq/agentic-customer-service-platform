@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.entities import AgentRunProjectionRecord
+from app.ui.outcome import normalize_stored_status
 from app.ui.schemas import AgentRunView
 
 DEFAULT_PROJECTION_QUERY_LIMIT = 50
@@ -438,7 +439,13 @@ def _from_record(record: AgentRunProjectionRecord) -> AgentRunView:
             "intent": record.intent,
             "request_type": record.request_type,
             "operation_type": operation_type,
-            "status": record.status,
+            "status": normalize_stored_status(
+                record.status,
+                failure_category=record.failure_category,
+                decision_reason=decision_reason,
+                path=list(record.path or []),
+                security_signal=security_signal,
+            ),
             "started_at": record.started_at,
             "duration_ms": record.duration_ms,
             "trace_id": record.trace_id,

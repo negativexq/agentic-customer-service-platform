@@ -13,7 +13,8 @@ type Props = { run: AgentRun | null; demoScenario?: DemoScenario; memoryRecords:
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "completed") return "success";
   if (status === "waiting_confirmation") return "warning";
-  if (status === "error" || status === "blocked" || status === "failed_validation") return "danger";
+  if (status === "error" || status === "failed") return "danger";
+  if (status === "blocked") return "warning";
   return "neutral";
 }
 
@@ -24,7 +25,7 @@ function humanize(value: string | null | undefined): string {
 function operatorStatus(run: AgentRun): string {
   const semanticStatus = deriveRunSemantics(run).status;
   const status = semanticStatus === "recorded" ? run.status : semanticStatus;
-  return status === "needs_input" ? "Clarification required" : status === "waiting_confirmation" ? "Awaiting confirmation" : status === "blocked" ? "Prevented" : status === "failed_validation" ? "Validation failed" : status === "suspended" ? "Suspended" : status === "replaced" ? "Replaced" : status === "completed" ? "Completed" : humanize(run.status);
+  return status === "needs_input" ? "Clarification required" : status === "waiting_confirmation" ? "Awaiting confirmation" : status === "failed" ? "Failed" : status === "blocked" ? "Blocked" : status === "declined" ? "Declined" : status === "suspended" ? "Suspended" : status === "replaced" ? "Replaced" : status === "completed" ? "Completed" : humanize(run.status);
 }
 
 function operatorExecution(run: AgentRun): string {
@@ -32,8 +33,9 @@ function operatorExecution(run: AgentRun): string {
   if (semantics.status === "needs_input") return "Not attempted";
   if (semantics.status === "waiting_confirmation" || run.status === "waiting_confirmation") return "Awaiting confirmation";
   if (semantics.status === "completed") return "Completed";
-  if (semantics.status === "blocked") return "Prevented";
-  if (semantics.status === "failed_validation") return "Failed validation";
+  if (semantics.status === "failed") return "Failed";
+  if (semantics.status === "blocked") return "Blocked";
+  if (semantics.status === "declined") return "Declined";
   return "Not authorized";
 }
 

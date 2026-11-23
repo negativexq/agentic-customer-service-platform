@@ -24,7 +24,7 @@ function ActionInspector({ run }: { run: AgentRun }) {
   const semantics = deriveRunSemantics(run);
   const isPending = semantics.waiting;
   const isExecuted = semantics.executed;
-  const executionLabel = isExecuted ? "Completed" : isPending ? "Awaiting confirmation" : semantics.status === "needs_input" ? "Not attempted" : semantics.status === "failed_validation" ? "Failed validation" : semantics.status === "blocked" ? "Prevented" : humanize(semantics.executionStatus);
+  const executionLabel = isExecuted ? "Completed" : isPending ? "Awaiting confirmation" : semantics.status === "needs_input" ? "Not attempted" : semantics.status === "failed" ? "Failed" : semantics.status === "declined" ? "Declined" : semantics.status === "blocked" ? "Blocked" : humanize(semantics.executionStatus);
   const executionTone = isExecuted ? "success" : isPending ? "warning" : run.status === "error" ? "danger" : "neutral";
   const toolName = tool?.name ?? policy?.tool_name ?? "No tool proposal recorded";
   const decision = semantics.decision;

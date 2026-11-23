@@ -40,8 +40,9 @@ export function runStatus(run: AgentRun): { label: string; tone: Tone } {
     case "completed": return { label: "Completed", tone: "success" };
     case "waiting_confirmation": return { label: "Awaiting confirmation", tone: "warning" };
     case "needs_input": return { label: "Needs input", tone: "info" };
-    case "blocked": return { label: run.status === "error" ? "Failed" : "Prevented", tone: "danger" };
-    case "failed_validation": return { label: "Failed validation", tone: "danger" };
+    case "failed": return { label: "Failed", tone: "danger" };
+    case "blocked": return { label: "Blocked", tone: "warning" };
+    case "declined": return { label: "Declined", tone: "neutral" };
     case "replayed": return { label: "Replay suppressed", tone: "neutral" };
     case "suspended": return { label: "Suspended", tone: "warning" };
     case "replaced": return { label: "Replaced", tone: "neutral" };

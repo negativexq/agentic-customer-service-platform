@@ -31,8 +31,9 @@ function executionState(run: AgentRun): string {
   if (semantics.status === "needs_input") return "Not attempted";
   if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
   if (semantics.status === "completed") return "Completed";
-  if (semantics.status === "blocked") return "Prevented";
-  if (semantics.status === "failed_validation") return "Failed validation";
+  if (semantics.status === "failed") return "Failed";
+  if (semantics.status === "blocked") return "Blocked";
+  if (semantics.status === "declined") return "Declined";
   if (semantics.status === "suspended") return "Suspended";
   if (semantics.status === "replaced") return "Replaced";
   if (semantics.status === "replayed") return "Already completed · no repeat";
@@ -155,8 +156,9 @@ function investigationOutcome(run: AgentRun): string {
   const semantics = deriveRunSemantics(run);
   if (semantics.status === "needs_input") return "Clarification required";
   if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
-  if (semantics.status === "blocked") return "Prevented";
-  if (semantics.status === "failed_validation") return "Validation failed";
+  if (semantics.status === "failed") return "Failed";
+  if (semantics.status === "blocked") return "Blocked";
+  if (semantics.status === "declined") return "Declined";
   if (semantics.status === "suspended") return "Suspended";
   if (semantics.status === "replaced") return "Replaced";
   return humanize(run.status);
@@ -165,7 +167,8 @@ function investigationOutcome(run: AgentRun): string {
 function investigationTone(run: AgentRun): Tone {
   const status = deriveRunSemantics(run).status;
   if (status === "needs_input" || status === "waiting_confirmation") return "warning";
-  if (status === "blocked" || status === "failed_validation") return "danger";
+  if (status === "failed") return "danger";
+  if (status === "blocked") return "warning";
   if (status === "completed") return "success";
   return "neutral";
 }
@@ -302,7 +305,7 @@ export function EvidenceRelationshipGraph({ run }: { run: AgentRun }) {
   const proposalCount = run.proposal ? 1 : 0;
   const policyCount = run.policy.length;
   const execution = executionState(run);
-  const outcomeTone: FlowTone = execution === "Completed" ? "success" : execution === "Prevented" || execution === "Failed validation" ? "danger" : execution === "Awaiting confirmation" ? "warning" : "neutral";
+  const outcomeTone: FlowTone = execution === "Completed" ? "success" : execution === "Failed" ? "danger" : execution === "Blocked" ? "warning" : execution === "Awaiting confirmation" ? "warning" : "neutral";
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
   const stages: { title: string; nodes: FlowNode[] }[] = [

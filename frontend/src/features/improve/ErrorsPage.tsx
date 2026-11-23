@@ -6,6 +6,7 @@ import { change, KpiCard, KpiGrid } from "../../components/layout/KpiCard";
 import { RankedBars } from "../../components/charts/RankedBars";
 import { AlertTriangle, Activity } from "lucide-react";
 import { formatRelative, humanize } from "../runs/runPresentation";
+import { failureText, recoveryText } from "./errorText";
 import { useErrorLog } from "./queries";
 import { compareWindow, EmptyNote, percent, Section, WindowPicker, windowHalves } from "./shared";
 import { UI_LOCALE } from "@/lib/utils";
@@ -30,7 +31,7 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
 
   return (
     <div className="min-w-0">
-      <PageHeader title="Errors" description="Runs that failed or degraded, grouped by cause. Open a run for its full trace." actions={<WindowPicker value={days} onChange={setDays} />} />
+      <PageHeader title="Errors" description="Runs where the system itself failed, grouped by cause. Refusals and safety blocks are not counted here. Open a run for its full trace." actions={<WindowPicker value={days} onChange={setDays} />} />
       <div className="grid gap-4 p-4 sm:p-6">
         {query.isError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">The error log is unavailable.</p>}
         {!data ? <Skeleton className="h-24 w-full rounded-xl" /> : (
@@ -84,8 +85,8 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
                   <TableHead className="pl-4">When</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Intent</TableHead>
-                  <TableHead>What broke</TableHead>
-                  <TableHead>Recovery</TableHead>
+                  <TableHead>What happened</TableHead>
+                  <TableHead>What the assistant did</TableHead>
                   <TableHead className="pr-4 text-right">Run</TableHead>
                 </TableRow>
               </TableHeader>
@@ -95,8 +96,8 @@ export function ErrorsPage({ onOpenRun }: { onOpenRun: (runId: string) => void }
                     <TableCell className="pl-4 text-muted-foreground">{formatRelative(row.at)}</TableCell>
                     <TableCell>{humanize(row.category)}</TableCell>
                     <TableCell>{humanize(row.intent)}</TableCell>
-                    <TableCell className="max-w-64 truncate text-muted-foreground">{[...row.failed_tools, ...row.degraded_components].join(", ") || humanize(row.status)}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.recovery_action ? humanize(row.recovery_action) : "—"}</TableCell>
+                    <TableCell className="max-w-80 truncate text-foreground/85" title={failureText(row.category, [...row.failed_tools, ...row.degraded_components])}>{failureText(row.category, [...row.failed_tools, ...row.degraded_components])}</TableCell>
+                    <TableCell className="text-muted-foreground">{recoveryText(row.recovery_action)}</TableCell>
                     <TableCell className="pr-4 text-right">
                       <button type="button" onClick={() => onOpenRun(row.run_id)} className="-my-1 inline-flex min-h-7 items-center rounded px-1 font-mono text-xs text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">{row.run_id.slice(0, 12)}</button>
                     </TableCell>

@@ -243,6 +243,12 @@ _IDENTITY = re.compile(
     r"bot mu\w*|robot mu\w*|insan mı\w*|gerçek (?:bir )?insan|sen kimsin|kimsin)\b",
     re.I,
 )
+# Refusals of a side step (memory declined to store a preference) that a reply answering the
+# customer's real question supersedes. System failures are never cleared this way.
+_SIDE_STEP_REFUSALS = frozenset(
+    {AgentErrorCategory.POLICY_DENIED, AgentErrorCategory.INVALID_TOOL_ARGUMENTS}
+)
+
 _RECAP = re.compile(
     r"\b(?:what (?:did|have) we (?:talk(?:ed)? about|discuss(?:ed)?|covered?)|what have you done|"
     r"summar(?:y|ize|ise) (?:of )?(?:our|this) (?:chat|conversation)|ne konuştuk|neler konuştuk|"
@@ -446,6 +452,9 @@ def _open_reply(text: str) -> str:
 
 def respond(state: AgentState) -> AgentState:
     error_category = state.get("error_category")
+    # Set when the reply answers what the customer actually asked (switch language, recap so
+    # far) rather than a side step that was refused; that refusal is then not the outcome.
+    answered_instead = False
     pending_action = state.get("pending_action")
     tool_name = state.get("selected_tool")
     memory_status = state.get("memory_operation_status")
@@ -488,12 +497,14 @@ def respond(state: AgentState) -> AgentState:
             if state.get("language_requested") == "turkish"
             else "Sure, I'll reply in English from now on."
         )
+        answered_instead = True
     elif state.get("handoff_offered") and error_category is None:
         message = HANDOFF_OFFER_MESSAGE
     elif _RECAP.search(_latest_user_text(state)) and state.get("tool_execution_status") != (
         "executed"
     ):
         message = _recap(state)
+        answered_instead = True
     elif (
         _IDENTITY.search(_latest_user_text(state))
         and state.get("tool_execution_status") != "executed"
@@ -654,13 +665,17 @@ def respond(state: AgentState) -> AgentState:
             " For your security, please don't share card numbers here; I never need them to "
             "help you."
         )
-    return {
+    result: AgentState = {
         "covered": _covered(state, message),
         "last_reference": _last_reference(state),
         "final_response": message,
         "messages": [{"role": "assistant", "content": message}],
         "workflow_state": _response_workflow_state(state),
     }
+    if answered_instead and error_category in _SIDE_STEP_REFUSALS:
+        result["error_category"] = None
+        result["last_error"] = None
+    return result
 
 
 def _apply_memory_context(state: AgentState, message: str) -> str:

@@ -33,7 +33,7 @@ export function percentile(values: number[], p: number): number | null {
   return sorted[index];
 }
 
-const failedStatuses = new Set(["Failed", "Failed validation"]);
+const failedStatuses = new Set(["Failed"]);
 
 export function deriveTelemetry(allRuns: AgentRun[]): TelemetrySnapshot {
   const runs = allRuns.filter((run) => !isRecorded(run)).sort((a, b) => a.started_at.localeCompare(b.started_at));
