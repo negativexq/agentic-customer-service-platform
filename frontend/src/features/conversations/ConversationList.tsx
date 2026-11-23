@@ -82,7 +82,7 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
           />
         </div>
       </div>
-      <ul className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2 pb-2">
+      <ul className="relative grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2 pb-2">
         {visible.length === 0 && (
           <li className="px-2 py-8 text-center text-xs text-muted-foreground">
             {loading ? "Loading conversations…" : query ? "No conversations match." : filter === "queued" ? "Nobody is waiting for a person." : filter === "mine" ? "You are not handling any conversation." : "No conversations here yet."}
