@@ -34,6 +34,7 @@ from app.ui.insights_schemas import (
     PerformanceSummary,
     PerformanceView,
     TopicRow,
+    UnansweredQuestion,
 )
 from app.ui.schemas import AgentRunView
 
@@ -270,6 +271,43 @@ def _ungrounded(run: AgentRunView) -> bool:
         or run.answer_grounding.status in UNGROUNDED
         or (run.failure_category or "").startswith(("retriev", "knowledge", "rag"))
     )
+
+
+_ARTICLES = {
+    procedure.intent: procedure.knowledge[0] for procedure in PROCEDURES if procedure.knowledge
+}
+
+
+def unanswered_questions(
+    session: Session, runs: Sequence[AgentRunView]
+) -> list[UnansweredQuestion]:
+    """Questions the assistant could not ground in an article, newest first, repeats merged.
+
+    The wording is the customer's own message, already redacted when it was stored, so the
+    list reads the way customers ask and can become an article's headings as it is.
+    """
+
+    misses = [run for run in runs if run.operation_type == "agent_request" and _ungrounded(run)]
+    questions = customer_questions(session, (run.run_id for run in misses))
+    merged: dict[str, UnansweredQuestion] = {}
+    for run in sorted(misses, key=lambda item: item.started_at, reverse=True):
+        message = questions.get(run.run_id)
+        if message is None or not message.content.strip():
+            continue
+        key = " ".join(message.content.casefold().split()).rstrip("?.! ")
+        if key in merged:
+            merged[key].asked += 1
+            continue
+        merged[key] = UnansweredQuestion(
+            question=message.content.strip(),
+            intent=run.intent,
+            asked=1,
+            last_asked_at=run.started_at,
+            conversation_pk=message.conversation_pk,
+            run_id=run.run_id,
+            article_id=_ARTICLES.get(run.intent),
+        )
+    return sorted(merged.values(), key=lambda item: (-item.asked, -item.last_asked_at.timestamp()))
 
 
 def _disabled_tool(run: AgentRunView) -> str | None:

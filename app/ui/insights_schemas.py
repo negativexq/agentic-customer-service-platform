@@ -67,6 +67,19 @@ class GapExample(BaseModel):
     at: datetime
 
 
+class UnansweredQuestion(BaseModel):
+    """One question customers asked that the knowledge base could not answer."""
+
+    question: str
+    intent: str
+    asked: int
+    last_asked_at: datetime
+    conversation_pk: int | None
+    run_id: str
+    # The article the procedure for this kind of question searches first, if it has one.
+    article_id: str | None = None
+
+
 class GapView(BaseModel):
     kind: GapKind
     key: str

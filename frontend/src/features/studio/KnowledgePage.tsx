@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, Database, Pencil, Plus, RotateCcw, Search, Upload } from "lucide-react";
+import { Archive, ArchiveRestore, CircleHelp, Database, Pencil, Plus, RotateCcw, Search, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/primitives/input";
@@ -9,8 +9,9 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { humanize } from "../runs/runPresentation";
 import { when } from "./DraftBar";
 import { Markdown } from "./Markdown";
-import { studioApi, useKnowledge, useKnowledgeDocument, useKnowledgeMutation, useKnowledgeStatus, useProcedures } from "./queries";
+import { studioApi, useKnowledge, useKnowledgeDocument, useKnowledgeMutation, useKnowledgeStatus, useProcedures, useUnanswered } from "./queries";
 import { EntityChip } from "../../components/EntityChip";
+import { sectionFor, UNANSWERED_DAYS, UnansweredQuestions } from "./UnansweredQuestions";
 import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResult } from "./types";
 
 function IndexStatusBar() {
@@ -94,16 +95,17 @@ function ArticleEditor({ initial, saving, error, onSave, onCancel }: { initial: 
   );
 }
 
-function DocumentView({ summary, detail, onOpenProcedure }: { summary: KnowledgeDocument; detail: KnowledgeDocumentDetail; onOpenProcedure: (intent: string) => void }) {
+function DocumentView({ summary, detail, appendSection, onOpenProcedure }: { summary: KnowledgeDocument; detail: KnowledgeDocumentDetail; appendSection?: string; onOpenProcedure: (intent: string) => void }) {
   const procedures = useProcedures();
   const usedBy = (procedures.data ?? []).filter((item) => item.knowledge.includes(detail.document_id));
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(Boolean(appendSection));
   const save = useKnowledgeMutation((input: { title: string; content: string }) => studioApi.saveArticle(detail.document_id, input.title, input.content));
   const action = useKnowledgeMutation((name: "archive" | "unarchive" | "revert") => studioApi.articleAction(detail.document_id, name));
   const [tab, setTab] = useState<"content" | "passages">("content");
 
   if (editing) {
-    return <ArticleEditor initial={detail} saving={save.isPending} error={save.error} onCancel={() => setEditing(false)}
+    const initial = appendSection ? { title: detail.title, content: `${detail.content.trimEnd()}\n\n${appendSection}` } : detail;
+    return <ArticleEditor initial={initial} saving={save.isPending} error={save.error} onCancel={() => setEditing(false)}
       onSave={(title, content) => save.mutate({ title, content }, { onSuccess: () => setEditing(false) })} />;
   }
   return (
@@ -170,10 +172,16 @@ function DocumentView({ summary, detail, onOpenProcedure }: { summary: Knowledge
   );
 }
 
-export function KnowledgePage({ initialDocument, onOpenProcedure }: { initialDocument: string | null; onOpenProcedure: (intent: string) => void }) {
+export function KnowledgePage({ initialDocument, onOpenProcedure, onOpenConversation }: { initialDocument: string | null; onOpenProcedure: (intent: string) => void; onOpenConversation: (pk: number) => void }) {
   const documents = useKnowledge();
   const [selected, setSelected] = useState<string | null>(initialDocument);
-  const [creating, setCreating] = useState(false);
+  // A new article being written, prefilled when it starts from an unanswered question.
+  const [draft, setDraft] = useState<{ title: string; content: string } | null>(null);
+  const creating = draft !== null;
+  const [unanswered, setUnanswered] = useState(false);
+  const [append, setAppend] = useState<{ id: string; section: string } | null>(null);
+  const questions = useUnanswered(UNANSWERED_DAYS);
+  const openArticle = (id: string) => { setDraft(null); setUnanswered(false); setAppend(null); setSelected(id); };
   const [searchOpen, setSearchOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -184,7 +192,7 @@ export function KnowledgePage({ initialDocument, onOpenProcedure }: { initialDoc
     return (documents.data ?? []).filter((doc) => (showArchived || !doc.archived) && (!needle || doc.title.toLowerCase().includes(needle)));
   }, [documents.data, filter, showArchived]);
   const archivedCount = (documents.data ?? []).filter((doc) => doc.archived).length;
-  const currentId = creating ? null : selected ?? visible[0]?.document_id ?? null;
+  const currentId = creating || unanswered ? null : selected ?? visible[0]?.document_id ?? null;
   const summary = documents.data?.find((doc) => doc.document_id === currentId);
   const detail = useKnowledgeDocument(currentId);
 
@@ -193,18 +201,24 @@ export function KnowledgePage({ initialDocument, onOpenProcedure }: { initialDoc
       <PageHeader title="Knowledge" description="The articles the AI assistant searches to answer policy questions. Answers cite these passages; anything not covered here is answered with “I don’t know”."
         actions={<>
           <Button size="sm" variant="outline" onClick={() => setSearchOpen(true)}><Search />Test retrieval</Button>
-          <Button size="sm" onClick={() => setCreating(true)}><Plus />New article</Button>
+          <Button size="sm" onClick={() => { setUnanswered(false); setDraft({ title: "", content: "" }); }}><Plus />New article</Button>
         </>} />
       <IndexStatusBar />
       <div className="grid min-h-0 flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className="grid content-start gap-2 border-b border-border py-3 pr-3 pl-4 sm:pl-6 lg:border-r lg:border-b-0">
+          <button type="button" onClick={() => { setDraft(null); setAppend(null); setUnanswered(true); }} aria-current={unanswered ? "true" : undefined}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${unanswered ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
+            <CircleHelp className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">Unanswered questions</span>
+            {questions.data && questions.data.length > 0 && <span className="rounded-md bg-warning/12 px-1.5 text-xs tabular-nums text-warning">{questions.data.length}</span>}
+          </button>
           <Input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter articles" aria-label="Filter articles" className="h-8" />
           {documents.isPending ? <div className="grid gap-1.5"><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : (
             <nav aria-label="Articles" className="grid gap-0.5">
               {visible.map((doc) => {
                 const active = doc.document_id === currentId;
                 return (
-                  <button key={doc.document_id} type="button" onClick={() => { setCreating(false); setSelected(doc.document_id); }} aria-current={active ? "true" : undefined}
+                  <button key={doc.document_id} type="button" onClick={() => openArticle(doc.document_id)} aria-current={active ? "true" : undefined}
                     className={`grid gap-0.5 rounded-lg px-3 py-2 text-left transition-colors ${active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
                     <span className={`truncate text-sm font-medium ${doc.archived ? "line-through" : ""}`}>{doc.title}</span>
                     <span className="text-xs text-muted-foreground">
@@ -222,19 +236,23 @@ export function KnowledgePage({ initialDocument, onOpenProcedure }: { initialDoc
           )}
         </aside>
         <div className="min-w-0 p-4 sm:p-6">
-          {creating ? (
+          {unanswered ? (
+            <UnansweredQuestions onOpenConversation={onOpenConversation} onOpenArticle={openArticle}
+              onAddToArticle={(id, question) => { setUnanswered(false); setDraft(null); setSelected(id); setAppend({ id, section: sectionFor(question) }); }}
+              onNewArticle={(question) => { setUnanswered(false); setDraft({ title: question.trim().replace(/[?.!]+$/, ""), content: sectionFor(question) }); }} />
+          ) : draft ? (
             <div className="grid gap-3">
               <h2 className="text-base font-semibold text-foreground">New article</h2>
-              <ArticleEditor initial={{ title: "", content: "" }} saving={create.isPending} error={create.error} onCancel={() => setCreating(false)}
-                onSave={(title, content) => create.mutate({ title, content }, { onSuccess: (doc) => { setCreating(false); setSelected(doc.document_id); } })} />
+              <ArticleEditor initial={draft} saving={create.isPending} error={create.error} onCancel={() => setDraft(null)}
+                onSave={(title, content) => create.mutate({ title, content }, { onSuccess: (doc) => { openArticle(doc.document_id); } })} />
             </div>
           ) : detail.data && summary ? (
-            <DocumentView key={detail.data.document_id} summary={summary} detail={detail.data} onOpenProcedure={onOpenProcedure} />
+            <DocumentView key={`${detail.data.document_id}:${append?.section ?? ""}`} summary={summary} detail={detail.data} appendSection={append?.id === detail.data.document_id ? append.section : undefined} onOpenProcedure={onOpenProcedure} />
           ) : detail.isPending && currentId ? <div className="grid gap-3"><Skeleton className="h-8 w-1/2" /><Skeleton className="h-64" /></div>
             : <p className="text-sm text-muted-foreground">{documents.isError ? "Articles could not be loaded." : "Select an article."}</p>}
         </div>
       </div>
-      <SearchPreview open={searchOpen} onClose={() => setSearchOpen(false)} onOpenDocument={(id) => { setSearchOpen(false); setCreating(false); setSelected(id); }} />
+      <SearchPreview open={searchOpen} onClose={() => setSearchOpen(false)} onOpenDocument={(id) => { setSearchOpen(false); openArticle(id); }} />
     </>
   );
 }

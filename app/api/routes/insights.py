@@ -29,6 +29,7 @@ from app.ui.insights_schemas import (
     ScenarioView,
     SimulationInput,
     SimulationRunView,
+    UnansweredQuestion,
 )
 from app.ui.repository import build_agent_run_projection_repository
 
@@ -73,6 +74,17 @@ def gaps(
         recent_runs(session, principal, days),
         since=utc_now_naive() - timedelta(days=days),
     )
+
+
+@router.get("/unanswered", response_model=list[UnansweredQuestion])
+def unanswered(
+    days: int = Days,
+    principal: Principal = Depends(require_support_operator),
+    session: Session = Depends(get_db),
+) -> list[UnansweredQuestion]:
+    """Customer questions the knowledge base could not answer, to turn into articles."""
+
+    return insights.unanswered_questions(session, recent_runs(session, principal, days))
 
 
 @router.get("/errors", response_model=ErrorLogView)

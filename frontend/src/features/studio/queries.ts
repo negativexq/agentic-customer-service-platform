@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "../../api/client";
 import type {
   ActionView, AgentConfig, AgentConfigState, KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeIndexStatus,
-  KnowledgeSearchResult, ProcedureView,
+  KnowledgeSearchResult, ProcedureView, UnansweredQuestion,
 } from "./types";
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -17,6 +17,7 @@ export const studioApi = {
   actions: () => request<ActionView[]>("/ui/actions"),
   knowledge: () => request<KnowledgeDocument[]>("/ui/knowledge"),
   knowledgeStatus: () => request<KnowledgeIndexStatus>("/ui/knowledge/status"),
+  unanswered: (days: number) => request<UnansweredQuestion[]>(`/ui/unanswered?days=${days}`),
   knowledgeDocument: (id: string) => request<KnowledgeDocumentDetail>(`/ui/knowledge/${encodeURIComponent(id)}`),
   searchKnowledge: (query: string) => request<KnowledgeSearchResult>("/ui/knowledge/search", json("POST", { query })),
   publishKnowledge: () => request<{ snapshot: string; chunk_count: number; action: string }>("/ui/knowledge/publish", json("POST")),
@@ -40,6 +41,7 @@ export const useAgentConfig = () => useQuery({ queryKey: studioKeys.config, quer
 export const useProcedures = () => useQuery({ queryKey: studioKeys.procedures, queryFn: studioApi.procedures });
 export const useActions = () => useQuery({ queryKey: studioKeys.actions, queryFn: studioApi.actions });
 export const useKnowledge = () => useQuery({ queryKey: studioKeys.knowledge, queryFn: studioApi.knowledge });
+export const useUnanswered = (days = 30) => useQuery({ queryKey: ["studio", "unanswered", days], queryFn: () => studioApi.unanswered(days), staleTime: 30_000 });
 export const useKnowledgeStatus = () => useQuery({ queryKey: studioKeys.knowledgeStatus, queryFn: studioApi.knowledgeStatus });
 export const useKnowledgeDocument = (id: string | null) =>
   useQuery({ queryKey: studioKeys.document(id ?? ""), queryFn: () => studioApi.knowledgeDocument(id!), enabled: Boolean(id) });

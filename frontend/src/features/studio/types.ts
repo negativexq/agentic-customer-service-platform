@@ -127,3 +127,14 @@ export type ProcedureView = {
   clarification_runs: number;
   failed_runs: number;
 };
+
+/** Mirrors app/ui/insights_schemas.UnansweredQuestion. */
+export type UnansweredQuestion = {
+  question: string;
+  intent: string;
+  asked: number;
+  last_asked_at: string;
+  conversation_pk: number | null;
+  run_id: string;
+  article_id: string | null;
+};
