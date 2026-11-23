@@ -7,13 +7,12 @@ import { DotMatrixChart } from "../../components/charts/DotMatrixChart";
 import { RankedBars } from "../../components/charts/RankedBars";
 import { PageHeader } from "../../components/layout/PageHeader";
 import type { ConsoleView } from "../../app/routes";
-import type { AgentRun, OperatorConversation, RuntimeConfig } from "../../types";
+import type { AgentRun, OperatorConversation } from "../../types";
 import { PerformanceSummaryStrip, usePerformanceComparison } from "../improve/PerformancePage";
 import { useErrorLog, useQuality } from "../improve/queries";
 import { EmptyNote, percent, Section, WindowPicker } from "../improve/shared";
-import { deriveTelemetry } from "../monitoring/telemetry";
 import { DecisionPath } from "../runs/DecisionPath";
-import { formatDuration, formatRelative, humanize, isRecorded, runStatus } from "../runs/runPresentation";
+import { formatRelative, humanize, isRecorded, runStatus } from "../runs/runPresentation";
 import { StatusLabel } from "../runs/StatusLabel";
 import { slaLabel, slaShort, slaTone } from "../workspace/sla";
 
@@ -21,7 +20,6 @@ type OverviewPageProps = {
   runs: AgentRun[];
   inbox: OperatorConversation[];
   inboxLoading: boolean;
-  runtimeConfig: RuntimeConfig | undefined;
   onOpenRun: (runId: string) => void;
   onOpenConversation: (pk: number) => void;
   onOpenConversations: () => void;
@@ -89,14 +87,13 @@ function RunRow({ run, onOpen }: { run: AgentRun; onOpen: (runId: string) => voi
   );
 }
 
-export function OverviewPage({ runs, inbox, inboxLoading, runtimeConfig, onOpenRun, onOpenConversation, onOpenConversations, onNavigate, onExploreDemo }: OverviewPageProps) {
+export function OverviewPage({ runs, inbox, inboxLoading, onOpenRun, onOpenConversation, onOpenConversations, onNavigate, onExploreDemo }: OverviewPageProps) {
   const [days, setDays] = useState(7);
   const performance = usePerformanceComparison(days);
   const errors = useErrorLog(days);
   const quality = useQuality(days);
 
   const live = useMemo(() => runs.filter((run) => !isRecorded(run)).sort((a, b) => b.started_at.localeCompare(a.started_at)), [runs]);
-  const telemetry = useMemo(() => deriveTelemetry(live), [live]);
   const waiting = useMemo(() => {
     const urgency = { breached: 0, at_risk: 1, ok: 2 } as const;
     return inbox
@@ -114,16 +111,7 @@ export function OverviewPage({ runs, inbox, inboxLoading, runtimeConfig, onOpenR
     <>
       <PageHeader
         title="Overview"
-        description={
-          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="inline-flex items-center gap-1.5">
-              <span className={`size-1.5 rounded-full ${runtimeConfig?.live_proposal_available ? "bg-success" : "bg-muted-foreground"}`} aria-hidden="true" />
-              {runtimeConfig?.live_proposal_available ? "Assistant live" : "Assistant in recorded mode"}
-            </span>
-            {runtimeConfig && <span className="font-mono text-xs">{runtimeConfig.model}</span>}
-            {live.length > 0 && <span>· {live.length} recent runs · p95 {formatDuration(telemetry.latencyP95)}</span>}
-          </span>
-        }
+        description="How the assistant is doing, and who is waiting for a person."
         actions={
           <>
             <WindowPicker value={days} onChange={setDays} />

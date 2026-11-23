@@ -20,6 +20,10 @@ import { RunsPage } from "../features/runs/RunsPage";
 import { ChatWindow } from "../features/chat/ChatWindow";
 import { useErrorLog, useQuality } from "../features/improve/queries";
 import type { NavBadge } from "./AppShell";
+import { buildNotifications } from "./notifications";
+import type { ConsoleUser } from "./ProfileMenu";
+import { readSession, signOut, type DemoSession } from "../auth/demoSession";
+import { SignInPage } from "../auth/SignInPage";
 import { queryClient, useChatMutation, useConversationAction, useConversationRuns, useDemoScenarios, useInbox, useOperatorConversation, useOperatorMe, useHealth, useMemory, useRun, useRuns, useRuntimeConfig } from "../lib/queries";
 import type { ConversationTurn, OperatorConversation, PlaygroundExecution, PlaygroundRequest } from "../types";
 import { AppShell } from "./AppShell";
@@ -79,7 +83,7 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
+function Console({ onUnauthenticated, user, onSignOut }: { onUnauthenticated: () => void; user: ConsoleUser; onSignOut: () => void }) {
   const [locationPath, setLocationPath] = useState(() => window.location.pathname);
   const [locationSearch, setLocationSearch] = useState(() => window.location.search);
   const [view, setView] = useState<ConsoleView>(() => viewFromPath(window.location.pathname));
@@ -123,6 +127,10 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
       errors: { count: failedToday, tone: "danger", label: "failed today" },
     } satisfies Partial<Record<ConsoleView, NavBadge>>;
   }, [inbox.data, quality.data, errorLog.data]);
+  const notifications = useMemo(
+    () => buildNotifications({ health: health.data, healthUnavailable: health.isError, inbox: inbox.data ?? [], errors: errorLog.data, quality: quality.data }),
+    [health.data, health.isError, inbox.data, errorLog.data, quality.data],
+  );
   const operatorMe = useOperatorMe(true);
   const openConversation = useOperatorConversation(target?.kind === "conversation" ? target.id : null);
   const conversationAction = useConversationAction();
@@ -250,7 +258,6 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
         runs={liveRuns}
         inbox={inbox.data ?? []}
         inboxLoading={inbox.isPending}
-        runtimeConfig={runtimeConfig.data}
         onOpenRun={openRun}
         onOpenConversation={showConversation}
         onOpenConversations={() => navigateToView("workspace")}
@@ -388,9 +395,10 @@ function Console({ onUnauthenticated }: { onUnauthenticated: () => void }) {
       <AppShell
         activeView={activeView}
         detailLabel={detailLabel}
-        health={health.data}
-        healthUnavailable={health.isError}
-        runtimeConfig={runtimeConfig.data}
+        user={user}
+        notifications={notifications}
+        onSelectNotification={(item) => (item.target.kind === "conversation" ? showConversation(item.target.id) : navigateToView(item.target.view))}
+        onSignOut={onSignOut}
         onNavigate={navigateToView}
         onOpenSearch={() => setSearchOpen(true)}
         badges={badges}
@@ -425,11 +433,14 @@ export function App() {
   const [auth, setAuth] = useState<AuthSnapshot>(() => getApiAuthSnapshot());
   useEffect(() => { initializeApiAuth().then(setAuth); }, []);
   const onUnauthenticated = useCallback(() => { queryClient.clear(); setAuth(getApiAuthSnapshot()); }, []);
+  const [session, setSession] = useState<DemoSession | null>(readSession);
+  if (!session) return <SignInPage onSignedIn={setSession} />;
   if (auth.status !== "authenticated") return <AuthBoundary snapshot={auth} />;
+  const leave = () => { signOut(); queryClient.clear(); setSession(null); };
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delay={300}>
-        <Console onUnauthenticated={onUnauthenticated} />
+        <Console onUnauthenticated={onUnauthenticated} user={session} onSignOut={leave} />
       </TooltipProvider>
     </QueryClientProvider>
   );

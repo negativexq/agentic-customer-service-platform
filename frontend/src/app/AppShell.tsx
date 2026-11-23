@@ -8,7 +8,9 @@ import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
   SidebarInset, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar,
 } from "@/components/primitives/sidebar";
-import type { Health, RuntimeConfig } from "../types";
+import type { ConsoleNotification } from "./notifications";
+import { NotificationsMenu } from "./NotificationsMenu";
+import { ProfileMenu, type ConsoleUser } from "./ProfileMenu";
 import { navigation } from "./navigation";
 import { viewPaths, viewTitles, type ConsoleView } from "./routes";
 import { ThemeToggle } from "./ThemeToggle";
@@ -16,9 +18,10 @@ import { ThemeToggle } from "./ThemeToggle";
 type AppShellProps = {
   activeView: ConsoleView;
   detailLabel?: string | null;
-  health: Health | null | undefined;
-  healthUnavailable: boolean;
-  runtimeConfig: RuntimeConfig | undefined;
+  user: ConsoleUser;
+  notifications: ConsoleNotification[];
+  onSelectNotification: (item: ConsoleNotification) => void;
+  onSignOut: () => void;
   onNavigate: (view: ConsoleView) => void;
   onOpenSearch: () => void;
   /** Counts that need someone's attention, shown beside their page in the sidebar. */
@@ -85,19 +88,7 @@ function NavigationLinks({ activeView, onNavigate, badges = {} }: Pick<AppShellP
   );
 }
 
-function HealthIndicator({ health, unavailable }: { health: Health | null | undefined; unavailable: boolean }) {
-  const ready = health?.status === "ready";
-  const label = unavailable ? "API unreachable" : !health ? "Checking" : ready ? "All systems ready" : "Degraded";
-  const tone = unavailable || (health && !ready) ? "bg-danger" : ready ? "bg-success" : "bg-muted-foreground";
-  return (
-    <span className="hidden items-center gap-2 text-xs text-muted-foreground md:inline-flex" role="status">
-      <span className={`size-1.5 rounded-full ${tone}`} aria-hidden="true" />
-      {label}
-    </span>
-  );
-}
-
-export function AppShell({ activeView, detailLabel, health, healthUnavailable, runtimeConfig, onNavigate, onOpenSearch, badges, children }: AppShellProps) {
+export function AppShell({ activeView, detailLabel, user, notifications, onSelectNotification, onSignOut, onNavigate, onOpenSearch, badges, children }: AppShellProps) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="inset">
@@ -122,15 +113,7 @@ export function AppShell({ activeView, detailLabel, health, healthUnavailable, r
           <NavigationLinks activeView={activeView} onNavigate={onNavigate} badges={badges} />
         </SidebarContent>
         <SidebarFooter>
-          <div className="grid gap-0.5 rounded-lg px-2 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-            <span className="text-muted-foreground">Decision model</span>
-            <span className="truncate font-mono text-[11px] text-sidebar-foreground">
-              {runtimeConfig ? `${runtimeConfig.model}` : "Loading…"}
-            </span>
-            <span className="text-muted-foreground">
-              {runtimeConfig ? (runtimeConfig.live_proposal_available ? "Live proposals available" : "Recorded replay only") : " "}
-            </span>
-          </div>
+          <ProfileMenu user={user} onOpenSettings={() => onNavigate("settings")} onOpenShortcuts={onOpenSearch} onSignOut={onSignOut} />
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
@@ -164,12 +147,8 @@ export function AppShell({ activeView, detailLabel, health, healthUnavailable, r
               <KbdGroup><Kbd>⌘</Kbd><Kbd>K</Kbd></KbdGroup>
             </Button>
             <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Search" onClick={onOpenSearch}><Search aria-hidden="true" /></Button>
-            <HealthIndicator health={health} unavailable={healthUnavailable} />
+            <NotificationsMenu items={notifications} onSelect={onSelectNotification} />
             <ThemeToggle />
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-              <span>Authenticated</span>
-            </span>
           </div>
         </header>
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>

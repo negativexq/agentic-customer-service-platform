@@ -2842,3 +2842,69 @@
 @media (prefers-reduced-motion: reduce) {
   .menu-stagger[data-open] * { animation: none !important; }
 }
+
+
+/* ---------- Sign-in ---------- */
+@keyframes signin-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.signin-rise { animation: signin-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--rise, 0) * 60ms + 80ms); }
+
+.signin-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.11) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(ellipse 70% 65% at 55% 45%, #000 30%, transparent 80%);
+}
+.signin-sweep {
+  background: linear-gradient(105deg, transparent 35%, rgb(76 130 255 / 0.10) 48%, rgb(167 139 250 / 0.08) 52%, transparent 65%);
+  background-size: 250% 100%;
+  animation: signin-sweep 9s ease-in-out infinite;
+  mask-image: radial-gradient(rgb(0 0 0) 1px, transparent 1.2px);
+  mask-size: 16px 16px;
+}
+@keyframes signin-sweep { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
+.signin-glow { background: radial-gradient(circle, rgb(76 130 255 / 0.22), rgb(167 139 250 / 0.10) 40%, transparent 70%); filter: blur(10px); }
+.signin-live { box-shadow: 0 0 0 0 rgb(60 207 122 / 0.6); animation: signin-live 2s ease-out infinite; }
+@keyframes signin-live { 0% { box-shadow: 0 0 0 0 rgb(60 207 122 / 0.55); } 70%, 100% { box-shadow: 0 0 0 6px rgb(60 207 122 / 0); } }
+
+/* One 10 s loop: message arrives, the assistant thinks, each step completes, the conversation resolves. */
+.signin-card { animation: signin-card 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-card { 0% { opacity: 0; transform: translateY(10px) scale(0.985); } 5%, 92% { opacity: 1; transform: none; } 99%, 100% { opacity: 0; transform: translateY(-6px) scale(0.99); } }
+.signin-msg { animation: signin-msg 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-msg { 0%, 3% { opacity: 0; transform: translateY(6px); } 8%, 100% { opacity: 1; transform: none; } }
+.signin-think { animation: signin-think 10s ease infinite; }
+@keyframes signin-think { 0%, 9% { opacity: 0; } 12%, 60% { opacity: 1; } 64%, 100% { opacity: 0.35; } }
+.signin-step { opacity: 0.3; }
+.signin-tick { color: transparent; }
+.signin-bar > span { width: 0; }
+.signin-done { animation: signin-done 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-done { 0%, 60% { opacity: 0; transform: translateY(4px); } 65%, 100% { opacity: 1; transform: none; } }
+
+.signin-step:nth-child(1) { animation: signin-step-0 10s ease infinite; }
+.signin-step:nth-child(1) .signin-tick { animation: signin-tick-0 10s ease infinite; }
+.signin-step:nth-child(1) .signin-bar > span { animation: signin-bar-0 10s ease-in-out infinite; }
+@keyframes signin-step-0 { 0%, 13% { opacity: 0.3; } 15%, 100% { opacity: 1; } }
+@keyframes signin-tick-0 { 0%, 21% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 23%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-0 { 0%, 14% { width: 0; opacity: 1; } 22% { width: 100%; opacity: 1; } 25%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(2) { animation: signin-step-1 10s ease infinite; }
+.signin-step:nth-child(2) .signin-tick { animation: signin-tick-1 10s ease infinite; }
+.signin-step:nth-child(2) .signin-bar > span { animation: signin-bar-1 10s ease-in-out infinite; }
+@keyframes signin-step-1 { 0%, 24% { opacity: 0.3; } 26%, 100% { opacity: 1; } }
+@keyframes signin-tick-1 { 0%, 32% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 34%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-1 { 0%, 25% { width: 0; opacity: 1; } 33% { width: 100%; opacity: 1; } 36%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(3) { animation: signin-step-2 10s ease infinite; }
+.signin-step:nth-child(3) .signin-tick { animation: signin-tick-2 10s ease infinite; }
+.signin-step:nth-child(3) .signin-bar > span { animation: signin-bar-2 10s ease-in-out infinite; }
+@keyframes signin-step-2 { 0%, 35% { opacity: 0.3; } 37%, 100% { opacity: 1; } }
+@keyframes signin-tick-2 { 0%, 43% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 45%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-2 { 0%, 36% { width: 0; opacity: 1; } 44% { width: 100%; opacity: 1; } 47%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(4) { animation: signin-step-3 10s ease infinite; }
+.signin-step:nth-child(4) .signin-tick { animation: signin-tick-3 10s ease infinite; }
+.signin-step:nth-child(4) .signin-bar > span { animation: signin-bar-3 10s ease-in-out infinite; }
+@keyframes signin-step-3 { 0%, 46% { opacity: 0.3; } 48%, 100% { opacity: 1; } }
+@keyframes signin-tick-3 { 0%, 54% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 56%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-3 { 0%, 47% { width: 0; opacity: 1; } 55% { width: 100%; opacity: 1; } 58%, 100% { width: 100%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .signin-rise, .signin-sweep, .signin-live, .signin-card, .signin-msg, .signin-think, .signin-done,
+  .signin-step, .signin-step .signin-tick, .signin-step .signin-bar > span { animation: none !important; }
+  .signin-step { opacity: 1; }
+  .signin-step .signin-tick { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; }
+}
