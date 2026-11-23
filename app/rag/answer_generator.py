@@ -135,6 +135,7 @@ _SAFE_UNCERTAINTY = (
     "The knowledge base does not contain enough information to answer this question from the "
     "retrieved evidence. Please clarify the request or provide an applicable knowledge source."
 )
+SAFE_UNCERTAINTY = _SAFE_UNCERTAINTY
 
 
 class GroundingValidator:
@@ -413,7 +414,10 @@ def normalize_knowledge_query(query: str) -> str:
         return "refund processing review settlement"
     if re.search(r"\b(?:iade\s+uygunluk\s+süresi|uygunluk\s+süresi)\b", normalized):
         return "refund eligibility delivered 30 calendar days"
-    if re.search(r"\b(?:iade\s+şart|iade\s+koşul|geri\s+ödeme\s+şart)\w*\b", normalized):
+    if re.search(
+        r"\b(?:iade\s+(?:şart|koşul|politika|kural)|geri\s+ödeme\s+(?:şart|politika))\w*\b",
+        normalized,
+    ):
         return "refund eligibility delivered damaged returned"
     if re.search(
         r"\b(?:processing\s+time|settlement|when\s+will.*refund|refund.*take)\b",

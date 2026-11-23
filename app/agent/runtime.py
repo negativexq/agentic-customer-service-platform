@@ -20,7 +20,7 @@ from app.agent.llm.provider import OpenAICompatibleProvider
 from app.agent.localize import (
     OpenAICompatibleLocalizer,
     ResponseLocalizer,
-    detect_language,
+    conversation_language,
     localize_reply,
 )
 from app.agent.schemas import (
@@ -273,6 +273,9 @@ class AgentRuntime:
                             },
                         ),
                     )
+                    reply_language = conversation_language(
+                        [m["content"] for m in state.get("messages", []) if m["role"] == "user"]
+                    )
                     response = _response_from_state(
                         state,
                         execution_mode=actual_mode,
@@ -280,13 +283,23 @@ class AgentRuntime:
                     )
                     response = response.model_copy(
                         update={
-                            "message": localize_reply(self.localizer, message, response.message)
+                            "message": localize_reply(
+                                self.localizer,
+                                message,
+                                response.message,
+                                language=reply_language,
+                            )
                         }
                     )
                     response = response.model_copy(
                         update={
                             "blocks": _reply_blocks(
-                                session, execution_context, customer_id, state, response, message
+                                session,
+                                execution_context,
+                                customer_id,
+                                state,
+                                response,
+                                reply_language,
                             )
                         }
                     )
@@ -548,7 +561,7 @@ def _reply_blocks(
     customer_id: int,
     state: AgentState,
     response: AgentResponse,
-    customer_message: str,
+    language: str | None,
 ) -> list[ResponseBlock]:
     """Tables, cards and quick replies for the reply; presentation never fails a run."""
 
@@ -563,7 +576,7 @@ def _reply_blocks(
             tool_name=state.get("selected_tool"),
             tool_executed=state.get("tool_execution_status") == "executed",
             message=response.message,
-            language=detect_language(customer_message),
+            language=language,
             awaiting_confirmation=pending is not None
             and pending.status == PendingActionStatus.PENDING,
             handoff_offered=bool(state.get("handoff_offered")),

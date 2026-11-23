@@ -12,6 +12,7 @@ from app.agent.state import AgentState, WorkflowLifecycleState
 from app.memory.policy import evaluate_candidate
 from app.memory.schemas import MemoryCandidate, MemoryType
 from app.policies.models import PendingAction, PendingActionStatus
+from app.rag.answer_generator import SAFE_UNCERTAINTY
 from app.resilience.errors import FailureCategory
 from app.resilience.fallbacks import degraded_message
 
@@ -55,13 +56,26 @@ def _error_message(category: AgentErrorCategory | None, state: AgentState) -> st
     )
     selected_tool = state.get("selected_tool")
     pending = state.get("pending_action")
-    operation = selected_tool or (pending.tool_name if pending is not None else None)
-    invalid_state = (
-        "I can't cancel this order because it has already moved to a stage where "
-        "cancellation is unavailable."
-        if operation in {None, "cancel_order"}
-        else "I can't complete this request because the resource is no longer in an eligible state."
+    operation = selected_tool or (
+        "request_refund"
+        if state.get("intent") == Intent.REFUND_REQUEST
+        else (pending.tool_name if pending is not None else None)
     )
+    subject = f"order #{order_id}" if order_id is not None else "this order"
+    if operation in {None, "cancel_order"}:
+        invalid_state = (
+            "I can't cancel this order because it has already moved to a stage where "
+            "cancellation is unavailable."
+        )
+    elif operation == "request_refund":
+        invalid_state = (
+            f"I can't start a refund for {subject} because it isn't in a refundable state. "
+            "Refunds are considered after an order has been delivered."
+        )
+    else:
+        invalid_state = (
+            "I can't complete this request because the resource is no longer in an eligible state."
+        )
     return {
         AgentErrorCategory.RESOURCE_NOT_FOUND: resource_not_found,
         AgentErrorCategory.OWNERSHIP_VIOLATION: "I can't access another customer's information.",
@@ -198,10 +212,67 @@ def _tool_message(tool_name: str, result: dict[str, object] | None) -> str:
 _GREETING = re.compile(
     r"^(?:hi|hello|hey|good (?:morning|afternoon|evening)|merhaba|selam|iyi günler)\b", re.I
 )
+# "ok bye", "tamam teşekkürler": a short lead-in before the thanks or goodbye.
 _CLOSING = re.compile(
-    r"^(?:thanks|thank you|thx|cheers|that'?s all|bye|goodbye|teşekkür\w*|sağ ?ol\w*|"
-    r"görüşürüz)\b",
+    r"^(?:(?:ok(?:ay)?|alright|great|perfect|tamam|peki|süper|harika)[\s,.!]+)?"
+    r"(?:thanks|thank you|thx|cheers|that'?s all|bye|goodbye|teşekkür\w*|sağ ?ol\w*|"
+    r"görüşürüz|hoşça ?kal)\b",
     re.I,
+)
+_IDENTITY = re.compile(
+    r"\b(?:are you (?:a |an )?(?:bot|robot|human|real person|ai)|who are you|what are you|"
+    r"bot mu\w*|robot mu\w*|insan mı\w*|gerçek (?:bir )?insan|sen kimsin|kimsin)\b",
+    re.I,
+)
+_RECAP = re.compile(
+    r"\b(?:what (?:did|have) we (?:talk(?:ed)? about|discuss(?:ed)?|covered?)|what have you done|"
+    r"summar(?:y|ize|ise) (?:of )?(?:our|this) (?:chat|conversation)|ne konuştuk|neler konuştuk|"
+    r"neler yaptın|ne yaptın|özetle)\b",
+    re.I,
+)
+
+
+def _recap(state: AgentState) -> str:
+    """A short recap from this conversation's own replies; nothing is stored."""
+
+    replies = [
+        item["content"].split(". ")[0].rstrip(".")
+        for item in state.get("messages", [])[:-1]
+        if item["role"] == "assistant" and len(item["content"]) > 20
+    ]
+    useful = [reply for reply in replies if not reply.startswith(("Hi!", "Merhaba", "Could you"))]
+    if not useful:
+        return "We've just started. How can I help you today?"
+    lines = "\n".join(f"• {reply}." for reply in useful[-4:])
+    return f"Here's what we've covered so far:\n{lines}"
+
+
+# Paraphrases the shipping policy's transit section for "when will it arrive?" on a shipped
+# order; the carrier's tracking, not this reply, holds the date.
+_TRANSIT_NOTE = (
+    "Once an order is with the carrier, delivery time depends on the shipping service and "
+    "destination, and the latest tracking event shows the current estimate."
+)
+_ARRIVAL = re.compile(
+    r"\b(?:when (?:will|does|is) .{0,20}(?:arrive|come|deliver|get here)|how long|eta|"
+    r"ne zaman (?:gel|ulaş|teslim)|kaç günde)\w*",
+    re.I,
+)
+
+
+def _asks_arrival(text: str) -> bool:
+    return bool(_ARRIVAL.search(text))
+
+
+def _shipped(state: AgentState) -> bool:
+    result = state.get("tool_result")
+    return isinstance(result, dict) and result.get("status") == "shipped"
+
+
+_IDENTITY_REPLY = (
+    "I'm the store's AI assistant. I can check your orders, handle refunds and cancellations, "
+    "open support tickets and answer questions about our policies. If you'd like to talk to a "
+    "person, I can connect you at any time."
 )
 # Case-sensitive on purpose: with IGNORECASE, Python matches the dotless "ı" to an English "I".
 _TURKISH_LETTERS = re.compile(r"[çğıöşüÇĞİÖŞÜ]")
@@ -270,6 +341,16 @@ def respond(state: AgentState) -> AgentState:
         )
     elif state.get("handoff_offered") and error_category is None:
         message = HANDOFF_OFFER_MESSAGE
+    elif _RECAP.search(_latest_user_text(state)) and state.get("tool_execution_status") != (
+        "executed"
+    ):
+        message = _recap(state)
+    elif (
+        _IDENTITY.search(_latest_user_text(state))
+        and state.get("tool_execution_status") != "executed"
+        and state.get("pending_action") is None
+    ):
+        message = _IDENTITY_REPLY
     elif _suspended_retrieval_unavailable(state):
         message = _unavailable_suspended_workflow_message(state)
     elif state.get("write_outcome_unknown"):
@@ -406,6 +487,8 @@ def respond(state: AgentState) -> AgentState:
         message = _open_reply(_latest_user_text(state))
     elif tool_name:
         message = _tool_message(tool_name, state.get("tool_result"))
+        if _asks_arrival(_latest_user_text(state)) and _shipped(state):
+            message += f" {_TRANSIT_NOTE}"
     else:
         message = "Could you clarify what you need help with?"
     message = _apply_memory_context(state, message)
@@ -482,8 +565,19 @@ def _confirmation_request_message(action: PendingAction) -> str:
     )
 
 
+# What the customer reads when the help articles do not cover the question. The grounded
+# generator's own wording is for operators and audits.
+_NO_ARTICLE_REPLY = (
+    "I couldn't find an answer to that in our help articles. I can open a support ticket so "
+    "our team can follow up, or connect you with a person."
+)
+
+
 def _customer_knowledge_answer(state: AgentState) -> str:
     answer = state.get("knowledge_answer") or ""
+    if SAFE_UNCERTAINTY in answer:
+        remainder = answer.replace(SAFE_UNCERTAINTY, "").strip()
+        answer = f"{remainder} {_NO_ARTICLE_REPLY}".strip() if remainder else _NO_ARTICLE_REPLY
     prefix = "Based on the retrieved evidence: "
     if answer.startswith(prefix):
         answer = answer[len(prefix) :]

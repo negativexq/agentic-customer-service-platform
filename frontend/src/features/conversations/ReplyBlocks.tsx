@@ -19,6 +19,10 @@ export function bubbleText(text: string, blocks: ReplyBlock[]): string {
   }
   const card = blocks.find((block) => block.type === "order" || block.type === "ticket");
   if (card && /^\S+\s+#\d+:/.test(text)) {
+    // The card holds the first sentence's facts; anything after it (refund status, delivery
+    // guidance) still needs saying.
+    const rest = text.split(/(?<=\.)\s+/).slice(1).join(" ").trim();
+    if (rest) return rest;
     return card.type === "order" ? (lang === "tr" ? "Sipariş bilgileri:" : "Here are the order details:") : (lang === "tr" ? "Talep bilgileri:" : "Here are the ticket details:");
   }
   return text;

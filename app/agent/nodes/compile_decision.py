@@ -11,6 +11,7 @@ from app.agent.decision_compiler import (
     CompileStatus,
     DecisionCompiler,
 )
+from app.agent.nodes.create_pending import _business_state_error
 from app.agent.schemas import AgentErrorCategory, AgentRequestType, Intent, SemanticDecision
 from app.agent.semantic_grounding import (
     GroundingStatus,
@@ -18,7 +19,7 @@ from app.agent.semantic_grounding import (
     validate_semantic_grounding,
 )
 from app.agent.state import AgentState
-from app.agent.target_admissibility import assess_target_admissibility
+from app.agent.target_admissibility import TargetAdmissibility, assess_target_admissibility
 from app.observability.metrics import get_metrics
 from app.observability.tracing import span
 
@@ -101,6 +102,31 @@ def make_compile_decision_node(
             }
         workflow_fields = _workflow_input_fields(result)
         workflow_is_active = bool(workflow_fields)
+        ineligible = _ineligible_before_asking(
+            session, state, decision, admissibility, workflow_fields
+        )
+        if ineligible is not None:
+            # Asking "why do you want a refund?" for an order that cannot be refunded only
+            # delays the answer: say it now, and keep nothing waiting for a reason.
+            return {
+                **ineligible,
+                "intent": decision.intent,
+                "request_type": result.request_type,
+                "selected_tool": None,
+                # Names the order in the refusal; nothing runs without a selected tool.
+                "tool_arguments": {"order_id": decision.target.order_id}
+                if decision.target is not None
+                else {},
+                "decision_reason": result.reason,
+                "compile_result": result,
+                "previous_intent": decision.intent,
+                "pending_workflow_decision": None,
+                "missing_required_fields": [],
+                "collected_entities": _collected_entities(decision),
+                "workflow_active": False,
+                "workflow_resume_status": None,
+                "workflow_id": workflow_id,
+            }
         validation_context: dict[str, object] = {
             "grounding_status": grounding.status.value,
             "grounding_reference_type": grounding.reference_type,
@@ -249,4 +275,36 @@ def _status_question_as_lookup(decision: SemanticDecision, user_message: str) ->
         return decision
     return decision.model_copy(
         update={"intent": Intent.ORDER_LOOKUP, "request_type": AgentRequestType.READ_ACTION}
+    )
+
+
+def _ineligible_before_asking(
+    session: Session | None,
+    state: AgentState,
+    decision: SemanticDecision,
+    admissibility: TargetAdmissibility,
+    workflow_fields: list[str],
+) -> AgentState | None:
+    """The business-state refusal for a refund whose only missing piece is the reason."""
+
+    target = decision.target
+    context = state.get("execution_context")
+    if (
+        decision.intent != Intent.REFUND_REQUEST
+        or workflow_fields != ["reason"]
+        or admissibility != TargetAdmissibility.ADMISSIBLE
+        or target is None
+        or target.order_id is None
+        or context is None
+    ):
+        return None
+    return _business_state_error(
+        session,
+        "request_refund",
+        {
+            "customer_id": context.effective_customer_id,
+            "order_id": target.order_id,
+            "reason": "eligibility check before asking for a reason",
+        },
+        context.tenant_id,
     )

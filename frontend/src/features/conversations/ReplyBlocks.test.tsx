@@ -30,5 +30,8 @@ describe("ReplyBlocks", () => {
     expect(bubbleText("You have 2 orders: #1: delivered; #2: shipped.", [orders])).toBe("You have 2 orders:");
     expect(bubbleText("Order #5 is now cancelled.", [{ type: "order", order: orders.orders[0] }])).toBe("Order #5 is now cancelled.");
     expect(bubbleText("Plain answer.", [])).toBe("Plain answer.");
+    const card: ReplyBlock = { type: "order", order: orders.orders[1] };
+    expect(bubbleText("Order #2: shipped, $39.50, placed Jan 11, 2026.", [card])).toBe("Here are the order details:");
+    expect(bubbleText("Order #2: shipped, $39.50, placed Jan 11, 2026. Delivery depends on the service.", [card])).toBe("Delivery depends on the service.");
   });
 });

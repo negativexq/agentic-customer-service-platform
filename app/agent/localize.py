@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 # Case-sensitive: with IGNORECASE, Python matches the dotless "ı" to an English "I".
 _TURKISH_LETTERS = re.compile(r"[çğıöşüÇĞİÖŞÜ]")
 _TURKISH_WORDS = re.compile(
-    r"\b(?:merhaba|selam|tesekkur\w*|nasil|lutfen|siparis\w*|iade|iptal|kargo|evet|hayir|"
-    r"neden|nerede|tamam)\b",
+    r"\b(?:merhaba|selam|tesekkur\w*|nasil|lutfen|siparis\w*|iade\w*|iptal\w*|kargo\w*|evet|"
+    r"hayir|neden|nerede|tamam|peki|durumda|onun|bunun|var|yok|mi|mu|musun|misin|nedir)\b",
     re.I,
 )
 _NUMBER = re.compile(r"\d+")
@@ -89,8 +89,32 @@ class OpenAICompatibleLocalizer:
         return str(content).strip()
 
 
-def localize_reply(localizer: ResponseLocalizer | None, customer_message: str, reply: str) -> str:
-    language = detect_language(customer_message)
+_ENGLISH_WORDS = re.compile(
+    r"\b(?:the|is|are|my|me|you|what|where|when|how|why|can|please|order|refund|hi|hello|"
+    r"thanks|want|need|help|yes|no|ok|okay|bye)\b",
+    re.I,
+)
+
+
+def conversation_language(user_messages: list[str]) -> str | None:
+    """The language of the latest message that shows one; "2" or "#5" keep the previous one."""
+
+    for message in reversed(user_messages):
+        if detect_language(message):
+            return detect_language(message)
+        if _ENGLISH_WORDS.search(message):
+            return None
+    return None
+
+
+def localize_reply(
+    localizer: ResponseLocalizer | None,
+    customer_message: str,
+    reply: str,
+    *,
+    language: str | None = None,
+) -> str:
+    language = language or detect_language(customer_message)
     if localizer is None or language is None or not reply.strip():
         return reply
     if detect_language(reply) == language:

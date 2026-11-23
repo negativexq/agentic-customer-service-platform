@@ -1,6 +1,7 @@
 import re
 from collections.abc import Callable
 
+from app.agent.handoff import FRUSTRATION_MARKERS
 from app.agent.nodes.workflow_lifecycle import is_interruption_candidate
 from app.agent.schemas import SemanticDecision, SemanticTarget
 from app.agent.state import AgentState
@@ -12,7 +13,8 @@ _ORDER_FOLLOW_UP = re.compile(
 _NUMERIC_FOLLOW_UP = re.compile(r"^#?\s*(\d+)\s*[.!]?$")
 # A thank-you or goodbye ends an unfinished request; it never answers its question.
 _CLOSING = re.compile(
-    r"^(?:thanks|thank you|thx|cheers|that'?s all|bye|goodbye|never ?mind|forget it|"
+    r"^(?:(?:ok(?:ay)?|alright|tamam|peki)[\s,.!]+)?"
+    r"(?:thanks|thank you|thx|cheers|that'?s all|bye|goodbye|never ?mind|forget it|"
     r"teşekkür\w*|sağ ?ol\w*|görüşürüz|boş ?ver)\b",
     re.IGNORECASE,
 )
@@ -65,6 +67,9 @@ def make_resume_workflow_node() -> Callable[[AgentState], AgentState]:
                 if is_interruption_candidate(message):
                     return _interruption_or_wait(message)
                 return _partial_resume(updated, entities, remaining)
+            if any(marker in message.casefold() for marker in FRUSTRATION_MARKERS):
+                # "This is useless" is a complaint, not the refund reason: let the model read it.
+                return _interruption_or_wait(message)
             updated = updated.model_copy(update={"reason": message})
             entities["reason"] = message
             remaining.remove("reason")

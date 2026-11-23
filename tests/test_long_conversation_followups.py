@@ -112,3 +112,21 @@ def test_thanks_is_not_taken_as_a_refund_reason(db_session: Session) -> None:
     assert asked.message == "Could you briefly tell me why you are requesting this refund?"
     assert closing.pending_action is None
     assert closing.message == "You're welcome! I'm here if you need anything else."
+
+
+def test_identity_closing_and_recap_get_plain_answers() -> None:
+    from app.agent.nodes.respond import _CLOSING, _IDENTITY, _RECAP, _asks_arrival
+
+    assert _IDENTITY.search("Sen bot musun?") and _IDENTITY.search("Who are you?")
+    assert _CLOSING.match("Tamam teşekkürler") and _CLOSING.match("ok bye")
+    assert _RECAP.search("What did we talk about so far?") and _RECAP.search("Ne konuştuk?")
+    assert _asks_arrival("Ne zaman gelir?") and _asks_arrival("When will it arrive?")
+    assert not _asks_arrival("Where is order 2?")
+
+
+def test_conversation_language_survives_a_bare_number() -> None:
+    from app.agent.localize import conversation_language
+
+    assert conversation_language(["Siparişim nerede?", "2"]) == "Turkish"
+    assert conversation_language(["Peki onun iadesi ne durumda?"]) == "Turkish"
+    assert conversation_language(["Siparişim nerede?", "Where is my order?"]) is None

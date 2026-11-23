@@ -468,7 +468,8 @@ def test_cancel_pending_is_symmetrically_replaced_by_refund(db_session: Session)
     assert cancellation.pending_action is not None
     assert refund.intent == Intent.REFUND_REQUEST
     assert refund.pending_action is None
-    assert "reason" in refund.message.casefold() or "why" in refund.message.casefold()
+    # Order 3 is still pending, so a refund is refused at once instead of asking for a reason.
+    assert refund.message.startswith("I can't start a refund for order #3")
     assert len(provider.calls) == 1
 
 
