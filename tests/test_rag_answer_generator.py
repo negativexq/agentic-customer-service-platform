@@ -307,7 +307,7 @@ def test_english_shipping_time_question_maps_to_shipping_vocabulary() -> None:
     from app.rag.answer_generator import normalize_knowledge_query
 
     assert normalize_knowledge_query("How long does shipping usually take?") == (
-        "shipping processing business days"
+        "shipping processing transit delivery business days"
     )
     assert normalize_knowledge_query("How long does a refund take?") == (
         "refund processing review settlement"

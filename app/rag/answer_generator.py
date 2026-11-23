@@ -254,18 +254,19 @@ class GroundedAnswerGenerator:
         # least two question terms: a neighbouring policy ("shipping" vs refund review
         # "processing business days") is off-topic for the reader.
         question = _terms(query)
-        selected = list(
-            conflict
-            or [
+        companion = next(
+            (
                 chunk
-                for chunk in chunks[:2]
+                for chunk in chunks[1:4]
                 if chunk.document_id == chunks[0].document_id
                 or (
                     chunk.category == chunks[0].category
                     and len(question & _terms(chunk.content)) >= 2
                 )
-            ]
+            ),
+            None,
         )
+        selected = list(conflict or [chunks[0], *([companion] if companion else [])])
         focus = _query_focus(query)
         excerpts = [_excerpt(chunk.content, focus=focus) for chunk in selected]
         citations = [
@@ -378,8 +379,26 @@ def _excerpt(content: str, limit: int = 320, *, focus: str | None = None) -> str
         )
     else:
         first_sentence = sentences[0]
-    bounded = first_sentence[:limit].rstrip()
+    # One sentence rarely answers "what are the conditions?": keep the next one too when it
+    # is customer-facing policy, not a note about the document or the internal systems.
+    index = sentences.index(first_sentence)
+    following = sentences[index + 1] if index + 1 < len(sentences) else ""
+    excerpt = first_sentence
+    if (
+        following
+        and not _INTERNAL_NOTE.search(following)
+        and len(first_sentence) + len(following) + 1 <= limit
+    ):
+        excerpt = f"{first_sentence} {following}"
+    bounded = excerpt[:limit].rstrip()
     return bounded.rstrip(".!?")
+
+
+_INTERNAL_NOTE = re.compile(
+    r"\b(?:policy\s+document|authoritative|business\s+system|not\s+a\s+substitute|"
+    r"account\s+and\s+order\s+records|tool)\b",
+    re.IGNORECASE,
+)
 
 
 def normalize_knowledge_query(query: str) -> str:
@@ -408,11 +427,11 @@ def normalize_knowledge_query(query: str) -> str:
         r"\b(?:how\s+long|how\s+many\s+days|take|arrive|when\s+will|delivery\s+time)\b",
         normalized,
     ):
-        return "shipping processing business days"
+        return "shipping processing transit delivery business days"
     if re.search(r"\b(?:kargo|teslimat|gönderi)\w*", normalized) and re.search(
         r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır)", normalized
     ):
-        return "shipping processing business days"
+        return "shipping processing transit delivery business days"
     if re.search(r"\bgecik\w*", normalized) or re.search(
         r"\btakip\w*\s+\w*\s*(?:güncellen|ilerle)", normalized
     ):
