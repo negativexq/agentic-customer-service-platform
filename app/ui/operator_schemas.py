@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.agent.blocks import ResponseBlock
 from app.ui.workspace_schemas import SlaStatusView
 
 
@@ -34,6 +35,7 @@ class ConversationMessageView(BaseModel):
     redacted: bool
     agent_run_id: str | None = None
     created_at: datetime
+    blocks: list[ResponseBlock] = Field(default_factory=list)
 
 
 class EscalationSummaryView(BaseModel):

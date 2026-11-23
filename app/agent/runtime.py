@@ -7,6 +7,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from opentelemetry import trace
 from sqlalchemy.orm import Session
 
+from app.agent.blocks import ResponseBlock, build_blocks
 from app.agent.errors import RuntimeFailureSource, classify_runtime_error
 from app.agent.graph import build_graph
 from app.agent.llm.base import DecisionProposalProvider
@@ -16,7 +17,12 @@ from app.agent.llm.integration import (
     DeterministicSemanticDecisionV3Provider,
 )
 from app.agent.llm.provider import OpenAICompatibleProvider
-from app.agent.localize import OpenAICompatibleLocalizer, ResponseLocalizer, localize_reply
+from app.agent.localize import (
+    OpenAICompatibleLocalizer,
+    ResponseLocalizer,
+    detect_language,
+    localize_reply,
+)
 from app.agent.schemas import (
     AgentExecutionMode,
     AgentProposal,
@@ -46,6 +52,7 @@ from app.persistence.checkpoint import (
 )
 from app.policies.confirmation import Clock, SystemClock
 from app.policies.engine import PolicyEngine
+from app.policies.models import PendingActionStatus
 from app.policies.repository import (
     PolicyAuditRepository,
     build_policy_audit_repository,
@@ -276,6 +283,13 @@ class AgentRuntime:
                             "message": localize_reply(self.localizer, message, response.message)
                         }
                     )
+                    response = response.model_copy(
+                        update={
+                            "blocks": _reply_blocks(
+                                session, execution_context, customer_id, state, response, message
+                            )
+                        }
+                    )
                     try:
                         view = projection_store.build_view(
                             projection,
@@ -459,6 +473,7 @@ def _withheld_response(response: AgentResponse, owner: ConversationOwner) -> Age
     return response.model_copy(
         update={
             "message": HANDOFF_ACKNOWLEDGEMENT,
+            "blocks": [],
             "decision_reason": "conversation_ownership_changed",
             "tool_call": None,
             "pending_action": None,
@@ -525,6 +540,41 @@ def _resolve_decision_contract(
     # without a declared semantic contract retain the legacy direct contract;
     # the normal settings-built runtime never enters this branch.
     return "direct_tool_v1"
+
+
+def _reply_blocks(
+    session: Session,
+    context: ExecutionContext,
+    customer_id: int,
+    state: AgentState,
+    response: AgentResponse,
+    customer_message: str,
+) -> list[ResponseBlock]:
+    """Tables, cards and quick replies for the reply; presentation never fails a run."""
+
+    if response.error_category is not None:
+        return []
+    pending = response.pending_action
+    try:
+        return build_blocks(
+            session,
+            tenant_id=context.tenant_id,
+            customer_id=customer_id,
+            tool_name=state.get("selected_tool"),
+            tool_executed=state.get("tool_execution_status") == "executed",
+            message=response.message,
+            language=detect_language(customer_message),
+            awaiting_confirmation=pending is not None
+            and pending.status == PendingActionStatus.PENDING,
+            handoff_offered=bool(state.get("handoff_offered")),
+        )
+    except Exception as error:
+        logger.warning(
+            "Reply blocks could not be built (%s).",
+            type(error).__name__,
+            extra={"blocks_error_type": type(error).__name__},
+        )
+        return []
 
 
 def _response_from_state(

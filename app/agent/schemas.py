@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.agent.blocks import ResponseBlock
 from app.memory.schemas import MemoryCandidate
 from app.policies.models import PendingAction
 from app.rag.schemas import Citation
@@ -255,6 +256,8 @@ class AgentResponse(BaseModel):
     proposal: AgentProposal | None = None
     provider_metadata: ProviderRunMetadata | None = None
     conversation_owner: str = "ai"
+    # Server-built tables, cards and quick replies that present the same facts as `message`.
+    blocks: list[ResponseBlock] = Field(default_factory=list)
 
 
 class AgentChatRequest(BaseModel):

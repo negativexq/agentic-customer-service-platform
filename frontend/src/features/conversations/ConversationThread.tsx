@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import type { AgentResponse, ConversationTurn, OperatorConversationDetail, OperatorIdentity, RecordedMessage } from "../../types";
 import { formatRelative, humanize, parseTimestamp, toneDot } from "../runs/runPresentation";
 import { handler, initials, senderLabel } from "./conversations";
+import { bubbleText, ReplyBlocks } from "./ReplyBlocks";
 import { FeedbackPrompt } from "../workspace/FeedbackPrompt";
 import { useAddNote, useDeleteNote, useNotes } from "../workspace/queries";
 import { SavedReplyMenu } from "../workspace/SavedReplyMenu";
@@ -92,8 +93,9 @@ function NoteRow({ note, onDelete }: { note: Note; onDelete: (id: number) => voi
   );
 }
 
-function Message({ row, customerName, onInspect }: { row: { message: RecordedMessage; response?: AgentResponse }; customerName: string; onInspect: (runId: string) => void }) {
+function Message({ row, customerName, onInspect, onQuickReply }: { row: { message: RecordedMessage; response?: AgentResponse }; customerName: string; onInspect: (runId: string) => void; onQuickReply?: (text: string) => void }) {
   const { message, response } = row;
+  const blocks = message.blocks?.length ? message.blocks : response?.blocks ?? [];
   if (message.sender_type === "system") {
     return <li className="py-1 text-center text-xs text-muted-foreground">{message.content} · {time(message.created_at)}</li>;
   }
@@ -108,9 +110,10 @@ function Message({ row, customerName, onInspect }: { row: { message: RecordedMes
       <span className={`mt-5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${fromCustomer ? "bg-muted text-foreground" : message.sender_type === "ai" ? "bg-success/12 text-success" : "bg-primary/15 text-primary"}`} aria-hidden="true">
         {fromCustomer ? initials(customerName) : message.sender_type === "ai" ? <Bot className="size-3.5" /> : initials(message.sender_name ?? "Operator")}
       </span>
-      <div className={`grid max-w-[78%] gap-1 ${fromCustomer ? "justify-items-start" : "justify-items-end"}`}>
+      <div className={`grid gap-1 ${blocks.length ? "w-full max-w-[min(92%,40rem)]" : "max-w-[78%]"} ${fromCustomer ? "justify-items-start" : "justify-items-end"}`}>
         <span className="px-1 text-xs text-muted-foreground">{senderLabel(message, customerName)} · {time(message.created_at)}</span>
-        <p className={`rounded-xl px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap ${bubble}`}>{message.content}</p>
+        <p className={`rounded-xl px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap ${bubble}`}>{message.sender_type === "ai" ? bubbleText(message.content, blocks) : message.content}</p>
+        {message.sender_type === "ai" && <ReplyBlocks blocks={blocks} text={message.content} onReply={onQuickReply} />}
         {(message.agent_run_id && message.sender_type === "ai") || message.redacted || response ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
             {response && <ResponseChips response={response} />}
@@ -186,6 +189,16 @@ export function ConversationThread(props: Props) {
   // The customer's message shows right away, followed by a typing bubble while the AI answers.
   const [pendingCustomer, setPendingCustomer] = useState<string | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [rows.length, busy, pendingCustomer]);
+
+  // Quick replies answer as the customer, so they only work where the operator may simulate one.
+  const lastRow = rows[rows.length - 1];
+  const lastAiKey = lastRow?.message?.sender_type === "ai" ? lastRow.key : null;
+  const quickReply = canSimulateCustomer && !mine && !busy && !actionPending
+    ? async (value: string) => {
+        setPendingCustomer(value);
+        try { await onSendAsCustomer(value); } finally { setPendingCustomer(null); }
+      }
+    : undefined;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -276,7 +289,7 @@ export function ConversationThread(props: Props) {
           <ol className="mx-auto grid max-w-3xl gap-4">
             {rows.map((row) => row.note
               ? <NoteRow key={row.key} note={row.note} onDelete={(id) => deleteNote.mutate(id)} />
-              : <Message key={row.key} row={row} customerName={customerName} onInspect={onInspect} />)}
+              : <Message key={row.key} row={row} customerName={customerName} onInspect={onInspect} onQuickReply={row.key === lastAiKey ? quickReply : undefined} />)}
             {pendingCustomer && (
               <li className="flex gap-2" data-testid="pending-customer-message">
                 <span className="mt-5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-foreground" aria-hidden="true">{initials(customerName)}</span>

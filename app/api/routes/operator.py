@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.blocks import build_blocks
 from app.auth.dependencies import (
     get_current_principal,
     require_support_operator,
@@ -17,6 +18,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.time import utc_now_naive
 from app.models.entities import (
+    AgentRunProjectionRecord,
     Conversation,
     ConversationMessage,
     ConversationOwner,
@@ -187,11 +189,48 @@ def _detail(
     session: Session, principal: Principal, conversation: Conversation, after: int
 ) -> OperatorConversationDetailView:
     summary = _summaries(session, principal, [conversation])[0]
-    messages = [
-        _message_view(m, principal)
-        for m in list_messages(session, conversation, after_sequence=after)
-    ]
+    recorded = list_messages(session, conversation, after_sequence=after)
+    executed = _executed_tools(
+        session, _tenant(principal), [m.agent_run_id for m in recorded if m.agent_run_id]
+    )
+    messages = []
+    for message in recorded:
+        view = _message_view(message, principal)
+        tool_name = executed.get(message.agent_run_id or "")
+        if message.sender_type == MessageSender.AI and tool_name and not view.redacted:
+            view.blocks = build_blocks(
+                session,
+                tenant_id=conversation.tenant_id,
+                customer_id=conversation.customer_id,
+                tool_name=tool_name,
+                tool_executed=True,
+                message=message.content,
+            )
+        messages.append(view)
     return OperatorConversationDetailView(**summary.model_dump(), messages=messages)
+
+
+# The run read model records a finished tool as "completed"; live state says "executed".
+_DONE = frozenset({"executed", "completed"})
+
+
+def _executed_tools(session: Session, tenant_id: str, run_ids: list[str]) -> dict[str, str]:
+    """The business tool each recorded AI reply ran, from the run read model (names only)."""
+
+    if not run_ids:
+        return {}
+    rows = session.execute(
+        select(AgentRunProjectionRecord.run_id, AgentRunProjectionRecord.tools).where(
+            AgentRunProjectionRecord.tenant_id == tenant_id,
+            AgentRunProjectionRecord.run_id.in_(run_ids),
+        )
+    )
+    executed: dict[str, str] = {}
+    for run_id, tools in rows:
+        for tool in tools or []:
+            if isinstance(tool, dict) and tool.get("status") in _DONE and tool.get("name"):
+                executed[run_id] = str(tool["name"])
+    return executed
 
 
 @router.get("/operator/me", response_model=OperatorIdentityView)

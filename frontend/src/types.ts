@@ -235,6 +235,17 @@ export type RuntimeConfig = {
   live_proposal_available: boolean;
 };
 
+export type OrderRow = { id: number; status: string; total_amount: string | number; created_at: string; refund_status?: string | null };
+export type TicketRow = { id: number; status: string; category: string; order_id?: number | null; created_at: string; description?: string | null };
+export type QuickReply = { label: string; reply: string; tone: "primary" | "neutral" };
+/** Server-built presentation of the same facts as the reply text; never written by the model. */
+export type ReplyBlock =
+  | { type: "orders"; orders: OrderRow[] }
+  | { type: "order"; order: OrderRow }
+  | { type: "tickets"; tickets: TicketRow[] }
+  | { type: "ticket"; ticket: TicketRow }
+  | { type: "quick_replies"; purpose: "confirmation" | "handoff"; replies: QuickReply[] };
+
 export type AgentResponse = {
   conversation_id: string;
   agent_run_id: string;
@@ -265,6 +276,7 @@ export type AgentResponse = {
   fallback_message: string | null;
   proposal?: AgentProposal | null;
   provider_metadata?: ProviderMetadata | null;
+  blocks?: ReplyBlock[];
 };
 
 export type ConversationTurn = {
@@ -304,6 +316,7 @@ export type RecordedMessage = {
   redacted: boolean;
   agent_run_id: string | null;
   created_at: string;
+  blocks?: ReplyBlock[];
 };
 
 export type OperatorConversation = {
