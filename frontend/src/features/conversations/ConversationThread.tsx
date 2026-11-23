@@ -14,7 +14,9 @@ import { AgentOrb } from "../../components/AgentOrb";
 
 export type ThreadTarget =
   | { kind: "draft"; conversationId: string; customerId: number }
-  | { kind: "conversation"; id: number };
+  // threadKey: the draft id a sent test conversation started under, so the open thread (and
+  // anything typed into it) survives the draft becoming its real conversation.
+  | { kind: "conversation"; id: number; threadKey?: string };
 
 type Props = {
   target: ThreadTarget;

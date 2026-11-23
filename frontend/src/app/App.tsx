@@ -187,7 +187,7 @@ function Console({ onUnauthenticated, user, onSignOut }: { onUnauthenticated: ()
     }
     if (target.kind === "draft" && turnsByConversation[`${target.customerId}:${target.conversationId}`]?.length) {
       const created = list.find((item) => item.conversation_id === target.conversationId && item.customer_id === target.customerId);
-      if (created) setTarget({ kind: "conversation", id: created.id });
+      if (created) setTarget({ kind: "conversation", id: created.id, threadKey: target.conversationId });
     }
   }, [inbox.data, target, turnsByConversation]);
 
@@ -316,7 +316,7 @@ function Console({ onUnauthenticated, user, onSignOut }: { onUnauthenticated: ()
     );
     const thread = target ? (
       <ConversationThread
-        key={target.kind === "draft" ? target.conversationId : target.id}
+        key={target.kind === "draft" ? target.conversationId : (target.threadKey ?? target.id)}
         target={target}
         detail={threadDetail}
         loading={openConversation.isPending && target.kind === "conversation"}
