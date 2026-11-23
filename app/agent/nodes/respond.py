@@ -2,8 +2,7 @@ import re
 from datetime import datetime
 
 from app.agent.decision_compiler import CompileStatus
-from app.agent.handoff import FRUSTRATION_MARKERS, HANDOFF_OFFER_MESSAGE
-from app.agent.localize import NO_REQUEST, requested_language
+from app.agent.handoff import HANDOFF_OFFER_MESSAGE, customer_upset
 from app.agent.nodes.create_pending import ALREADY_CANCELLED
 from app.agent.schemas import (
     AgentErrorCategory,
@@ -316,10 +315,7 @@ def _sorry(state: AgentState) -> str:
     """An apology before the handoff when the customer is plainly upset."""
 
     # English like the rest of the reply; translation turns the whole reply at once.
-    text = _latest_user_text(state).casefold()
-    if not any(marker in text for marker in FRUSTRATION_MARKERS):
-        return ""
-    return "I'm sorry for the trouble. "
+    return "I'm sorry for the trouble. " if customer_upset(state, _latest_user_text(state)) else ""
 
 
 def _open_reply(text: str) -> str:
@@ -372,10 +368,10 @@ def respond(state: AgentState) -> AgentState:
             "I can remember preferences and support context, but I can't store permissions, "
             "roles, or authorization claims."
         )
-    elif requested_language(_latest_user_text(state)) is not NO_REQUEST:
+    elif state.get("language_requested") in {"english", "turkish"}:
         message = (
             "Elbette, bundan sonra Türkçe yazacağım."
-            if requested_language(_latest_user_text(state)) == "Turkish"
+            if state.get("language_requested") == "turkish"
             else "Sure, I'll reply in English from now on."
         )
     elif state.get("handoff_offered") and error_category is None:

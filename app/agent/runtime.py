@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 from app.agent.blocks import ResponseBlock, build_blocks
 from app.agent.compound import (
     MAX_PARTS,
-    OpenAICompatibleSplitter,
-    RequestSplitter,
-    split_request,
+    MessageReader,
+    OpenAICompatibleReader,
+    read_message,
 )
 from app.agent.errors import RuntimeFailureSource, classify_runtime_error
 from app.agent.graph import build_graph
@@ -105,7 +105,7 @@ class AgentRuntime:
         decision_contract_version: DecisionContractVersion | None = None,
         reliability_controller: ReliabilityController | None = None,
         localizer: ResponseLocalizer | None = None,
-        splitter: RequestSplitter | None = None,
+        reader: MessageReader | None = None,
     ) -> None:
         settings = get_settings()
         self.settings = settings
@@ -124,9 +124,9 @@ class AgentRuntime:
             if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
             else None
         )
-        # Compound messages are split only alongside the live model, like translation.
-        self.splitter = splitter or (
-            OpenAICompatibleSplitter(settings)
+        # Messages are read (split, upset, asked language) only alongside the live model.
+        self.reader = reader or (
+            OpenAICompatibleReader(settings)
             if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
             else None
         )
@@ -206,10 +206,24 @@ class AgentRuntime:
         """
 
         self.reliability_controller.enforce_request_limits(execution_context)
-        parts = split_request(self.splitter, message)
-        queue: list[str] | None = parts[1:] if len(parts) > 1 else None
+        reading = read_message(self.reader, message)
+        parts = [request.model_dump() for request in reading.requests]
+        queue = parts[1:] if len(parts) > 1 else None
+        signals: AgentState = {
+            "customer_upset": reading.upset,
+            "language_requested": reading.reply_language,
+            "status_question": bool(parts[0]["status_question"]),
+        }
+        if reading.reply_language:
+            # A language the customer chose stays chosen until they choose another.
+            signals["reply_language_choice"] = reading.reply_language
         response, state = self._run_turn(
-            parts[0], session, execution_context, execution_mode, queue=queue
+            str(parts[0]["text"]),
+            session,
+            execution_context,
+            execution_mode,
+            queue=queue,
+            signals=signals,
         )
         replies = [response]
         for _ in range(MAX_PARTS):
@@ -219,7 +233,16 @@ class AgentRuntime:
             if not pending:
                 break
             response, state = self._run_turn(
-                pending[0], session, execution_context, execution_mode, queue=pending[1:]
+                str(pending[0]["text"]),
+                session,
+                execution_context,
+                execution_mode,
+                queue=pending[1:],
+                signals={
+                    "customer_upset": None,
+                    "language_requested": None,
+                    "status_question": bool(pending[0].get("status_question")),
+                },
             )
             replies.append(response)
         if state is not None and _waiting(response, state) and _queued_requests(state):
@@ -237,7 +260,8 @@ class AgentRuntime:
         execution_context: ExecutionContext,
         execution_mode: AgentExecutionMode,
         *,
-        queue: list[str] | None,
+        queue: list[dict[str, object]] | None,
+        signals: AgentState,
     ) -> tuple[AgentResponse, AgentState | None]:
         turn = begin_agent_turn(session, execution_context)
         if not turn.ai_may_respond:
@@ -313,6 +337,9 @@ class AgentRuntime:
                                 "messages": [{"role": "user", "content": message}],
                                 # Per-turn flag; the checkpoint would otherwise carry it over.
                                 "handoff_offered": False,
+                                # What the model read in the message (upset, asked language,
+                                # status question); per turn, like the flag above.
+                                **signals,
                                 # Requests still to answer from an earlier compound message.
                                 **(
                                     {}
@@ -339,8 +366,13 @@ class AgentRuntime:
                             },
                         ),
                     )
-                    reply_language = conversation_language(
-                        [m["content"] for m in state.get("messages", []) if m["role"] == "user"]
+                    choice = state.get("reply_language_choice")
+                    reply_language = (
+                        _CHOSEN_LANGUAGES[choice]
+                        if choice in _CHOSEN_LANGUAGES
+                        else conversation_language(
+                            [m["content"] for m in state.get("messages", []) if m["role"] == "user"]
+                        )
                     )
                     response = _response_from_state(
                         state,
@@ -576,13 +608,19 @@ def _waiting(response: AgentResponse, state: AgentState) -> bool:
     )
 
 
-def _queued_requests(state: AgentState) -> list[str]:
+_CHOSEN_LANGUAGES: dict[object, str | None] = {"english": None, "turkish": "Turkish"}
+
+
+def _queued_requests(state: AgentState) -> list[dict[str, object]]:
     """Requests left from a compound message; dropped once a person took the conversation."""
 
     queued = state.get("queued_requests")
     if not queued or queued.get("ownership_version") != state.get("conversation_ownership_version"):
         return []
-    return [str(item) for item in queued.get("requests") or []]
+    return [
+        item if isinstance(item, dict) else {"text": str(item), "status_question": False}
+        for item in queued.get("requests") or []
+    ]
 
 
 def _queue_note(message: str) -> str:

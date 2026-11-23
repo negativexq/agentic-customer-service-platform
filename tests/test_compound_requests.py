@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.blocks import OrdersBlock
-from app.agent.compound import split_request
+from app.agent.compound import read_message
 from app.agent.llm.fake import FakeSemanticDecisionV3Provider
 from app.agent.runtime import AgentRuntime, _legacy_execution_context
 from app.agent.schemas import AgentRequestType, Intent, SemanticDecisionV3
@@ -14,33 +14,51 @@ from app.services.conversation_messages import list_messages, record_chat_turn
 
 
 class FakeSplitter:
+    """A message reader that only splits; status, upset and language stay unset."""
+
     def __init__(self, parts: list[str] | Exception) -> None:
         self.parts = parts
         self.calls: list[str] = []
 
-    def split(self, message: str) -> list[str]:
+    def read(self, message: str) -> dict[str, object]:
         self.calls.append(message)
         if isinstance(self.parts, Exception):
             raise self.parts
-        return list(self.parts)
+        return {"requests": [{"text": part} for part in self.parts]}
+
+
+def _texts(reader: FakeSplitter | None, message: str) -> list[str]:
+    return [request.text for request in read_message(reader, message).requests]
 
 
 def test_split_keeps_the_message_whole_unless_the_parts_are_faithful() -> None:
     message = "Refund order 6 and also open a ticket about it"
-    assert split_request(None, message) == [message]
-
-    single = FakeSplitter(["unused", "unused"])
-    assert split_request(single, "Where is order 2?") == ["Where is order 2?"]
-    assert single.calls == []  # no joining word, no model call
-
-    assert split_request(FakeSplitter(["Refund order 6", "open a ticket about it"]), message) == [
+    assert _texts(None, message) == [message]
+    assert _texts(FakeSplitter(["Refund order 6", "open a ticket about it"]), message) == [
         "Refund order 6",
         "open a ticket about it",
     ]
     # A part may not carry a number the customer never wrote.
-    assert split_request(FakeSplitter(["Refund order 6", "open ticket 9"]), message) == [message]
-    assert split_request(FakeSplitter(["a", "b", "c", "d"]), message) == [message]
-    assert split_request(FakeSplitter(TimeoutError()), message) == [message]
+    assert _texts(FakeSplitter(["Refund order 6", "open ticket 9"]), message) == [message]
+    assert _texts(FakeSplitter(["a", "b", "c", "d"]), message) == [message]
+    assert _texts(FakeSplitter(TimeoutError()), message) == [message]
+    # One request keeps the customer's exact words even if the model reworded it.
+    assert _texts(FakeSplitter(["refund for order 6"]), message) == [message]
+
+
+def test_reading_carries_the_models_signals() -> None:
+    class Reader:
+        def read(self, message: str) -> dict[str, object]:
+            return {
+                "requests": [{"text": message, "status_question": True}],
+                "upset": True,
+                "reply_language": "english",
+            }
+
+    reading = read_message(Reader(), "Bu kaçıncı soruşum, iadem ne oldu?")
+    assert reading.upset is True and reading.reply_language == "english"
+    assert reading.requests[0].status_question is True
+    assert read_message(None, "x").upset is None
 
 
 def test_orders_and_a_policy_question_both_get_answered(db_session: Session) -> None:
@@ -56,7 +74,7 @@ def test_orders_and_a_policy_question_both_get_answered(db_session: Session) -> 
         ]
     )
     splitter = FakeSplitter(["What are my orders?", "What is your cancellation policy?"])
-    runtime = AgentRuntime(provider=provider, splitter=splitter)
+    runtime = AgentRuntime(provider=provider, reader=splitter)
 
     response = runtime.run(
         conversation_id="compound-read",
@@ -88,7 +106,7 @@ def test_second_request_waits_for_the_first_confirmation(db_session: Session) ->
         ]
     )
     splitter = FakeSplitter(["Cancel order 4401", "show me my orders"])
-    runtime = AgentRuntime(provider=provider, splitter=splitter)
+    runtime = AgentRuntime(provider=provider, reader=splitter)
 
     asked = runtime.run(
         conversation_id="compound-write",
@@ -126,7 +144,7 @@ def test_each_reply_is_recorded_as_its_own_message(db_session: Session) -> None:
         ]
     )
     runtime = AgentRuntime(
-        provider=provider, splitter=FakeSplitter(["Show my orders", "show my tickets"])
+        provider=provider, reader=FakeSplitter(["Show my orders", "show my tickets"])
     )
     context = _legacy_execution_context("compound-record", 1)
     message = "Show my orders and also my tickets"

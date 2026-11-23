@@ -131,6 +131,12 @@ class AgentState(TypedDict, total=False):
     workflow_tool_arguments: dict[str, object]
     # Requests left from a compound message: {"requests": [...], "ownership_version": int}.
     queued_requests: dict[str, Any] | None
+    # Read from the customer's message by the model; None when no model read it.
+    customer_upset: bool | None
+    language_requested: str | None
+    status_question: bool
+    # The reply language the customer asked for ("english" / "turkish"); kept across turns.
+    reply_language_choice: str | None
     workflow_validation_context: dict[str, object]
     workflow_policy_inputs: dict[str, object]
     pending_action_restored: bool

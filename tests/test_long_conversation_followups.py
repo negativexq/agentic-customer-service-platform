@@ -9,6 +9,13 @@ from app.models import Order, RefundRequest
 from app.models.entities import OrderStatus, RefundStatus
 
 
+class StatusReader:
+    """The model reading a status question: one request about something that exists."""
+
+    def read(self, message: str) -> dict[str, object]:
+        return {"requests": [{"text": message, "status_question": True}]}
+
+
 def _say(runtime: AgentRuntime, session: Session, conversation: str, message: str):
     return runtime.run(
         conversation_id=conversation, customer_id=1, message=message, session=session
@@ -80,7 +87,7 @@ def test_refund_status_question_reads_the_order_instead_of_a_new_refund(
             )
         ]
     )
-    runtime = AgentRuntime(provider=provider)
+    runtime = AgentRuntime(provider=provider, reader=StatusReader())
 
     answer = _say(
         runtime, db_session, "refund-status", "What's the status of my refund for order 4202?"
@@ -217,7 +224,10 @@ def test_refund_status_read_as_eligibility_still_reads_the_order(db_session: Ses
         ]
     )
     answer = _say(
-        AgentRuntime(provider=provider), db_session, "refund-status-elig", "4208 iadesi ne durumda?"
+        AgentRuntime(provider=provider, reader=StatusReader()),
+        db_session,
+        "refund-status-elig",
+        "4208 iadesi ne durumda?",
     )
 
     assert answer.intent == Intent.ORDER_LOOKUP
@@ -241,14 +251,34 @@ def test_someone_elses_order_reads_like_a_missing_one(db_session: Session) -> No
     assert answer.message == "I couldn't find order #4209 on your account. Please check the number."
 
 
-def test_asked_reply_language_wins_over_detection() -> None:
-    from app.agent.localize import NO_REQUEST, conversation_language, requested_language
+def test_asked_reply_language_wins_over_detection(db_session: Session) -> None:
+    class AsksEnglish:
+        def read(self, message: str) -> dict[str, object]:
+            asked = "İngilizce" in message
+            return {
+                "requests": [{"text": message}],
+                "reply_language": "english" if asked else None,
+            }
 
-    assert requested_language("Bundan sonra bana İngilizce cevap verir misin?") is None
-    assert requested_language("Can you reply in Turkish?") == "Turkish"
-    assert requested_language("Siparişim nerede?") == NO_REQUEST
-    asked = ["Bundan sonra bana İngilizce cevap verir misin?", "Siparişlerim neler?"]
-    assert conversation_language(asked) is None
+    class Turkish:
+        def translate(self, reply: str, language: str) -> str:
+            return "TR " + reply
+
+    provider = FakeSemanticDecisionV3Provider(
+        [
+            SemanticDecisionV3(intent=Intent.UNKNOWN, request_type=AgentRequestType.UNCLEAR),
+            SemanticDecisionV3(intent=Intent.ORDER_LIST, request_type=AgentRequestType.READ_ACTION),
+        ]
+    )
+    runtime = AgentRuntime(provider=provider, reader=AsksEnglish(), localizer=Turkish())
+
+    asked = _say(
+        runtime, db_session, "asked-lang", "Bundan sonra bana İngilizce cevap verir misin?"
+    )
+    later = _say(runtime, db_session, "asked-lang", "Siparişlerim neler?")
+
+    assert asked.message == "Sure, I'll reply in English from now on."
+    assert later.message.startswith("You have")  # not translated: English was chosen
 
 
 def test_quoted_customer_text_does_not_stop_translation() -> None:
@@ -271,7 +301,8 @@ def test_upset_handoff_apologises_first() -> None:
             "request_type": AgentRequestType.ESCALATION,
             "selected_tool": "escalate_to_human",
             "tool_result": {},
-            "messages": [{"role": "user", "content": "Bu kaçıncı soruşum, çok sinir bozucu"}],
+            "customer_upset": True,
+            "messages": [{"role": "user", "content": "Bu kaçıncı soruşum, siparişim gelmedi"}],
         }
     )
     assert result["final_response"].startswith("I'm sorry for the trouble.")

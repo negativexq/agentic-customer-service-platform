@@ -48,10 +48,16 @@ FRUSTRATION_MARKERS = (
     "rezalet",
     "saçma",
     "işe yaramıyor",
-    "sinir bozucu",
-    "kaçıncı",
-    "bıktım",
 )
+
+
+def customer_upset(state: AgentState, text: str) -> bool:
+    """The model's reading when there is one; the fixed phrases only when no model read it."""
+
+    upset = state.get("customer_upset")
+    if upset is not None:
+        return bool(upset)
+    return any(marker in text.casefold() for marker in FRUSTRATION_MARKERS)
 
 
 def should_offer_before_handoff(state: AgentState) -> bool:
@@ -68,7 +74,5 @@ def should_offer_before_handoff(state: AgentState) -> bool:
     arguments = state.get("tool_arguments") or {}
     if str(arguments.get("priority", "")).casefold() in URGENT_PRIORITIES:
         return False
-    latest = next(
-        (item["content"] for item in reversed(messages) if item["role"] == "user"), ""
-    ).casefold()
-    return not any(marker in latest for marker in FRUSTRATION_MARKERS)
+    latest = next((item["content"] for item in reversed(messages) if item["role"] == "user"), "")
+    return not customer_upset(state, latest)

@@ -1,7 +1,7 @@
 import re
 from collections.abc import Callable
 
-from app.agent.handoff import FRUSTRATION_MARKERS
+from app.agent.handoff import customer_upset
 from app.agent.nodes.workflow_lifecycle import is_interruption_candidate
 from app.agent.schemas import SemanticDecision, SemanticTarget
 from app.agent.state import AgentState
@@ -67,7 +67,7 @@ def make_resume_workflow_node() -> Callable[[AgentState], AgentState]:
                 if is_interruption_candidate(message):
                     return _interruption_or_wait(message)
                 return _partial_resume(updated, entities, remaining)
-            if any(marker in message.casefold() for marker in FRUSTRATION_MARKERS):
+            if customer_upset(state, message):
                 # "This is useless" is a complaint, not the refund reason: let the model read it.
                 return _interruption_or_wait(message)
             updated = updated.model_copy(update={"reason": message})
