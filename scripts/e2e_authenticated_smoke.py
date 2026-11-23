@@ -354,7 +354,7 @@ def run_smoke(stack: ComposeStack) -> None:
         "(select count(*) from support_tickets) || '|' || "
         "(select count(*) from memory_records);"
     )
-    expect(bootstrap == "20261103_0010|3|6|4|1", "Migration or demo seed state is incorrect.")
+    expect(bootstrap == "20261122_0013|3|6|4|1", "Migration or demo seed state is incorrect.")
     projection_schema = stack.database_scalar(
         "select (to_regclass('public.agent_run_projections') is not null)::text || '|' || "
         "(select count(*) from pg_indexes where tablename = 'agent_run_projections' "

@@ -14,13 +14,25 @@ export type AgentChatProjection = {
   pending_action: { action_id?: string; status: string } | null;
 };
 
+// The console's sign-in screen is a demo gate that remembers the demo account in this browser;
+// API access is still decided by the backend's auth provider. Journeys start signed in.
+const DEMO_SESSION = { name: "Alex Morgan", email: "alex@agentops.demo", role: "Support lead" };
+const signedInPages = new WeakSet<Page>();
+
 export async function loginOperator(page: Page, path = "/overview"): Promise<void> {
+  if (!signedInPages.has(page)) {
+    await page.addInitScript((session) => {
+      window.localStorage.setItem("agentops-session", JSON.stringify({ ...session, signedInAt: new Date().toISOString() }));
+    }, DEMO_SESSION);
+    signedInPages.add(page);
+  }
   await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toHaveCount(0);
   // Below 768px the sidebar, and the brand inside it, live in a closed off-canvas sheet.
   if ((page.viewportSize()?.width ?? 1440) >= 768) {
     await expect(page.getByText("AgentOps", { exact: true }).first()).toBeAttached();
   }
-  await expect(page.getByText("Authenticated", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main")).toBeVisible();
 }
 
 export async function startTestConversation(page: Page, customerId = "1"): Promise<void> {

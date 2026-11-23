@@ -66,7 +66,6 @@ test.describe.serial("operator journey evidence", () => {
     expect(replay.tool_call).toBeNull();
     expect(replay.message).toContain("already completed");
     await expect(page.getByTestId("agent-response").last()).toContainText("did not execute it again");
-    await page.getByTestId("agent-response").last().scrollIntoViewIfNeeded();
     await captureJourney(page, "03-idempotency.png");
   });
 

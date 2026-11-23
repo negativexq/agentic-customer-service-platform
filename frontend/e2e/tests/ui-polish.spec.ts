@@ -10,12 +10,24 @@ const capture = async (page: import("@playwright/test").Page, name: string) => {
   await page.screenshot({ path: resolve(directory, name), fullPage: false, animations: "disabled" });
 };
 
+test("signing in with the demo account opens the console and survives a reload", async ({ page }) => {
+  await page.goto("/overview");
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
+  await expect(page.getByLabel("Work email")).toHaveValue("alex@agentops.demo");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+});
+
 test("navigation survives reload and browser history", async ({ page }) => {
   await loginOperator(page);
   const nav = page.getByRole("navigation", { name: "Console views" });
-  await expect(nav.getByRole("link")).toHaveCount(19);
+  await expect(nav.getByRole("link")).toHaveCount(20);
   for (const [label, path] of [
-    ["Playground", "/playground"], ["Runs", "/traces"], ["Monitoring", "/monitoring"], ["Safety", "/safety"],
+    ["Playground", "/playground"], ["Runs", "/traces"], ["Monitoring", "/monitoring"], ["Audit log", "/audit"], ["Safety", "/safety"],
     ["Conversations", "/workspace"], ["Architecture", "/architecture"], ["Recorded showcase", "/showcase"],
     ["Chat and activity", "/chat"], ["Overview", "/overview"],
   ]) {
@@ -77,7 +89,7 @@ test("scenario presets populate requests and disclose settings without executing
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page.goto("/overview");
   const previousSubmissions = submissions;
-  await page.getByRole("button", { name: "Explore the refund workflow" }).click();
+  await page.getByRole("button", { name: "Refund workflow", exact: true }).click();
   await expect(page).toHaveURL(/\/playground\?demo=refund-memory-rag$/);
   await expect(page.getByRole("heading", { name: "Refund request with memory + RAG", exact: true })).toBeVisible();
   expect(submissions).toBe(previousSubmissions);
