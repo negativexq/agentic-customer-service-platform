@@ -159,6 +159,7 @@ def test_local_demo_authentication_resolves_support_operator_principal() -> None
         principal_type=PrincipalType.LOCAL_DEMO,
         roles=["support_operator"],
         credential_id="local-demo",
+        display_name="Demo operator",
     )
 
 

@@ -1,5 +1,6 @@
 import operator
-from typing import Annotated, Literal, TypedDict
+from datetime import datetime
+from typing import Annotated, Any, Literal, TypedDict
 
 from app.agent.decision_compiler import CompiledDecision
 from app.agent.schemas import (
@@ -54,6 +55,8 @@ class AgentState(TypedDict, total=False):
     conversation_customer_id: int
     conversation_actor_id: str
     conversation_actor_type: str
+    conversation_ownership_version: int
+    conversation_ai_resumed_at: datetime | None
     messages: Annotated[list[ConversationMessage], operator.add]
     intent: Intent
     request_type: AgentRequestType
@@ -84,10 +87,12 @@ class AgentState(TypedDict, total=False):
     final_response: str
     agent_run_id: str
     tool_execution_status: str | None
+    handoff_offered: bool
     memory_context: list[dict[str, object]]
     memory_candidate: MemoryCandidate | None
     memory_key: str | None
     memory_operation_status: str | None
+    memory_written: dict[str, object] | None
     memory_policy_outcome: str | None
     failure_category: str | None
     degraded_components: list[str]
@@ -124,6 +129,31 @@ class AgentState(TypedDict, total=False):
     workflow_transition: str | None
     workflow_interruption_type: str | None
     workflow_tool_arguments: dict[str, object]
+    # Requests left from a compound message: {"requests": [...], "ownership_version": int}.
+    queued_requests: dict[str, Any] | None
+    # Read from the customer's message by the model; None when no model read it.
+    customer_upset: bool | None
+    # The customer's message says what they need help with; None when no model read it.
+    issue_explained: bool | None
+    language_requested: str | None
+    status_question: bool
+    # The reply language the customer asked for ("english" / "turkish"); kept across turns.
+    reply_language_choice: str | None
+    # The language the model read in the latest worded message; kept across turns.
+    message_language: str | None
+    withdraws: bool
+    # 1-based place in the list just shown, or -1 for the last, as the model read it.
+    list_position: int | None
+    asks_memory_summary: bool
+    acknowledgement: bool
+    # Hello, chit-chat, goodbye, off-topic, "who are you?", "do you know my name?" (model-read).
+    conversation_move: str | None
+    # The signed-in customer's own name, loaded only when they ask for it.
+    customer_name: str | None
+    # Short English lines for what each turn actually did, for "what did we talk about?".
+    covered: list[str]
+    # The order or ticket the last reply was about, for "what was its number?".
+    last_reference: dict[str, Any] | None
     workflow_validation_context: dict[str, object]
     workflow_policy_inputs: dict[str, object]
     pending_action_restored: bool

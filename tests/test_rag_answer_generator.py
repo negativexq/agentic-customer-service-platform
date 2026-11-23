@@ -205,3 +205,110 @@ def test_validator_rejects_answer_mismatch_even_with_valid_citation_marker() -> 
     assert validation.accepted is False
     assert validation.unsupported_claim_count == 1
     assert "answer_evidence_mismatch" in validation.reasons
+
+
+def test_paraphrased_question_matches_policy_wording() -> None:
+    evidence = _chunk(
+        "After an order has shipped it can no longer be cancelled; request a return instead.",
+        document_id="cancellation-policy",
+        score=0.44,
+    )
+
+    answer = GroundedAnswerGenerator().answer(
+        "Can I cancel an order after it has shipped?", [evidence]
+    )
+
+    assert answer.status == AnswerGroundingStatus.PASS
+    assert answer.citations[0].chunk_id == evidence.chunk_id
+
+
+def test_partial_overlap_on_unrelated_topic_still_fails_closed() -> None:
+    evidence = _chunk("After an order has shipped it can no longer be cancelled.", score=0.44)
+
+    answer = GroundedAnswerGenerator().answer("Do you sell gift cards?", [evidence])
+
+    assert answer.status == AnswerGroundingStatus.INSUFFICIENT_EVIDENCE
+
+
+def test_shared_account_vocabulary_does_not_answer_a_different_topic() -> None:
+    evidence = _chunk(
+        "Plan changes on your account take effect at the next renewal.",
+        document_id="subscription-policy",
+        score=0.67,
+    )
+
+    answer = GroundedAnswerGenerator().answer(
+        "How do I change the email on my account?", [evidence]
+    )
+
+    assert answer.status == AnswerGroundingStatus.INSUFFICIENT_EVIDENCE
+
+
+def test_turkish_shipping_time_question_uses_shipping_evidence() -> None:
+    evidence = RetrievedChunk(
+        chunk_id="shipping-policy#processing#0",
+        document_id="shipping-policy",
+        title="Shipping Policy",
+        category="shipping",
+        section="processing",
+        source="knowledge/shipping-policy.md",
+        content="Orders typically spend one to three business days in processing.",
+        score=0.5,
+    )
+
+    answer = GroundedAnswerGenerator().answer("Kargo genelde kaç günde gelir?", [evidence])
+
+    assert answer.status == AnswerGroundingStatus.PASS
+
+
+def test_unrelated_second_excerpt_from_another_document_is_dropped() -> None:
+    first = _chunk(
+        "Shipping usually takes one to three business days after processing.",
+        document_id="shipping-policy",
+        score=0.5,
+    )
+    other = _chunk(
+        "Customers can request cancellation before shipment.",
+        document_id="cancellation-policy",
+        score=0.5,
+    )
+
+    answer = GroundedAnswerGenerator().answer("How long does shipping take?", [first, other])
+
+    assert [citation.document_id for citation in answer.citations] == ["shipping-policy"]
+
+
+def test_second_excerpt_from_another_category_is_dropped() -> None:
+    shipping = RetrievedChunk(
+        chunk_id="shipping-policy#processing#0",
+        document_id="shipping-policy",
+        title="Shipping Policy",
+        category="shipping",
+        section="processing",
+        source="knowledge/shipping-policy.md",
+        content="Orders typically spend one to three business days in processing.",
+        score=0.9,
+    )
+    refund = shipping.model_copy(
+        update={
+            "chunk_id": "refund-policy#timing#0",
+            "document_id": "refund-policy",
+            "category": "refund",
+            "content": "Refund review normally takes 3-5 business days once processing starts.",
+        }
+    )
+
+    answer = GroundedAnswerGenerator().answer("Kargo genelde kaç günde gelir?", [shipping, refund])
+
+    assert [citation.document_id for citation in answer.citations] == ["shipping-policy"]
+
+
+def test_english_shipping_time_question_maps_to_shipping_vocabulary() -> None:
+    from app.rag.answer_generator import normalize_knowledge_query
+
+    assert normalize_knowledge_query("How long does shipping usually take?") == (
+        "shipping processing transit delivery business days"
+    )
+    assert normalize_knowledge_query("How long does a refund take?") == (
+        "refund processing review settlement"
+    )

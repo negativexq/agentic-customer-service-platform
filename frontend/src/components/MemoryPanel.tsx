@@ -40,7 +40,7 @@ export function MemoryPanel({
         <Brain size={15} aria-hidden="true" />
         <span>
           Memory can enrich context but cannot authorize actions or bypass validation and
-          confirmation. Memory content is intentionally hidden from the operator projection.
+          confirmation. Stored content is shown after DLP; restricted data is never kept.
         </span>
       </div>
       <div className="mt-4">
@@ -49,8 +49,8 @@ export function MemoryPanel({
             <div className="eyebrow">Memory context</div>
             <Badge tone="info">CUSTOMER STATE</Badge>
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted">User-specific preferences and bounded context for contextual continuity.</p>
-          <div className="mt-2 text-xs text-muted">{retrievedCount} item{retrievedCount === 1 ? "" : "s"} used in run</div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">User-specific preferences and bounded context for contextual continuity.</p>
+          <div className="mt-2 text-xs text-muted-foreground">{retrievedCount} item{retrievedCount === 1 ? "" : "s"} used in run</div>
         </div>
         <div className="context-summary mt-3">
           <div><span className="field-label">Retrieved</span><div className="mt-1 text-xs text-main">{retrieved ? `✓ ${retrievedCount}` : "Not used"}</div></div>
@@ -61,9 +61,9 @@ export function MemoryPanel({
         </div>
         <div className="memory-role-card mt-3">
           <div><span className="field-label">Memory role</span><div className="mt-1 text-sm font-medium text-main">Context enrichment only</div></div>
-          <div className="memory-role-grid mt-3"><div><span className="field-label">Used for</span><div className="mt-1 text-xs text-muted">Personalization · contextual continuity</div></div><div><span className="field-label">Not used for</span><div className="mt-1 text-xs text-muted">Authorization · policy override · execution authority · confirmation bypass</div></div></div>
+          <div className="memory-role-grid mt-3"><div><span className="field-label">Used for</span><div className="mt-1 text-xs text-muted-foreground">Personalization · contextual continuity</div></div><div><span className="field-label">Not used for</span><div className="mt-1 text-xs text-muted-foreground">Authorization · policy override · execution authority · confirmation bypass</div></div></div>
         </div>
-        <div className="context-summary mt-3"><div><span className="field-label">Retrieved keys</span><div className="mt-1 text-xs text-main">{usage.keys.length ? usage.keys.join(" · ") : "Not recorded"}</div></div><div><span className="field-label">Context types</span><div className="mt-1 text-xs text-main">{usage.types.length ? usage.types.join(" · ") : "Not recorded"}</div></div><div><span className="field-label">Previous interactions</span><div className="mt-1 text-xs text-muted">Unavailable in current projection</div></div></div>
+        <div className="context-summary mt-3"><div><span className="field-label">Retrieved keys</span><div className="mt-1 text-xs text-main">{usage.keys.length ? usage.keys.join(" · ") : "Not recorded"}</div></div><div><span className="field-label">Context types</span><div className="mt-1 text-xs text-main">{usage.types.length ? usage.types.join(" · ") : "Not recorded"}</div></div><div><span className="field-label">Previous interactions</span><div className="mt-1 text-xs text-muted-foreground">Unavailable in current projection</div></div></div>
         {records.length === 0 ? (
           <EmptyState
             title="No persistent memory found"
@@ -78,11 +78,11 @@ export function MemoryPanel({
                   <div className="text-sm font-medium text-main">
                     {record.memory_type.replace(/_/g, " ")}
                   </div>
-                  <div className="mt-1 font-mono text-xs text-muted">
+                  <div className="mt-1 font-mono text-xs text-muted-foreground">
                     {record.normalized_key}
                   </div>
-                  <div className="mt-1 text-xs text-muted">Source · {record.source.replace(/_/g, " ")} · provenance recorded</div>
-                  <div className="mt-1 text-xs text-muted">
+                  <div className="mt-1 text-xs text-muted-foreground">Source · {record.source.replace(/_/g, " ")} · provenance recorded</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
                     Created {formatTimestamp(record.created_at)} · updated{" "}
                     {formatTimestamp(record.updated_at)} · expires {formatTimestamp(record.expires_at)}
                   </div>

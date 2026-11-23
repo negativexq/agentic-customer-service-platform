@@ -1,13 +1,63 @@
 from collections.abc import Callable
 from uuid import uuid4
 
+from sqlalchemy.orm import Session
+
+from app.agent.nodes.common import error_category
 from app.agent.nodes.pending_payload import build_policy_inputs, hash_policy_inputs
+from app.agent.schemas import AgentErrorCategory
 from app.agent.state import AgentState
+from app.models.entities import OrderStatus
 from app.policies.confirmation import Clock
 from app.policies.models import PendingAction, PolicyOutcome
+from app.tools.base import ToolError
+from app.tools.orders import CancelOrderInput, validate_cancel_order
+from app.tools.refunds import RequestRefundInput, validate_refund_request
+
+# Cancelling an order that is already cancelled changes nothing; say so instead of asking.
+ALREADY_CANCELLED = "already_cancelled"
 
 
-def make_create_pending_node(clock: Clock) -> Callable[[AgentState], AgentState]:
+def _business_state_error(
+    session: Session | None, tool_name: str, arguments: dict[str, object], tenant_id: str
+) -> AgentState | None:
+    """Check the order can take this action before asking the customer to confirm it.
+
+    Confirming something that is then refused (an order that already shipped, a refund that
+    was already requested) wastes a turn. The same check runs again after confirmation.
+    """
+
+    if session is None:
+        return None
+    try:
+        if tool_name == "cancel_order":
+            order = validate_cancel_order(
+                session, CancelOrderInput.model_validate(arguments), tenant_id=tenant_id
+            )
+            if OrderStatus(order.status) == OrderStatus.CANCELLED:
+                return {
+                    "error_category": AgentErrorCategory.INVALID_STATE,
+                    "last_error": ALREADY_CANCELLED,
+                    "tool_execution_status": "failed",
+                }
+        elif tool_name == "request_refund":
+            validate_refund_request(
+                session, RequestRefundInput.model_validate(arguments), tenant_id=tenant_id
+            )
+    except ToolError as error:
+        return {
+            "error_category": error_category(error),
+            "last_error": str(error),
+            "tool_execution_status": "failed",
+        }
+    except ValueError:
+        return None
+    return None
+
+
+def make_create_pending_node(
+    clock: Clock, session: Session | None = None
+) -> Callable[[AgentState], AgentState]:
     def create_pending(state: AgentState) -> AgentState:
         decision = state["policy_decision"]
         tool_name = state["selected_tool"]
@@ -17,8 +67,13 @@ def make_create_pending_node(clock: Clock) -> Callable[[AgentState], AgentState]
             or decision.outcome != PolicyOutcome.REQUIRE_CONFIRMATION
         ):
             return {}
-        action_id = state.get("action_id") or f"act_{uuid4().hex}"
         context = state["execution_context"]
+        refused = _business_state_error(
+            session, tool_name, dict(state.get("tool_arguments", {})), context.tenant_id
+        )
+        if refused is not None:
+            return refused
+        action_id = state.get("action_id") or f"act_{uuid4().hex}"
         raw_intent = state.get("intent")
         intent = getattr(raw_intent, "value", raw_intent)
         arguments = dict(state.get("tool_arguments", {}))

@@ -12,7 +12,7 @@ const evidence = {
 };
 
 function EvidenceRow({ label, detail, value }: { label: string; detail: string; value: string }) {
-  return <div className="evidence-row"><div><div className="text-sm font-medium text-main">{label}</div><div className="mt-1 text-xs text-muted">{detail}</div></div><span className="font-mono text-sm font-semibold text-success">{value}</span></div>;
+  return <div className="evidence-row"><div><div className="text-sm font-medium text-main">{label}</div><div className="mt-1 text-xs text-muted-foreground">{detail}</div></div><span className="font-mono text-sm font-semibold text-success">{value}</span></div>;
 }
 
 export function SafetyDashboard({ onOpenRuns }: Props) {
@@ -23,7 +23,7 @@ export function SafetyDashboard({ onOpenRuns }: Props) {
           <div className="max-w-3xl">
             <div className="eyebrow">Release evidence · source-bound validation</div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-main">Safety & evaluation control</h1>
-            <p className="mt-2 text-sm leading-6 text-muted">A compact view of the evidence that backs the control plane. Semantic quality, deterministic containment, and operational readiness remain separate gates.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">A compact view of the evidence that backs the control plane. Semantic quality, deterministic containment, and operational readiness remain separate gates.</p>
           </div>
           <Badge tone="success"><span className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} aria-hidden="true" />Release evidence aligned</span></Badge>
         </div>
@@ -38,7 +38,7 @@ export function SafetyDashboard({ onOpenRuns }: Props) {
       <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
         <Card as="section" className="p-5">
           <SectionHeader eyebrow="Safety guarantees" title="Evidence at a glance" description="Published release evidence only; no live telemetry is implied by this view." />
-          <div className="safety-mechanism-note"><span className="field-label">Why the zero values matter</span><p className="mt-1 text-xs leading-5 text-muted">They reflect separate controls: deterministic containment prevents unsafe proposals from becoming authority, confirmation gates protect covered mutations, and persistence-backed idempotency prevents duplicate effects.</p></div>
+          <div className="safety-mechanism-note"><span className="field-label">Why the zero values matter</span><p className="mt-1 text-xs leading-5 text-muted-foreground">They reflect separate controls: deterministic containment prevents unsafe proposals from becoming authority, confirmation gates protect covered mutations, and persistence-backed idempotency prevents duplicate effects.</p></div>
           <div className="divide-y divide-border/70">
             <EvidenceRow label="Deterministic offline gates" detail="Containment, attribution, and resilience regression suites" value={`${evidence.deterministic} · ${evidence.safety} · ${evidence.resilience}`} />
             <EvidenceRow label="D2c semantic validation" detail="Full prospective benchmark · semantic_decision_v3" value={evidence.d2c} />
@@ -47,8 +47,8 @@ export function SafetyDashboard({ onOpenRuns }: Props) {
         </Card>
         <Card as="section" className="p-5">
           <SectionHeader eyebrow="Hardening journey" title="Executable containment" description="Historical executable-survivor trend across the hardening chain." />
-          <div className="trend-display"><span className="font-mono text-xl font-semibold tracking-tight text-main">{evidence.trend}</span><div className="mt-3 flex items-center gap-2 text-xs text-muted"><StatusIndicator label="0 survivors in latest full D2c" tone="success" compact /></div></div>
-          <div className="mt-4 rounded-lg border border-info/20 bg-info/5 p-3 text-xs leading-5 text-muted">The model proposes. Deterministic software validates provenance, applies policy, and owns execution authority.</div>
+          <div className="trend-display"><span className="font-mono text-xl font-semibold tracking-tight text-main">{evidence.trend}</span><div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><StatusIndicator label="0 survivors in latest full D2c" tone="success" compact /></div></div>
+          <div className="mt-4 rounded-lg border border-info/20 bg-info/5 p-3 text-xs leading-5 text-muted-foreground">The model proposes. Deterministic software validates provenance, applies policy, and owns execution authority.</div>
         </Card>
       </div>
 
@@ -58,7 +58,7 @@ export function SafetyDashboard({ onOpenRuns }: Props) {
           {["D2c semantic validation", "D2d operational gate", "Concurrency correctness", "Restart / persistence", "Fault recovery", "Observability / privacy", "Prompt provenance", "Reference deployment"].map((label) => <div className="gate-card" key={label}><CheckCircle2 size={15} className="text-success" aria-hidden="true" /><div><div className="text-xs font-medium text-main">{label}</div><div className="mt-1 text-xs tracking-[.03em] text-success">validated</div></div></div>)}
         </div>
       </Card>
-      <section className="evidence-report-entry"><div><div className="eyebrow">Bounded reporting</div><h2 className="section-title mt-1">Export an investigation report</h2><p className="mt-1 text-xs leading-5 text-muted">Choose a run to review its bounded trace, evidence, policy, and execution state. Raw prompts, secrets, and hidden reasoning remain excluded.</p></div><button type="button" className="operator-action shrink-0" onClick={onOpenRuns}><FileText size={14} aria-hidden="true" />Open run reports</button></section>
+      <section className="evidence-report-entry"><div><div className="eyebrow">Bounded reporting</div><h2 className="section-title mt-1">Export an investigation report</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Choose a run to review its bounded trace, evidence, policy, and execution state. Raw prompts, secrets, and hidden reasoning remain excluded.</p></div><button type="button" className="operator-action shrink-0" onClick={onOpenRuns}><FileText size={14} aria-hidden="true" />Open run reports</button></section>
     </div>
   );
 }

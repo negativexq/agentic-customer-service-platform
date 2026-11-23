@@ -43,6 +43,7 @@ def build_authenticator(settings: Settings) -> Authenticator:
                     principal_type=PrincipalType.LOCAL_DEMO,
                     roles=["support_operator"],
                     credential_id="local-demo",
+                    display_name=settings.local_demo_operator_name,
                 )
             }
         )
@@ -58,6 +59,7 @@ def build_authenticator(settings: Settings) -> Authenticator:
                 roles_claim=settings.oidc_roles_claim,
                 groups_claim=settings.oidc_groups_claim,
                 tenant_claim=settings.oidc_tenant_claim,
+                name_claim=settings.oidc_name_claim,
                 customer_scope_claim=settings.oidc_customer_scope_claim,
                 email_claim=settings.oidc_email_claim,
                 support_role=settings.oidc_support_role,
@@ -135,6 +137,18 @@ def require_support_operator(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions.",
+        )
+    return principal
+
+
+def require_studio_editor(
+    principal: Principal = Depends(require_support_operator),
+) -> Principal:
+    role = get_settings().studio_editor_role
+    if role is not None and role not in principal.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Changing the agent requires the studio editor role.",
         )
     return principal
 

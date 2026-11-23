@@ -27,6 +27,7 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     total_amount: Decimal
     created_at: datetime
+    refund_status: str | None = None
 
 
 class TicketResponse(BaseModel):

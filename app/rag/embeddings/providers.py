@@ -25,8 +25,12 @@ class OpenAIEmbeddingProvider:
         base_url: str | None,
         connect_timeout_seconds: float = 5.0,
         timeout_seconds: float = 30.0,
+        dimensions: int | None = None,
+        query_instruction: str = "",
     ) -> None:
         self.model = model
+        self.dimensions = dimensions
+        self.query_instruction = query_instruction
         self.api_key = api_key
         self.base_url = base_url
         self.connect_timeout_seconds = connect_timeout_seconds
@@ -42,6 +46,10 @@ class OpenAIEmbeddingProvider:
                 kwargs["api_key"] = self.api_key
             if self.base_url:
                 kwargs["base_url"] = self.base_url
+                # OpenAI-compatible servers such as Ollama take raw text, not tiktoken ids.
+                kwargs["check_embedding_ctx_length"] = False
+            if self.dimensions is not None:
+                kwargs["dimensions"] = self.dimensions
             kwargs["timeout"] = httpx.Timeout(
                 connect=self.connect_timeout_seconds,
                 read=self.timeout_seconds,
@@ -57,7 +65,7 @@ class OpenAIEmbeddingProvider:
         return cast(list[list[float]], self._get_client().embed_documents(list(texts)))
 
     def embed_query(self, text: str) -> list[float]:
-        return cast(list[float], self._get_client().embed_query(text))
+        return cast(list[float], self._get_client().embed_query(self.query_instruction + text))
 
     def embed(self, text: str) -> list[float]:
         return self.embed_query(text)
@@ -118,5 +126,7 @@ def build_embedding_provider(
                 if timeout_seconds is not None
                 else settings.embedding_timeout_seconds
             ),
+            dimensions=settings.embedding_output_dimension,
+            query_instruction=settings.embedding_query_instruction,
         )
     return HuggingFaceEmbeddingProvider(model=settings.embedding_model)

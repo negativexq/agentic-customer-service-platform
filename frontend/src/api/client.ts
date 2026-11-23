@@ -1,4 +1,4 @@
-import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, RuntimeConfig } from "../types";
+import type { AgentExecutionMode, AgentResponse, AgentRun, ConversationView, DemoScenario, Health, MemoryRecord, MemoryUsage, RuntimeConfig, OperatorConversation, OperatorConversationDetail, OperatorIdentity, OperatorSettings } from "../types";
 import {
   createConfiguredAuthProvider,
   type AuthProvider,
@@ -35,7 +35,7 @@ export async function initializeApiAuth(): Promise<AuthSnapshot> {
   return authProvider.initialize();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = authProvider.getSnapshot();
   if (auth.status !== "authenticated") {
     const message =
@@ -61,6 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       if (typeof payload === "object" && payload !== null && "detail" in payload) {
         const raw = (payload as { detail?: unknown }).detail;
         if (typeof raw === "object" && raw !== null) detail = raw as { message?: string; reason?: string };
+        else if (typeof raw === "string") detail = { message: raw };
       }
     } catch {
       detail = null;
@@ -73,6 +74,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           : `Request failed (${response.status}).`);
     throw new ApiError(message, response.status, detail?.reason);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -98,9 +100,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ conversation_id: conversationId, customer_id: customerId, message, execution_mode: executionMode }),
     }),
+  runMemory: (runId: string) => request<MemoryUsage>(`/ui/agent-runs/${runId}/memory`),
   run: (runId: string) => requestProjection<AgentRun>(`/ui/agent-runs/${runId}`),
   conversation: (conversationId: string) => request<ConversationView>(`/ui/conversations/${conversationId}`),
   memory: (customerId: number) => request<MemoryRecord[]>(`/ui/memory/${customerId}`),
   health: () => request<Health>("/ui/system-health"),
   runtimeConfig: () => request<RuntimeConfig>("/ui/runtime-config"),
+  operatorMe: () => request<OperatorIdentity>("/operator/me"),
+  operatorSettings: () => request<OperatorSettings>("/operator/settings"),
+  operatorConversations: () => request<OperatorConversation[]>("/operator/conversations?limit=200"),
+  operatorConversation: (id: number) => request<OperatorConversationDetail>(`/operator/conversations/${id}`),
+  operatorTransition: (id: number, action: "claim" | "release" | "resolve", expectedVersion: number) =>
+    request<OperatorConversationDetail>(`/operator/conversations/${id}/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ expected_version: expectedVersion }),
+    }),
+  operatorReply: (id: number, content: string, expectedVersion: number, clientMessageId: string) =>
+    request<OperatorConversationDetail>(`/operator/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content, expected_version: expectedVersion, client_message_id: clientMessageId }),
+    }),
 };

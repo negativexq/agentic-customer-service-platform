@@ -31,6 +31,39 @@ _QUANTIFIED_FACT = re.compile(
     re.IGNORECASE,
 )
 _STOP_WORDS = {
+    "and",
+    "any",
+    "been",
+    "but",
+    "did",
+    "get",
+    "had",
+    "has",
+    "have",
+    "into",
+    "its",
+    "know",
+    "much",
+    "need",
+    "our",
+    "should",
+    "some",
+    "take",
+    "than",
+    "that",
+    "them",
+    "then",
+    "there",
+    "they",
+    "usually",
+    "typically",
+    "generally",
+    "want",
+    "was",
+    "were",
+    "will",
+    "would",
+    "you",
     "about",
     "are",
     "can",
@@ -64,6 +97,9 @@ _EVIDENCE_REFERENCE_TERMS = {
 }
 _MIN_RELEVANCE_SCORE = 0.35
 _GENERIC_QUERY_TERMS = {
+    "account",
+    "change",
+    "update",
     "allow",
     "allowed",
     "answer",
@@ -99,6 +135,7 @@ _SAFE_UNCERTAINTY = (
     "The knowledge base does not contain enough information to answer this question from the "
     "retrieved evidence. Please clarify the request or provide an applicable knowledge source."
 )
+SAFE_UNCERTAINTY = _SAFE_UNCERTAINTY
 
 
 class GroundingValidator:
@@ -214,7 +251,23 @@ class GroundedAnswerGenerator:
 
     def _synthesize(self, chunks: Sequence[RetrievedChunk], query: str) -> GroundedAnswer:
         conflict = _find_conflict(chunks)
-        selected = list(conflict or chunks[:2])
+        # A second excerpt from another document must be in the same category and share at
+        # least two question terms: a neighbouring policy ("shipping" vs refund review
+        # "processing business days") is off-topic for the reader.
+        question = _terms(query)
+        companion = next(
+            (
+                chunk
+                for chunk in chunks[1:4]
+                if chunk.document_id == chunks[0].document_id
+                or (
+                    chunk.category == chunks[0].category
+                    and len(question & _terms(chunk.content)) >= 2
+                )
+            ),
+            None,
+        )
+        selected = list(conflict or [chunks[0], *([companion] if companion else [])])
         focus = _query_focus(query)
         excerpts = [_excerpt(chunk.content, focus=focus) for chunk in selected]
         citations = [
@@ -254,6 +307,12 @@ class GroundedAnswerGenerator:
                 unsupported_claim_count=0,
             ),
         )
+
+
+def insufficient_evidence_answer() -> GroundedAnswer:
+    """The honest "the articles don't cover this" answer."""
+
+    return _uncertain_answer()
 
 
 def _uncertain_answer() -> GroundedAnswer:
@@ -327,8 +386,26 @@ def _excerpt(content: str, limit: int = 320, *, focus: str | None = None) -> str
         )
     else:
         first_sentence = sentences[0]
-    bounded = first_sentence[:limit].rstrip()
+    # One sentence rarely answers "what are the conditions?": keep the next one too when it
+    # is customer-facing policy, not a note about the document or the internal systems.
+    index = sentences.index(first_sentence)
+    following = sentences[index + 1] if index + 1 < len(sentences) else ""
+    excerpt = first_sentence
+    if (
+        following
+        and not _INTERNAL_NOTE.search(following)
+        and len(first_sentence) + len(following) + 1 <= limit
+    ):
+        excerpt = f"{first_sentence} {following}"
+    bounded = excerpt[:limit].rstrip()
     return bounded.rstrip(".!?")
+
+
+_INTERNAL_NOTE = re.compile(
+    r"\b(?:policy\s+document|authoritative|business\s+system|not\s+a\s+substitute|"
+    r"account\s+and\s+order\s+records|tool)\b",
+    re.IGNORECASE,
+)
 
 
 def normalize_knowledge_query(query: str) -> str:
@@ -343,7 +420,10 @@ def normalize_knowledge_query(query: str) -> str:
         return "refund processing review settlement"
     if re.search(r"\b(?:iade\s+uygunluk\s+süresi|uygunluk\s+süresi)\b", normalized):
         return "refund eligibility delivered 30 calendar days"
-    if re.search(r"\b(?:iade\s+şart|iade\s+koşul|geri\s+ödeme\s+şart)\w*\b", normalized):
+    if re.search(
+        r"\b(?:iade\s+(?:şart|koşul|politika|kural)|geri\s+ödeme\s+(?:şart|politika))\w*\b",
+        normalized,
+    ):
         return "refund eligibility delivered damaged returned"
     if re.search(
         r"\b(?:processing\s+time|settlement|when\s+will.*refund|refund.*take)\b",
@@ -353,6 +433,23 @@ def normalize_knowledge_query(query: str) -> str:
         and re.search(r"\b(?:refund|return|reimburse|money\s+back)\b", normalized)
     ):
         return "refund processing review settlement"
+    if re.search(r"\b(?:shipping|delivery|ship)\b", normalized) and re.search(
+        r"\b(?:how\s+long|how\s+many\s+days|take|arrive|when\s+will|delivery\s+time)\b",
+        normalized,
+    ):
+        return "shipping processing transit delivery business days"
+    if re.search(r"\b(?:kargo|teslimat|gönderi)\w*", normalized) and re.search(
+        r"(?:kaç\s+gün|ne\s+zaman|süre|gelir|ulaşır)", normalized
+    ):
+        return "shipping processing transit delivery business days"
+    if re.search(r"\bgecik\w*", normalized) or re.search(
+        r"\btakip\w*\s+\w*\s*(?:güncellen|ilerle)", normalized
+    ):
+        return "delayed parcel tracking delays"
+    if re.search(r"\biptal\w*", normalized) and re.search(
+        r"\b(?:politika|koşul|kural|nasıl|edebilir)\w*", normalized
+    ):
+        return "cancellation policy before shipment after shipment"
     return query
 
 
@@ -368,13 +465,47 @@ def _normalize(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+_SUFFIXES = ("ments", "ment", "ings", "ing", "ed", "es", "s")
+
+
+def _stem(word: str) -> str:
+    """Light suffix stripping so shipped, shipping and shipment share one root."""
+
+    for suffix in _SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            word = word[: -len(suffix)]
+            break
+    if len(word) > 3 and word[-1] == word[-2] and word[-1] not in "aeiouls":
+        word = word[:-1]
+    return word
+
+
 def _terms(value: str) -> set[str]:
     terms: set[str] = set()
     for raw in _TOKEN.findall(value.casefold()):
         if raw in _STOP_WORDS or len(raw) < 3:
             continue
-        terms.add(raw[:-1] if raw.endswith("s") and len(raw) > 4 else raw)
+        terms.add(_stem(raw))
     return terms
+
+
+def content_terms(value: str) -> set[str]:
+    """Stemmed content words of free text, without stop words."""
+
+    return _terms(value)
+
+
+def evidence_terms(chunk: RetrievedChunk) -> set[str]:
+    return _terms(" ".join((chunk.title, chunk.category, chunk.section, chunk.content)))
+
+
+def query_term_overlap(query: str, terms: set[str]) -> float:
+    """Share of the query's content terms that appear in the evidence terms."""
+
+    query_terms = _terms(query)
+    if not query_terms:
+        return 0.0
+    return sum(_term_matches(term, terms) for term in query_terms) / len(query_terms)
 
 
 def _is_relevant(query: str, chunk: RetrievedChunk) -> bool:
@@ -384,17 +515,29 @@ def _is_relevant(query: str, chunk: RetrievedChunk) -> bool:
     score = chunk.rerank_score if chunk.rerank_score is not None else chunk.score
     if query_terms & _EVIDENCE_REFERENCE_TERMS:
         return score >= _MIN_RELEVANCE_SCORE
-    evidence_terms = _terms(" ".join((chunk.title, chunk.category, chunk.section, chunk.content)))
-    covered = {term for term in query_terms if _term_matches(term, evidence_terms)}
+    chunk_terms = evidence_terms(chunk)
+    covered = {term for term in query_terms if _term_matches(term, chunk_terms)}
     distinctive = query_terms - _GENERIC_QUERY_TERMS
     # A deterministic reranker can score a short, highly specific question
     # below the general threshold even when every distinctive term is present
     # in the source.  Permit that bounded case, but never let a low-confidence
     # generic query pass without stronger retrieval support.
+    matched = {term for term in distinctive if _term_matches(term, chunk_terms)}
     if score < _MIN_RELEVANCE_SCORE:
         if score < 0.2 or not distinctive:
             return False
-    return bool(covered) and all(_term_matches(term, evidence_terms) for term in distinctive)
+        return bool(covered) and matched == distinctive
+    # With solid retrieval support, most (not every) distinctive term must appear:
+    # customers phrase questions in words the policy text does not repeat verbatim.
+    if not distinctive:
+        return bool(covered)
+    return bool(matched) and len(matched) / len(distinctive) >= 0.5
+
+
+def term_matches(term: str, evidence_terms: set[str]) -> bool:
+    """A question term appears in the evidence, allowing the same word stem."""
+
+    return _term_matches(term, evidence_terms)
 
 
 def _term_matches(term: str, evidence_terms: set[str]) -> bool:

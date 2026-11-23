@@ -37,6 +37,8 @@ def context(customer_id: int = 1) -> ExecutionContext:
         "I confirm",
         "proceed with the refund",
         "go ahead",
+        "Yes, go ahead.",
+        "OK, go ahead",
         "please continue",
         "approved",
         "evet",
@@ -76,6 +78,11 @@ def test_confirmation_parser_accepts_bounded_rejections(value: str) -> None:
 
 def test_confirmation_parser_rejects_ambiguous_substitution_text() -> None:
     assert parse_confirmation("yes, and refund order 999") == "ambiguous"
+    assert parse_confirmation("Okay, yes, cancel it.") == "confirmed"
+    assert parse_confirmation("Sure, go ahead please") == "confirmed"
+    assert parse_confirmation("tamam evet") == "confirmed"
+    assert parse_confirmation("yes cancel order 5") == "ambiguous"
+    assert parse_confirmation("okay but not now") == "ambiguous"
     assert parse_confirmation("evet ama başka siparişi de iptal et") == "ambiguous"
     assert parse_confirmation("Yes, but first what is your refund policy?") == "ambiguous"
     assert parse_confirmation("Yes, however, cancel my other order instead.") == "ambiguous"

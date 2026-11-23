@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from typing import TypeGuard
 
@@ -29,6 +30,10 @@ from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
 from app.resilience.errors import ResilienceError, RetryExhaustedError
 from app.resilience.retry import run_with_retry
+
+CONVERSATION_MOVES = frozenset(
+    {"greeting", "small_talk", "closing", "off_topic", "about_assistant", "own_name"}
+)
 
 
 def _security_block(
@@ -99,6 +104,9 @@ def make_security_boundary_node() -> Callable[[AgentState], AgentState]:
     return detect_security_boundary
 
 
+_EXPLICIT_ORDER_NUMBER = re.compile(r"(?:\border\s*(?:number\s*)?#?|#|\bsipariş\w*\s*)(\d+)", re.I)
+
+
 def make_understand_request_node(
     provider: DecisionProposalProvider,
     resilience_config: ResilienceConfig | None = None,
@@ -111,7 +119,9 @@ def make_understand_request_node(
         previous_pending_intent = pending_action.intent if pending_action is not None else None
         replacement_intent = explicit_replacement_intent(message, previous_pending_intent)
         if replacement_intent is not None and pending_action is not None:
-            order_id = pending_action.arguments.get("order_id")
+            # "Cancel order 4115 instead" names its own order; otherwise keep the prior one.
+            named = _EXPLICIT_ORDER_NUMBER.search(message)
+            order_id = int(named.group(1)) if named else pending_action.arguments.get("order_id")
             target = (
                 {"type": "explicit_order", "order_id": order_id}
                 if isinstance(order_id, int) and order_id > 0
@@ -131,6 +141,51 @@ def make_understand_request_node(
                 "tool_arguments": {},
                 "decision_reason": replacement.reason,
                 "requires_retrieval": False,
+                "last_error": None,
+                "error_category": None,
+                "provider_metadata": _provider_metadata(provider),
+                "security_signal": None,
+            }
+        if state.get("withdraws") and pending_action is None:
+            # "Never mind": the customer drops their own request; nothing new to decide.
+            withdrawn = SemanticDecisionV3(
+                intent=Intent.UNKNOWN,
+                request_type=AgentRequestType.UNCLEAR,
+                reason="customer_withdrew",
+            )
+            return {
+                "semantic_decision": normalize_semantic_decision(withdrawn),
+                "intent": Intent.UNKNOWN,
+                "request_type": AgentRequestType.UNCLEAR,
+                "selected_tool": None,
+                "tool_arguments": {},
+                "requires_retrieval": False,
+                "decision_reason": "customer_withdrew",
+                "last_error": None,
+                "error_category": None,
+                "provider_metadata": _provider_metadata(provider),
+                "security_signal": None,
+                "workflow_active": False,
+                "pending_workflow_decision": None,
+                "missing_required_fields": [],
+            }
+        move = state.get("conversation_move")
+        if move in CONVERSATION_MOVES and pending_action is None:
+            # Hello, goodbye, chit-chat or an off-topic question asks nothing of the store, so
+            # there is nothing to decide or look up; the reply is a short human one.
+            social = SemanticDecisionV3(
+                intent=Intent.UNKNOWN,
+                request_type=AgentRequestType.UNCLEAR,
+                reason=f"conversation_{move}",
+            )
+            return {
+                "semantic_decision": normalize_semantic_decision(social),
+                "intent": Intent.UNKNOWN,
+                "request_type": AgentRequestType.UNCLEAR,
+                "selected_tool": None,
+                "tool_arguments": {},
+                "requires_retrieval": False,
+                "decision_reason": f"conversation_{move}",
                 "last_error": None,
                 "error_category": None,
                 "provider_metadata": _provider_metadata(provider),

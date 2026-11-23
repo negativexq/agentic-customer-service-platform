@@ -1,660 +1,2582 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+/*
+  ---break---
+*/
+@custom-variant dark (&:where(.dark, .dark *));
 
-:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #0f1115; color: #f0f6fc; }
-html, body, #root { max-width: 100%; overflow-x: hidden; }
-main { min-width: 0; width: 100%; max-width: 100%; }
-button, input, select { font: inherit; }
-button, select, input { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:focus-visible { outline: 2px solid #8aa7c7; outline-offset: 2px; }
+@theme inline {
+  /* Legacy console tokens follow the active theme. */
+  --color-void: var(--background);
+  --color-surface: var(--card);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border-strong: var(--border-strong);
+  --color-main: var(--foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-proposal: var(--proposal);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-decision: var(--decision);
 
-@layer components {
-  .topbar { @apply border-b border-border bg-void/95; }
-  .topbar-inner { @apply mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8; }
-  .run-header { @apply rounded-xl border border-border/80 bg-surface p-5 shadow-panel sm:p-6; }
-  .surface { @apply min-w-0 rounded-xl border border-border/80 bg-surface shadow-panel; }
-  .brand-mark { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-info/30 bg-info/10 text-info; }
-  .brand-mark-small { @apply h-7 w-7 rounded-md; }
-  .eyebrow { @apply text-xs font-medium tracking-[.04em] text-muted; }
-  .section-title { @apply text-[15px] font-semibold leading-5 tracking-tight text-main; }
-  .text-main { color: #f0f6fc; }
-  .text-muted { color: #8b949e; }
-  .text-success { color: #75c69a; }
-  .text-warning { color: #d9a85c; }
-  .text-danger { color: #e06c75; }
-  .text-info { color: #7d9bb8; }
-  .badge { @apply inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium tracking-[.03em]; }
-  .badge-success { @apply border-success/25 bg-success/10 text-success; }
-  .badge-warning { @apply border-warning/25 bg-warning/10 text-warning; }
-  .badge-danger { @apply border-danger/25 bg-danger/10 text-danger; }
-  .badge-info { @apply border-info/25 bg-info/10 text-info; }
-  .badge-neutral { @apply border-border bg-void/60 text-muted; }
-  .status-indicator { @apply inline-flex items-center gap-1.5 whitespace-nowrap; }
-  .status-success { @apply text-success; }
-  .status-warning { @apply text-warning; }
-  .status-danger { @apply text-danger; }
-  .status-info { @apply text-info; }
-  .status-neutral { @apply text-muted; }
-  .activity-pulse { @apply h-2 w-2 rounded-full bg-info; }
-  .metric-card { @apply rounded-none border-0 bg-void/40 first:rounded-l-lg last:rounded-r-lg; }
-  .workspace-grid { @apply grid items-start gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(460px,.8fr)]; }
-  .workspace-control-grid { @apply grid min-w-0 items-start gap-5 xl:grid-cols-[240px_minmax(0,1fr)_minmax(360px,.78fr)]; }
-  .workspace-rail { @apply flex min-h-[620px] min-w-0 flex-col overflow-hidden; }
-  .rail-item { @apply rounded-lg border border-transparent p-3 transition-colors hover:border-border-strong hover:bg-void/50; }
-  .rail-item-selected { @apply border-info/30 bg-info/5; }
-  .rail-icon { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted; }
-  .rail-icon-active { @apply border-info/30 bg-info/10 text-info; }
-  .console-nav { @apply order-3 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-void/50 p-1 md:order-none md:w-auto; scrollbar-width: none; }
-  .console-nav::-webkit-scrollbar { display: none; }
-  .console-nav-button { @apply inline-flex min-h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium text-muted transition-colors hover:text-main; }
-  .console-nav-active { @apply bg-surface text-main shadow-sm; }
-  .release-hero { @apply p-5 sm:p-6; }
-  .evidence-row { @apply flex items-center justify-between gap-5 py-4; }
-  .trend-display { @apply rounded-lg border border-border bg-void/40 p-5; }
-  .gate-card { @apply flex items-start gap-2.5 border-t border-border bg-transparent p-3; }
-  .proposal-field { @apply rounded-lg border border-border bg-void/35 p-3; }
-  .control-check { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-2.5; }
-  .control-flow { @apply flex flex-col items-center gap-1 rounded-lg border border-border bg-void/45 p-3 sm:flex-row sm:justify-center sm:gap-2; }
-  .flow-node { @apply rounded-md border border-border bg-surface px-2.5 py-2 text-center text-xs font-medium text-muted; }
-  .flow-proposal { @apply border-warning/25 bg-warning/5 text-warning; }
-  .flow-authority { @apply border-success/25 bg-success/5 text-success; }
-  .flow-arrow { @apply text-info sm:rotate-[-90deg]; }
-  .operator-action { @apply inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-void/50 px-3 text-xs font-medium text-muted disabled:cursor-not-allowed disabled:opacity-60; }
-  .trace-authority-strip { @apply flex flex-wrap items-center justify-center gap-2 border-y border-border/70 bg-transparent px-1 py-3 text-xs font-medium text-muted; }
-  .trace-proposal-label { @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal; }
-  .trace-authority-label { @apply inline-flex items-center gap-1 rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success; }
-  .trace-stage-list { @apply mt-3 space-y-0; }
-  .trace-layer { @apply rounded-none border-0 bg-transparent p-0; }
-  .trace-layer + .trace-layer { @apply mt-5; }
-  .trace-layer-heading { @apply flex items-center gap-3 px-1; }
-  .trace-layer-rule { @apply h-px flex-1 bg-border/70; }
-  .trace-stage-list-compact { @apply mt-0; }
-  .trace-stage { @apply overflow-hidden rounded-none border-0 border-t border-border/70 bg-transparent; }
-  .trace-stage-completed { @apply border-success/20 bg-transparent; }
-  .trace-stage-not_recorded { @apply border-dashed border-border/70 bg-transparent; }
-  .trace-stage-not_recorded .trace-stage-marker { @apply opacity-70; }
-  .trace-stage-waiting, .trace-stage-blocked { @apply border-warning/35; }
-  .trace-stage-failed { @apply border-danger/35; }
-  .trace-stage-summary { @apply flex cursor-pointer list-none items-center gap-3 px-2 py-3; }
-  .trace-stage-summary::-webkit-details-marker { display: none; }
-  .trace-stage-marker { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-muted; }
-  .trace-stage-completed .trace-stage-marker { @apply text-success; }
-  .trace-stage-waiting .trace-stage-marker, .trace-stage-blocked .trace-stage-marker { @apply text-warning; }
-  .trace-stage-failed .trace-stage-marker { @apply text-danger; }
-  .trace-stage-meta { @apply flex shrink-0 flex-col items-end gap-1; }
-  .trace-stage-detail { @apply border-l border-border bg-surface/35 p-3 pl-4 sm:ml-[52px]; }
-  .trace-stage-explanation, .trace-stage-evidence { @apply rounded-md border border-border/70 bg-void/25 p-2.5; }
-  .trace-stage-evidence { @apply mt-2 border-info/20 bg-info/5; }
-  .trace-event-row { @apply flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-void/25 px-3 py-2; }
-  .grounding-boundary { @apply grid items-stretch gap-2 lg:grid-cols-[1fr_auto_1fr]; }
-  .grounding-column { @apply rounded-lg border p-4; }
-  .grounding-model { @apply border-proposal/25 bg-proposal/5; }
-  .proposal-badge { @apply inline-flex items-center rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-xs font-medium tracking-[.03em] text-proposal; }
-  .grounding-system { @apply border-success/25 bg-success/5; }
-  .grounding-divider { @apply hidden items-center justify-center px-2 text-info lg:flex; }
-  .grounding-stage-grid { @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-3; }
-  .grounding-stage-card { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .grounding-status { @apply flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 p-3; }
-  .context-role-header { @apply rounded-lg border border-border/70 bg-void/20 p-3; }
-  .memory-influence-flow { @apply space-y-1 rounded-lg border border-border bg-void/25 p-3; }
-  .memory-influence-node { @apply border-b border-border/70 py-2 last:border-0 last:pb-0 first:pt-0; }
-  .memory-role-card, .memory-summary-card { @apply rounded-lg border border-info/20 bg-info/5 p-3; }
-  .memory-role-grid { @apply grid gap-3 sm:grid-cols-2; }
-  .context-summary { @apply grid gap-2 sm:grid-cols-3; }
-  .context-summary > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .policy-detail-grid { @apply grid grid-cols-2 gap-2 rounded-md border border-border bg-void/25 p-3; }
-  .trace-run-row { @apply cursor-pointer transition-colors hover:bg-info/5 focus:bg-info/5 focus:outline-none; }
-  .trace-run-card { @apply rounded-lg border border-border bg-void/25 p-4 transition-colors hover:border-info/30 hover:bg-info/5; }
-  .playground-hero { @apply p-5 sm:p-6; }
-  .playground-layout { @apply grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(360px,.72fr)_minmax(0,1.28fr)]; }
-  .config-list { @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-1; }
-  .scenario-option { @apply flex min-h-9 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-void/50; }
-  .scenario-option-selected { @apply border-info/30 bg-info/5; }
-  .scenario-option-icon { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-void text-info; }
-  .running-state { @apply rounded-lg border border-info/20 bg-info/5 p-4; }
-  .json-panel { @apply min-w-0 rounded-lg border border-border bg-void/45 p-3; }
-  .json-viewer { @apply max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-info; }
-  .playground-actions { @apply flex flex-wrap gap-2 border-t border-border pt-3; }
-  .playground-empty-flow { @apply my-5 flex flex-wrap items-center justify-center gap-2 border-y border-border/70 py-3 text-xs font-medium text-muted; }
-  .playground-empty-flow span:nth-child(odd) { @apply rounded-md bg-surface-elevated px-2.5 py-1.5 text-main; }
-  .playground-empty-flow span:nth-child(even) { @apply text-muted; }
-  .playground-lifecycle-preview { @apply my-5 grid gap-2 border-y border-border/70 py-3 sm:grid-cols-5; }
-  .playground-lifecycle-step { @apply relative flex items-center gap-2 rounded-md bg-void/25 px-2.5 py-2; }
-  .playground-lifecycle-number { @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info; }
-  .playground-lifecycle-step strong { @apply block text-xs font-medium text-main; }
-  .playground-lifecycle-step small { @apply mt-0.5 block text-xs leading-4 text-muted; }
-  .playground-lifecycle-arrow { @apply absolute -right-2 z-10 hidden text-muted sm:block; }
-  .run-detail-header { @apply p-5 sm:p-6; }
-  .trace-investigation-header { @apply p-5 sm:p-6; }
-  .trace-investigation-id { @apply mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-void/30 p-3; }
-  .trace-investigation-id span { @apply text-xs text-muted; }
-  .trace-investigation-id strong { @apply font-mono text-xs font-medium text-main; }
-  .trace-investigation-summary { @apply mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-7; }
-  .trace-investigation-summary > div { @apply min-w-0 bg-void/40 p-3; }
-  .trace-investigation-summary span { @apply block text-xs text-muted; }
-  .trace-investigation-summary strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .operational-event-list { @apply mt-4 space-y-2; }
-  .operational-event-row { @apply grid gap-3 rounded-lg border border-border/70 bg-void/25 p-3 sm:grid-cols-[116px_minmax(0,1fr)]; }
-  .operational-event-completed { @apply border-success/20; }
-  .operational-event-waiting { @apply border-warning/30 bg-warning/[.025]; }
-  .operational-event-blocked { @apply border-border bg-void/35; }
-  .operational-event-failed { @apply border-danger/30 bg-danger/[.025]; }
-  .operational-event-not_recorded { @apply border-dashed border-border/70; }
-  .operational-event-time { @apply flex items-center gap-1.5 text-xs font-mono text-muted sm:items-start sm:pt-0.5; }
-  .operational-event-time svg { @apply shrink-0; }
-  .operational-event-main > div:first-child strong { @apply text-sm font-medium text-main; }
-  .operational-event-fields { @apply mt-3 grid gap-2 sm:grid-cols-3; }
-  .operational-event-fields > div { @apply min-w-0 rounded-md border border-border/70 bg-void/25 p-2; }
-  .operational-event-fields strong { @apply mt-1 block truncate text-xs font-medium text-main; }
-  .trace-investigation-timeline { @apply mt-4 space-y-1 rounded-lg border border-border bg-void/20 p-3; }
-  .trace-investigation-step { @apply relative; }
-  .trace-investigation-stage { @apply overflow-hidden rounded-lg border border-border/70 bg-void/25; }
-  .trace-investigation-stage-completed { @apply border-success/20; }
-  .trace-investigation-stage-waiting, .trace-investigation-stage-blocked { @apply border-warning/30 bg-warning/[.025]; }
-  .trace-investigation-stage-failed { @apply border-danger/30 bg-danger/[.025]; }
-  .trace-investigation-stage summary { @apply flex cursor-pointer list-none items-start gap-3 p-3; }
-  .trace-investigation-stage summary::-webkit-details-marker { display: none; }
-  .trace-investigation-marker { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated; }
-  .trace-investigation-stage summary > span:nth-child(2) strong { @apply block text-sm font-medium text-main; }
-  .trace-investigation-stage summary > span:nth-child(2) small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .trace-investigation-stage-status { @apply ml-auto flex shrink-0 flex-col items-end gap-1 text-xs font-mono text-muted; }
-  .trace-investigation-stage-status svg { @apply inline-block align-text-bottom; }
-  .trace-filter-bar { @apply grid gap-3 rounded-lg border border-border bg-void/25 p-3 sm:grid-cols-3; }
-  .trace-filter { @apply min-w-0; }
-  .trace-filter-note { @apply text-xs leading-5 text-muted sm:col-span-3; }
-  .decision-lifecycle-summary { @apply border-info/25 bg-info/[.015]; }
-  .decision-lifecycle-grid { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-5; }
-  .decision-lifecycle-grid > div { @apply min-w-0 bg-void/35 p-3; }
-  .decision-lifecycle-grid span { @apply block text-xs text-muted; }
-  .decision-lifecycle-grid strong { @apply mt-1 block break-words text-xs font-semibold capitalize text-main; }
-  .decision-lifecycle-grid small { @apply mt-1 block text-xs leading-4 text-muted; }
-  .decision-lifecycle-proposal { @apply border-t-2 border-proposal/30; }
-  .decision-lifecycle-decision { @apply border-t-2 border-warning/40 bg-warning/5; }
-  .decision-lifecycle-authority { @apply border-t-2 border-success/30; }
-  .decision-lifecycle-execution { @apply border-t-2 border-danger/20; }
-  .decision-lifecycle-note { @apply mt-3 rounded-md border border-border bg-void/25 p-3 text-xs leading-5 text-muted; }
-  .trace-investigation-stage-detail { @apply border-t border-border/70 bg-surface/30 p-3 sm:ml-10; }
-  .trace-investigation-detail-grid { @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4; }
-  .trace-investigation-detail-grid > div { @apply min-w-0 bg-void/35 p-3; }
-  .trace-investigation-detail-grid strong { @apply mt-1 block truncate text-xs font-medium text-main; }
-  .trace-investigation-evidence { @apply mt-3 flex items-start gap-2 rounded-md border border-info/20 bg-info/5 p-3 text-xs leading-5 text-info; }
-  .trace-investigation-evidence svg { @apply mt-0.5 shrink-0; }
-  .trace-investigation-stage-note { @apply mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3 text-xs text-muted; }
-  .decision-explanation-card { @apply border-warning/25 bg-warning/[.015]; }
-  .decision-explanation-result { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2; }
-  .decision-explanation-result > div { @apply min-w-0 bg-void/30 p-4; }
-  .decision-explanation-result span { @apply block text-xs text-muted; }
-  .decision-explanation-result strong { @apply mt-1 block truncate text-sm font-semibold text-main; }
-  .decision-explanation-columns { @apply mt-4 grid gap-4 sm:grid-cols-2; }
-  .decision-explanation-columns > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .decision-explanation-columns h3 { @apply flex items-center gap-2 text-xs font-medium text-main; }
-  .decision-explanation-columns h3 svg { @apply text-success; }
-  .decision-explanation-columns > div:last-child h3 svg { @apply text-warning; }
-  .decision-explanation-check { @apply mt-3 flex items-start gap-2 text-xs leading-5 text-muted; }
-  .decision-explanation-authority { @apply mt-4 rounded-lg border border-success/20 bg-success/5 p-3; }
-  .decision-explanation-authority h3 { @apply flex items-center gap-2 text-xs font-medium text-main; }
-  .decision-explanation-authority h3 svg { @apply text-success; }
-  .decision-explanation-authority p { @apply mt-2 text-xs leading-5 text-muted; }
-  .decision-explanation-blocking { @apply mt-3 flex items-start gap-2 border-t border-warning/20 pt-3 text-xs leading-5 text-warning; }
-  .evidence-relationship-graph { @apply mt-4 grid gap-1 lg:grid-cols-7 lg:items-center; }
-  .evidence-relationship-step { @apply flex flex-col items-stretch; }
-  .evidence-relationship-node { overflow-wrap: anywhere; @apply min-w-0 min-h-16 rounded-lg border p-3; }
-  .evidence-relationship-node strong { @apply block text-xs font-medium text-main; }
-  .evidence-relationship-node span { @apply mt-1 block text-xs text-muted; }
-  .evidence-relationship-node small { @apply mt-1 block text-xs leading-4 text-muted; }
-  .evidence-relationship-input { @apply border-border bg-void/30; }
-  .evidence-relationship-context { @apply border-info/25 bg-info/5; }
-  .evidence-relationship-proposal { @apply border-proposal/25 bg-proposal/5; }
-  .evidence-relationship-decision { @apply border-decision/25 bg-decision/[.025]; }
-  .evidence-relationship-authority { @apply border-success/25 bg-success/5; }
-  .evidence-relationship-arrow { @apply mx-auto text-muted lg:rotate-[-90deg]; }
-  .evidence-relationship-context-group { @apply relative; }
-  .evidence-relationship-branches { @apply mt-2 grid gap-2 sm:grid-cols-2; }
-  .evidence-relationship-branches > div { @apply relative min-w-0; }
-  .evidence-relationship-branch-label { @apply mt-1 block text-center text-xs text-muted; }
-  .evidence-relationship-note { @apply mt-4 flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs leading-5 text-muted; }
-  .evidence-relationship-note svg { @apply mt-0.5 shrink-0 text-success; }
-  .trace-report-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4; }
-  .trace-report-modal { @apply max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-panel sm:p-6; }
-  .trace-report-header { @apply flex items-start justify-between gap-4 border-b border-border pb-4; }
-  .trace-report-header h2 { @apply mt-1 text-lg font-medium text-main; }
-  .trace-report-header p { @apply mt-1 text-xs leading-5 text-muted; }
-  .trace-report-overview { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5; }
-  .trace-report-overview > div { @apply min-w-0 bg-void/35 p-3; }
-  .trace-report-overview span { @apply block text-xs text-muted; }
-  .trace-report-overview strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .trace-report-decision { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2 lg:grid-cols-4; }
-  .trace-report-decision > div { @apply min-w-0 bg-void/30 p-3; }
-  .trace-report-decision span { @apply block text-xs text-muted; }
-  .trace-report-decision strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .trace-report-sections { @apply mt-4 divide-y divide-border/70 rounded-lg border border-border bg-void/20 px-4; }
-  .trace-report-sections section { @apply py-3; }
-  .trace-report-sections h3 { @apply text-xs font-medium text-main; }
-  .trace-report-sections p { @apply mt-1 text-xs leading-5 text-muted; }
-  .trace-report-evidence-list { @apply mt-3 grid gap-2 sm:grid-cols-3; }
-  .trace-report-evidence-list span { @apply rounded-md border border-border bg-void/30 p-2 text-xs leading-5 text-muted; }
-  .trace-report-check { @apply text-success; }
-  .trace-report-footer { @apply mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4; }
-  .overview-hero { @apply p-5 sm:p-6; }
-  .guided-journey { @apply grid gap-2 md:grid-cols-2 xl:grid-cols-4; }
-  .journey-step { @apply flex min-h-24 items-center gap-3 rounded-lg border border-border bg-void/25 p-3 text-left transition-colors hover:border-info/30 hover:bg-info/5 disabled:cursor-wait disabled:opacity-60; }
-  .journey-step span:not(.journey-number) { @apply min-w-0 flex-1; }
-  .journey-step strong { @apply block text-xs font-medium text-main; }
-  .journey-step small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .journey-number { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info; }
-  .overview-boundary-flow { @apply flex flex-wrap items-center gap-2 rounded-lg border border-border bg-void/35 p-3 text-xs font-medium text-muted; }
-  .overview-flow-proposal { @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal; }
-  .overview-flow-system { @apply rounded-md border border-info/25 bg-info/5 px-2 py-1 text-info; }
-  .overview-flow-authority { @apply rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success; }
-  .safety-explanation-grid { @apply mt-4 grid gap-2 sm:grid-cols-3; }
-  .safety-explanation-grid > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .safety-explanation-grid strong { @apply mt-1 block text-xs font-medium text-main; }
-  .safety-explanation-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .overview-safety-card { @apply rounded-lg border border-border bg-void/25 p-4; }
-  .overview-status-row { @apply flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-void/25 p-3 text-xs text-main; }
-  .overview-next-grid { @apply grid gap-3 md:grid-cols-3; }
-  .overview-next-card { @apply flex min-h-20 items-center gap-3 rounded-lg border border-border bg-void/25 p-4 text-left transition-colors hover:border-info/30 hover:bg-info/5; }
-  .overview-next-card span { @apply min-w-0 flex-1; }
-  .overview-next-card strong { @apply block text-xs font-medium text-main; }
-  .overview-next-card small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .overview-next-static { @apply cursor-default hover:border-border hover:bg-void/25; }
-  .architecture-flow { @apply mx-auto max-w-3xl; }
-  .architecture-flow-item { @apply flex flex-col items-center; }
-  .architecture-zone { @apply rounded-lg border border-border/70 bg-void/20 p-4 sm:p-5; }
-  .architecture-zone > summary { list-style: none; cursor: pointer; }
-  .architecture-zone > summary::-webkit-details-marker { display: none; }
-  .architecture-zone > summary::after { content: "⌄"; display: none; color: #8b949e; font-size: 14px; line-height: 1; }
-  .architecture-zone[open] > summary::after { content: "⌃"; }
-  .architecture-zone-content { @apply mt-1; }
-  .architecture-zone-context { @apply border-info/25 bg-info/[.025]; }
-  .architecture-zone-proposal { @apply border-proposal/25 bg-proposal/[.025]; }
-  .architecture-zone-decision { @apply border-decision/25 bg-decision/[.025]; }
-  .architecture-zone-authority { @apply border-success/25 bg-success/[.025]; }
-  .architecture-zone-header { @apply flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3; }
-  .architecture-zone-header h3 { @apply text-base font-medium text-main; }
-  .architecture-zone-header p { @apply mt-1 text-xs leading-5 text-muted; }
-  .architecture-source-list, .architecture-decision-list, .architecture-authority-list { @apply divide-y divide-border/70; }
-  .architecture-source-row, .architecture-decision-row, .architecture-authority-row { @apply flex items-start gap-3 py-3 first:pt-4 last:pb-0; }
-  .architecture-source-row strong, .architecture-decision-row strong, .architecture-authority-row strong { @apply block text-sm font-medium text-main; }
-  .architecture-source-row small, .architecture-decision-row small, .architecture-authority-row small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .architecture-zone-badge { @apply shrink-0 rounded-md bg-surface-elevated px-2 py-1 text-xs font-medium text-muted; }
-  .architecture-legend { @apply mb-4 grid gap-2 sm:grid-cols-4; }
-  .architecture-legend > span { @apply flex items-center justify-between gap-3 rounded-md border px-3 py-2; }
-  .architecture-legend strong { @apply text-xs font-medium; }
-  .architecture-legend small { @apply text-xs text-muted; }
-  .architecture-legend-context { @apply border-info/25 bg-info/5; }
-  .architecture-legend-context strong { @apply text-info; }
-  .architecture-legend-proposal { @apply border-proposal/25 bg-proposal/5; }
-  .architecture-legend-proposal strong { @apply text-proposal; }
-  .architecture-legend-decision { @apply border-decision/25 bg-decision/[.025]; }
-  .architecture-legend-decision strong { @apply text-decision; }
-  .architecture-legend-authority { @apply border-success/25 bg-success/5; }
-  .architecture-legend-authority strong { @apply text-success; }
-  .architecture-flow-arrow { @apply my-2 text-muted; }
-  .architecture-side-list { @apply space-y-3; }
-  .architecture-side-list > div { @apply flex items-start gap-2.5 rounded-lg border border-border bg-void/25 p-3; }
-  .architecture-side-list span { @apply min-w-0; }
-  .architecture-side-list strong { @apply block text-xs font-medium text-main; }
-  .architecture-side-list small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .architecture-boundary-callout { @apply flex items-start gap-3 rounded-lg border border-success/25 bg-success/5 p-4; }
-  .decision-context-summary { @apply rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4 shadow-sm; }
-  .decision-context-item { @apply border-l border-border/70 pl-3 first:border-l-0 first:pl-0; }
-  .decision-context-item strong { @apply mt-1 block text-xs font-semibold text-main; }
-  .decision-context-item small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .overview-evidence-grid { @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3; }
-  .overview-evidence-grid > div { @apply bg-void/35 p-4; }
-  .overview-evidence-grid strong { @apply mt-1 block font-mono text-sm font-semibold text-success; }
-  .overview-evidence-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .overview-guarantees-grid { @apply grid gap-2 sm:grid-cols-2; }
-  .overview-guarantees-grid > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .overview-guarantees-grid strong { @apply block text-xs font-medium text-main; }
-  .overview-guarantees-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .safety-mechanism-note { @apply mb-3 rounded-lg border border-info/20 bg-info/5 p-3; }
-  .scenario-card-list { @apply grid gap-2; }
-  .scenario-card { @apply w-full rounded-lg border border-border/70 bg-transparent p-3 transition-colors hover:border-info/30 hover:bg-info/5; }
-  .scenario-card:hover { @apply border-info/40; }
-  .scenario-lifecycle-hint { @apply rounded-lg border border-info/20 bg-info/5 p-3; }
-  .scenario-lifecycle-stage { @apply inline-flex items-center gap-1 rounded-md border border-border bg-void/35 px-2 py-1 text-xs text-main; }
-  .back-link { @apply inline-flex items-center gap-2 text-xs font-medium text-muted transition-colors hover:text-main; }
-  .run-detail-metric { @apply min-w-0 bg-void/40 p-3; }
-  .run-detail-metric strong { @apply mt-1 block truncate font-mono text-xs font-semibold capitalize text-main; }
-  .investigation-layout { @apply grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]; }
-  .investigation-fact { @apply flex items-start gap-2.5 rounded-lg border border-border bg-void/25 p-3; }
-  .policy-decision-hero { @apply flex items-start justify-between gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4; }
-  .compare-selects { @apply grid gap-3 md:grid-cols-2; }
-  .compare-grid { @apply grid gap-3 lg:grid-cols-2; }
-  .compare-column { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .compare-traces { @apply col-span-full rounded-lg border border-border bg-void/25 p-3; }
-  .evidence-report-entry { @apply flex flex-wrap items-center justify-between gap-4 rounded-lg border border-info/20 bg-info/5 p-4; }
-  .control-plane-responsibilities, .control-plane-scenarios { @apply space-y-2; }
-  .control-plane-responsibility { @apply flex items-start gap-3 rounded-lg border p-3; }
-  .control-plane-responsibility h3, .control-plane-scenario h3 { @apply text-xs font-medium text-main; }
-  .control-plane-responsibility p, .control-plane-scenario p { @apply mt-1 text-xs leading-5 text-muted; }
-  .control-plane-doc-info { @apply border-info/20 bg-info/5 text-info; }
-  .control-plane-doc-proposal { @apply border-proposal/20 bg-proposal/5 text-proposal; }
-  .control-plane-doc-decision { @apply border-decision/20 bg-decision/[.025] text-decision; }
-  .control-plane-doc-success { @apply border-success/20 bg-success/5 text-success; }
-  .control-plane-scenario { @apply rounded-lg border bg-void/25 p-3; }
-  .control-plane-scenario strong { @apply font-medium text-main; }
-  .control-plane-scenario.control-plane-doc-danger { @apply border-danger/20 bg-danger/5; }
-  .control-plane-scenario.control-plane-doc-warning { @apply border-warning/20 bg-warning/5; }
-  .tablist { @apply flex gap-1 overflow-x-auto border-b border-border; }
-  .tab { @apply inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-xs font-medium text-muted transition-colors hover:text-main; }
-  .tab-active { @apply border-info text-main; }
-  .data-row { @apply flex items-center justify-between gap-4 py-2.5 text-xs; }
-  .empty-state { @apply flex min-h-28 items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-void/25 p-5 text-muted; }
-  .skeleton { @apply rounded bg-border/80; }
-  .field-label { @apply block text-xs font-medium text-muted; }
-  .field-control { @apply mt-1.5 min-h-10 w-full rounded-lg border border-border bg-void/70 px-3 text-sm text-main transition-colors placeholder:text-muted/70 hover:border-border-strong focus:border-info focus:outline-none; }
-  .field-readonly { @apply mt-1.5 flex min-h-10 items-center rounded-lg border border-border bg-void/40 px-3 text-xs text-muted; }
-  .button-primary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-info px-4 text-sm font-semibold text-void transition-colors hover:bg-info/85 disabled:cursor-not-allowed disabled:opacity-40; }
-  .conversation-scroll { max-height: 540px; overflow-y: auto; }
-  .message-row { @apply flex items-start gap-3; }
-  .message-user { @apply justify-end; }
-  .message-icon { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted; }
-  .message-icon-agent { @apply border-info/25 bg-info/10 text-info; }
-  .message-label { @apply mb-1 text-xs font-medium text-muted; }
-  .message-bubble { @apply rounded-lg border px-3.5 py-3 text-sm leading-6; }
-  .message-bubble-user { @apply border-border bg-void/70 text-main; }
-  .message-bubble-agent { @apply border-border bg-surface text-main; }
-  .conversation-evidence { @apply space-y-3; }
-  .conversation-evidence-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3; }
-  .conversation-evidence-customer { @apply border-border; }
-  .conversation-evidence-agent { @apply border-info/20 bg-info/5; }
-  .conversation-evidence-icon { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-void text-muted; }
-  .conversation-evidence-agent .conversation-evidence-icon { @apply bg-info/10 text-info; }
-  .agent-lifecycle { @apply space-y-1 rounded-lg border border-border bg-void/20 p-3; }
-  .agent-lifecycle-item { @apply relative flex items-start gap-3; }
-  .agent-lifecycle-marker { @apply z-10 mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted; }
-  .agent-lifecycle-item:has(+ .agent-lifecycle-item)::after { content: ""; @apply absolute bottom-[-6px] left-[13px] top-9 w-px bg-border; }
-  .agent-lifecycle-summary { @apply flex cursor-pointer list-none items-start justify-between gap-3 rounded-md border border-transparent p-2.5 transition-colors hover:border-border hover:bg-surface; }
-  .agent-lifecycle-summary::-webkit-details-marker { display: none; }
-  .agent-lifecycle-summary strong { @apply block text-xs font-medium capitalize text-main; }
-  .agent-lifecycle-summary small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .agent-lifecycle-detail { @apply mb-2 ml-2 grid gap-2 rounded-md border border-border bg-surface/60 p-3 sm:grid-cols-2; }
-  .agent-lifecycle-arrow { @apply absolute -bottom-2 left-[7px] z-20 text-muted; }
-  .memory-evidence-grid, .proposal-evidence-grid { @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-4; }
-  .memory-evidence-grid > div, .proposal-evidence-grid > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .memory-evidence-grid strong, .proposal-evidence-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .memory-evidence-detail { @apply grid gap-1 rounded-lg border border-border bg-void/25 p-3; }
-  .memory-evidence-detail strong { @apply text-xs font-medium leading-5 text-main; }
-  .memory-evidence-detail small { @apply text-xs leading-4 text-muted; }
-  .rag-evidence-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3; }
-  .rag-evidence-row strong { @apply block truncate text-xs font-medium text-main; }
-  .rag-evidence-row small { @apply mt-1 block truncate text-xs leading-4 text-muted; }
-  .decision-compiler-result { @apply flex items-start justify-between gap-3 rounded-lg border border-decision/25 bg-decision/[.04] p-4; }
-  .decision-compiler-result strong { @apply mt-1 block font-mono text-base font-semibold text-decision; }
-  .decision-check { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3; }
-  .decision-check strong { @apply block text-xs font-medium text-main; }
-  .decision-check small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .scenario-summary-header { @apply flex flex-wrap items-start justify-between gap-5 rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4; }
-  .scenario-summary-header h2 { @apply mt-1 text-lg font-medium tracking-tight text-main; }
-  .scenario-summary-header p { @apply mt-1 text-xs leading-5 text-muted; }
-  .scenario-summary-grid { @apply grid min-w-0 flex-1 gap-2 sm:grid-cols-5; }
-  .scenario-summary-grid > div { @apply rounded-md border border-border bg-void/30 p-2.5; }
-  .scenario-summary-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .activity-progress { @apply mt-1 flex items-center gap-3 rounded-lg border border-border bg-surface p-3 text-xs text-muted; }
-  .path-strip { @apply flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-void/35 p-3; }
-  .path-step { @apply inline-flex items-center gap-1.5 rounded-md bg-void px-2 py-1 font-mono text-xs text-muted; }
-  .path-arrow { @apply text-info; }
-  .decision-block { @apply rounded-lg border border-border bg-void/30 p-4; }
-  .source-row, .memory-row, .health-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/30 p-3; }
-  .source-icon { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-info/10 text-info; }
-  .memory-row { @apply items-center justify-between; }
-  .health-row { @apply block; }
-  .notice { @apply flex items-start gap-2 rounded-lg border p-3 text-xs leading-5; }
-  .notice-info { @apply border-info/20 bg-info/5 text-muted; }
-  .notice-warning { @apply items-center border-warning/20 bg-warning/5 text-warning; }
-  .timeline { @apply relative ml-1 space-y-0; }
-  .timeline-item { @apply relative flex min-h-16 gap-3 border-l border-border pb-5 pl-6 last:border-transparent last:pb-0; }
-  .timeline-marker { @apply absolute -left-[9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-void; }
-  .marker-success { @apply text-success; }
-  .marker-warning { @apply text-warning; }
-  .marker-danger { @apply text-danger; }
-  .marker-neutral { @apply text-muted; }
-  .tooltip-wrap { @apply relative inline-flex; }
-  .tooltip-content { @apply pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-xs text-main shadow-panel group-hover:block; }
-  .showcase-page { @apply mx-auto w-full min-w-0 max-w-[1540px]; }
-  .showcase-hero { @apply flex flex-wrap items-end justify-between gap-6 overflow-hidden p-6 sm:p-8; background: #161b22; }
-  .showcase-hero-copy { @apply min-w-0 max-w-4xl; }
-  .showcase-hero h1 { @apply mt-2 text-3xl font-semibold tracking-[-.03em] text-main sm:text-4xl; max-width: 100%; overflow-wrap: anywhere; }
-  .showcase-hero p { @apply mt-3 max-w-3xl text-base leading-7 text-muted; }
-  .showcase-hero-boundary { @apply mt-6 flex flex-wrap items-center gap-2; }
-  .showcase-hero-boundary span { @apply rounded-md border border-border bg-void/45 px-3 py-2 text-xs font-medium text-main; }
-  .showcase-hero-boundary span:nth-child(1) { @apply border-info/25 text-info; }
-  .showcase-hero-boundary span:nth-child(2) { @apply border-proposal/25 text-proposal; }
-  .showcase-hero-boundary span:nth-child(3) { @apply border-decision/25 text-decision; }
-  .showcase-hero-boundary span:nth-child(4) { @apply border-success/25 text-success; }
-  .showcase-hero-mark { @apply flex items-center gap-3 rounded-lg border border-success/20 bg-success/5 px-4 py-3 text-xs leading-5 text-success; }
-  .showcase-guarantee-grid { @apply grid gap-2 md:grid-cols-2 xl:grid-cols-5; }
-  .showcase-guarantee { @apply relative flex min-h-28 items-start gap-3 rounded-lg border border-border bg-void/25 p-4; }
-  .showcase-guarantee-icon { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success; }
-  .showcase-guarantee h3 { @apply text-xs font-medium text-main; }
-  .showcase-guarantee p { @apply mt-1 text-xs leading-5 text-muted; }
-  .showcase-guarantee-number { @apply absolute right-3 top-3 font-mono text-xs text-border-strong; }
-  .showcase-architecture-flow-section { @apply rounded-lg border border-border bg-void/20 p-4 sm:p-5; }
-  .showcase-architecture-flow { @apply mt-4 grid gap-2 lg:grid-cols-6; }
-  .showcase-architecture-flow-step { @apply relative min-w-0; }
-  .showcase-architecture-flow-node { @apply min-h-32 rounded-lg border border-border bg-void/30 p-3; }
-  .showcase-architecture-flow-node strong { @apply block text-xs font-medium text-main; }
-  .showcase-architecture-flow-node span, .showcase-architecture-flow-node small { @apply mt-1 block text-xs leading-4 text-muted; }
-  .showcase-architecture-flow-node span { @apply text-info; }
-  .showcase-architecture-flow-node-1 { @apply border-info/25 bg-info/5; }
-  .showcase-architecture-flow-node-2 { @apply border-proposal/25 bg-proposal/5; }
-  .showcase-architecture-flow-node-3, .showcase-architecture-flow-node-4 { @apply border-decision/25 bg-decision/5; }
-  .showcase-architecture-flow-node-5 { @apply border-success/25 bg-success/5; }
-  .showcase-architecture-flow-arrow { @apply absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 rotate-[-90deg] text-muted lg:block; }
-  .showcase-scenario-picker { @apply mt-5 flex gap-1.5 overflow-x-auto border-b border-border pb-px; }
-  .showcase-scenario-picker button { @apply min-h-10 shrink-0 rounded-t-md border-b-2 border-transparent px-3 text-left text-xs text-muted transition-colors hover:bg-void/35 hover:text-main; }
-  .showcase-scenario-picker button.showcase-scenario-active { @apply border-info bg-info/5 text-main; }
-  .showcase-selected-header { @apply flex flex-wrap items-start justify-between gap-4 rounded-lg border border-info/20 border-l-2 bg-surface-elevated/70 p-4; }
-  .showcase-selected-header h2 { @apply mt-1 text-lg font-medium tracking-tight text-main; }
-  .showcase-selected-header p { @apply mt-1 max-w-3xl text-xs leading-5 text-muted; }
-  .showcase-selected-status { @apply flex items-center gap-2 text-xs text-muted; }
-  .showcase-focus-note { @apply flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 p-4 text-xs leading-5 text-warning; }
-  .showcase-focus-note strong { @apply font-semibold text-main; }
-  .showcase-investigation-summary { @apply rounded-lg border border-info/25 border-l-2 bg-surface-elevated/70 p-4; }
-  .showcase-investigation-summary-heading { @apply flex flex-wrap items-start justify-between gap-4; }
-  .showcase-investigation-summary h2 { @apply mt-1 text-lg font-medium tracking-tight text-main; }
-  .showcase-investigation-summary p { @apply mt-1 max-w-3xl text-xs leading-5 text-muted; }
-  .showcase-report-button { @apply inline-flex min-h-9 items-center justify-center rounded-md border border-info/30 bg-info/10 px-3 text-xs font-medium text-info transition-colors hover:border-info/50 hover:bg-info/15; }
-  .showcase-summary-grid { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5; }
-  .showcase-summary-grid > div { @apply bg-void/35 p-3; }
-  .showcase-summary-grid span { @apply block text-xs text-muted; }
-  .showcase-summary-grid strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .showcase-conversation { @apply space-y-4; }
-  .showcase-message { @apply flex items-start gap-3; }
-  .showcase-message-customer { @apply pr-8 sm:pr-16; }
-  .showcase-message-agent { @apply pl-8 sm:pl-16; }
-  .showcase-message-avatar { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted; }
-  .showcase-message-agent .showcase-message-avatar { @apply border-info/25 bg-info/10 text-info; }
-  .showcase-message-meta { @apply mb-1 flex flex-wrap items-center gap-2 text-xs text-muted; }
-  .showcase-message-meta strong { @apply font-medium text-main; }
-  .showcase-message-meta span { @apply inline-flex items-center gap-1; }
-  .showcase-message-bubble { @apply rounded-lg border border-border bg-void/45 px-4 py-3 text-sm leading-6 text-main; }
-  .showcase-message-agent .showcase-message-bubble { @apply border-info/20 bg-info/5; }
-  .showcase-message-tags { @apply mt-2 flex flex-wrap gap-1.5; }
-  .showcase-conversation-highlight { @apply grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr]; }
-  .showcase-conversation-party { @apply min-w-0 rounded-lg border border-border bg-void/35 p-4; }
-  .showcase-conversation-agent { @apply border-info/25 bg-info/5; }
-  .showcase-conversation-party-label { @apply flex flex-wrap items-center gap-2 text-xs font-medium text-main; }
-  .showcase-conversation-party-label svg { @apply text-muted; }
-  .showcase-conversation-agent .showcase-conversation-party-label svg { @apply text-info; }
-  .showcase-conversation-party-meta { @apply mt-3 flex flex-wrap items-center gap-2 text-xs text-muted; }
-  .showcase-conversation-party-meta span { @apply inline-flex items-center gap-1; }
-  .showcase-conversation-bridge { @apply flex items-center justify-center text-info lg:rotate-[-90deg]; }
-  .showcase-conversation-boundary { @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-5; }
-  .showcase-conversation-boundary > div { @apply min-w-0 bg-void/45 p-3; }
-  .showcase-conversation-boundary strong { @apply mt-1 block truncate text-xs font-medium capitalize text-main; }
-  .showcase-conversation-boundary-warning { @apply border-warning/30; }
-  .showcase-conversation-boundary-danger { @apply border-danger/30; }
-  .showcase-conversation-transcript { @apply mt-4 border-t border-border/70 pt-3; }
-  .showcase-conversation-transcript summary { @apply cursor-pointer text-xs font-medium text-muted hover:text-main; }
-  .showcase-evidence-summary { @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3; }
-  .showcase-evidence-summary > div { @apply bg-void/35 p-3; }
-  .showcase-evidence-summary span, .showcase-proposal-grid span, .showcase-decision-result span { @apply block text-xs text-muted; }
-  .showcase-evidence-summary strong { @apply mt-1 block text-xs font-medium text-main; }
-  .showcase-evidence-list { @apply mt-4 space-y-2; }
-  .showcase-evidence-row { @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3; }
-  .showcase-evidence-row strong { @apply block text-xs font-medium text-main; }
-  .showcase-evidence-row p { @apply mt-1 text-xs leading-5 text-muted; }
-  .showcase-evidence-row small { @apply mt-2 block font-mono text-xs leading-4 text-info; }
-  .showcase-memory-usage { @apply mt-3 grid gap-2 sm:grid-cols-2; }
-  .showcase-memory-usage > div { @apply rounded-lg border border-border bg-void/25 p-3; }
-  .showcase-memory-usage strong { @apply block text-xs font-medium text-main; }
-  .showcase-memory-usage span { @apply mt-1 block text-xs leading-5 text-muted; }
-  .showcase-citation-preview { @apply mt-3 rounded-md border-l-2 border-success/40 bg-success/5 px-3 py-2 text-xs leading-5 text-main; }
-  .showcase-evidence-role { @apply mt-3 flex flex-wrap items-baseline gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs; }
-  .showcase-evidence-role strong { @apply font-medium text-success; }
-  .showcase-evidence-role span { @apply text-muted; }
-  .showcase-boundary-note, .showcase-proposal-callout { @apply mt-4 flex items-start gap-2 rounded-lg border border-info/20 bg-info/5 p-3 text-xs leading-5 text-muted; }
-  .showcase-boundary-note svg, .showcase-proposal-callout svg { @apply shrink-0 text-info; }
-  .showcase-context-grid { @apply grid gap-5 xl:grid-cols-2; }
-  .showcase-proposal-card { @apply border-proposal/25 bg-proposal/[.025]; }
-  .showcase-proposal-grid { @apply grid gap-2 sm:grid-cols-2 lg:grid-cols-4; }
-  .showcase-proposal-grid > div { @apply rounded-lg border border-proposal/15 bg-void/25 p-3; }
-  .showcase-proposal-grid strong { @apply mt-1 block truncate text-xs font-medium text-main; }
-  .showcase-proposal-compare { @apply mt-3 grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]; }
-  .showcase-proposal-compare > div { @apply rounded-lg border border-proposal/15 bg-void/25 p-3; }
-  .showcase-proposal-compare span { @apply block text-xs text-muted; }
-  .showcase-proposal-compare strong { @apply mt-1 block text-xs font-medium text-main; }
-  .showcase-proposal-compare-arrow { @apply flex items-center justify-center border-0 !bg-transparent !p-0 text-proposal; }
-  .showcase-proposal-system { @apply border-decision/25 !bg-decision/5; }
-  .showcase-proposal-system strong { @apply text-decision; }
-  .showcase-proposal-callout { @apply border-proposal/20 bg-proposal/5; }
-  .showcase-proposal-callout svg { @apply text-proposal; }
-  .showcase-decision-card { @apply border-decision/30 bg-decision/[.025]; }
-  .showcase-decision-flow { @apply mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-6; }
-  .showcase-decision-flow span { @apply flex items-center gap-2 rounded-md border border-decision/15 bg-void/30 px-2.5 py-2 text-xs text-muted; }
-  .showcase-decision-flow strong { @apply font-medium text-main; }
-  .showcase-decision-flow svg { @apply ml-auto shrink-0 text-decision sm:hidden; }
-  .showcase-decision-result { @apply mt-4 grid gap-3 rounded-lg border border-decision/25 bg-decision/5 p-4 sm:grid-cols-3; }
-  .showcase-decision-result > div { @apply min-w-0; }
-  .showcase-decision-result strong { @apply mt-1 block font-mono text-sm font-semibold text-decision; }
-  .showcase-decision-result p { @apply mt-1 text-xs leading-5 text-main; }
-  .showcase-check-grid { @apply mt-4 grid gap-2 sm:grid-cols-2; }
-  .showcase-check-grid > div { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3; }
-  .showcase-check-grid > div > span:first-child { @apply mt-0.5 shrink-0; }
-  .showcase-check-grid strong { @apply block text-xs font-medium text-main; }
-  .showcase-check-grid small { @apply mt-1 block text-xs leading-5 text-muted; }
-  .showcase-lifecycle { @apply grid gap-2 lg:grid-cols-9; }
-  .showcase-lifecycle-stage { @apply relative min-w-0 rounded-lg border border-border bg-void/25 p-3; }
-  .showcase-lifecycle-completed { @apply border-success/20; }
-  .showcase-lifecycle-waiting { @apply border-warning/30 bg-warning/[.025]; }
-  .showcase-lifecycle-blocked { @apply border-danger/25 bg-danger/[.025]; }
-  .showcase-lifecycle-unavailable { @apply border-border/70 opacity-75; }
-  .showcase-lifecycle-marker { @apply mb-3 flex h-5 w-5 items-center justify-center; }
-  .showcase-lifecycle-marker .status-indicator { @apply text-[0px]; }
-  .showcase-lifecycle-marker .status-indicator svg { @apply h-4 w-4; }
-  .showcase-lifecycle-content > strong { @apply block text-xs font-medium text-main; }
-  .showcase-lifecycle-content > p { @apply mt-1 min-h-10 text-xs leading-4 text-muted; }
-  .showcase-lifecycle-meta { @apply mt-3 space-y-1 border-t border-border/70 pt-2 text-xs leading-4 text-muted; }
-  .showcase-lifecycle-meta span { @apply block; }
-  .showcase-lifecycle-meta b { @apply mr-1 font-medium text-main; }
-  .showcase-lifecycle-arrow { @apply absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 text-muted lg:block; }
-  .showcase-footer-note { @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3 text-xs leading-5 text-muted; }
-  .showcase-footer-note svg { @apply mt-0.5 shrink-0 text-muted; }
-  .showcase-modal-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4; }
-  .showcase-report-modal { @apply max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-panel sm:p-6; }
-  .showcase-report-header { @apply flex items-start justify-between gap-4 border-b border-border pb-4; }
-  .showcase-report-header h2 { @apply mt-1 text-lg font-medium text-main; }
-  .showcase-report-header p { @apply mt-1 text-xs leading-5 text-muted; }
-  .showcase-report-close { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none text-muted hover:bg-void hover:text-main; }
-  .showcase-report-sections { @apply divide-y divide-border/70; }
-  .showcase-report-sections > div { @apply py-3; }
-  .showcase-report-sections span { @apply text-xs font-medium text-muted; }
-  .showcase-report-sections p { @apply mt-1 text-xs leading-5 text-main; }
-  .showcase-report-footer { @apply flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4; }
-  .showcase-report-secondary { @apply min-h-9 rounded-md border border-border px-3 text-xs font-medium text-muted hover:bg-void hover:text-main; }
-  .showcase-compact .showcase-hero, .showcase-compact .showcase-guarantees, .showcase-compact .showcase-architecture-flow-section { display: none; }
-  .showcase-compact .showcase-scenario-section { @apply pt-1; }
-  .showcase-compact .showcase-scenario-picker { @apply mt-3; }
+  --shadow-panel: none;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-@media (max-width: 1279px) {
-  .workspace-rail { min-height: auto; }
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
 
-@media (max-width: 639px) {
-  .topbar-inner { overflow: hidden; }
-  .console-nav { flex: 1 1 100%; width: 100%; max-width: 100%; }
-  .showcase-page { width: 100%; max-width: 100%; overflow-x: hidden; }
-  .showcase-hero { @apply items-start p-5; width: 100%; min-width: 0; max-width: 100%; }
-  .showcase-hero-copy { flex-basis: 100%; width: 100%; max-width: 100%; }
-  .showcase-hero h1 { width: 100%; max-width: 100%; white-space: normal; }
-  .showcase-hero p { width: 100%; max-width: 100%; }
-  .showcase-guarantee-grid, .showcase-guarantee { width: 100%; max-width: 100%; }
-  .showcase-hero-mark { @apply mt-1; }
-  .console-nav { scroll-snap-type: x proximity; }
-  .console-nav-button { scroll-snap-align: start; }
-  .trace-stage-summary { @apply items-start; }
-  .trace-stage-meta { @apply ml-auto; }
-  .trace-stage-detail { @apply pl-3; }
-  .trace-authority-strip { @apply justify-start; }
-  .run-detail-header > div:first-child { @apply flex-col items-start; }
-  .run-detail-header > div:first-child > div { @apply w-full; }
-  .run-detail-header > div:first-child > div .operator-action { @apply w-full; }
-  .run-detail-header, .trace-investigation-header, .scenario-summary-header, .decision-context-summary { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
-  .run-detail-header h1, .trace-investigation-header p { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
-  .trace-investigation-summary { width: 100%; min-width: 0; }
-  .run-detail-header > .mt-5.grid, .trace-investigation-summary, .decision-lifecycle-grid { grid-template-columns: 1fr; }
-  .decision-lifecycle-grid > div { min-height: 0; }
-  .trace-investigation-id strong { overflow-wrap: anywhere; min-width: 0; }
-  .architecture-zone { @apply p-3; }
-  .architecture-zone > summary { @apply flex items-start justify-between gap-3; }
-  .architecture-zone > summary::after { display: block; }
-  .architecture-zone-content { @apply mt-0; }
+@utility topbar {
+  @apply border-b border-border bg-void/95;
 }
 
-@media (min-width: 1024px) {
-  .architecture-flow { @apply max-w-none items-stretch gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.25fr)_auto_minmax(0,1fr)]; }
-  .architecture-flow-arrow { @apply my-auto rotate-[-90deg]; }
+@utility topbar-inner {
+  @apply mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8;
+  @apply gap-3;
 }
 
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+@utility run-header {
+  @apply rounded-xl border border-border/80 bg-surface p-5 shadow-panel sm:p-6;
+}
 
-/* Shared operator presentation: readable content, quiet metadata, bounded layouts. */
-@layer components {
-  .section-title { @apply text-lg leading-6; }
-  .eyebrow, .field-label { @apply text-xs leading-5; }
-  .badge { @apply text-xs tracking-normal; }
-  .console-nav { @apply border-0 bg-transparent; }
-  .console-nav-button { @apply min-h-10 text-sm; }
-  .topbar-inner { @apply gap-3; }
-  .secondary-nav { @apply relative text-sm text-muted; }
-  .secondary-nav > summary { @apply cursor-pointer rounded-md px-3 py-2; }
-  .secondary-nav > nav { @apply absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-lg border border-border bg-surface p-2 shadow-panel; }
-  .secondary-nav a { @apply flex min-h-10 items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-void hover:text-main; }
-  .secondary-nav a[aria-current="page"] { @apply bg-void text-main; }
-  .playground-layout { @apply xl:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)] gap-6; }
-  .playground-layout > *, .investigation-layout > * { min-width: 0; }
-  .scenario-shortcuts { @apply grid gap-3 sm:grid-cols-3; }
-  .scenario-shortcuts button { @apply flex min-h-16 items-center gap-3 rounded-lg border border-border bg-surface px-4 text-left text-sm text-muted transition-colors hover:border-info/50 hover:text-main; }
-  .scenario-shortcuts button[aria-pressed="true"] { @apply border-info/50 bg-info/5 text-main; }
-  .scenario-shortcuts button svg:last-child { @apply ml-auto shrink-0; }
-  .progressive-panel { @apply min-w-0 border-t border-border pt-4; }
-  .progressive-panel summary { @apply cursor-pointer text-sm font-medium text-main; }
-  .progressive-panel summary > span { @apply ml-2 text-xs font-normal text-muted; }
-  .progressive-panel summary:focus-visible, .secondary-nav summary:focus-visible { outline: 2px solid #8aa7c7; outline-offset: 4px; }
-  .investigation-tabs { @apply flex gap-2 overflow-x-auto border-b border-border; }
-  .investigation-tabs button { @apply min-h-12 border-b-2 border-transparent px-5 text-sm text-muted; }
-  .investigation-tabs button[aria-selected="true"] { @apply border-info text-main; }
-  .run-id-copy { @apply mt-3 inline-flex max-w-full flex-wrap items-center gap-2 text-xs text-muted; }
-  .run-id-copy code { @apply break-all font-mono; }
-  .run-id-copy button { @apply inline-flex shrink-0 items-center gap-1.5 text-info hover:text-main; }
-  .run-id-copy [role="status"] { @apply text-info; }
-  .product-hero { @apply grid items-center gap-10 p-6 sm:p-10 xl:grid-cols-[1.15fr_.85fr]; }
-  .product-hero h1 { @apply mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl; }
-  .product-boundary { @apply rounded-lg border border-border bg-void/40 p-5 sm:p-6; }
-  .product-boundary ol { @apply mt-5 grid gap-5; }
-  .product-boundary li { @apply flex items-start gap-4; }
-  .product-boundary li > span { @apply mt-1 font-mono text-xs text-info; }
-  .product-boundary strong { @apply text-sm font-medium text-main; }
-  .product-boundary p { @apply mt-1 text-sm leading-6 text-muted; }
-  .recorded-evidence { @apply border-dashed bg-void/20; }
+@utility surface {
+  @apply min-w-0 rounded-xl border border-border/80 bg-surface shadow-panel;
+}
+
+@utility brand-mark {
+  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-info/30 bg-info/10 text-info;
+}
+
+@utility brand-mark-small {
+  @apply h-7 w-7 rounded-md;
+}
+
+@utility eyebrow {
+  @apply text-xs font-medium tracking-[.04em] text-muted-foreground;
+  @apply text-xs leading-5;
+}
+
+@utility section-title {
+  @apply text-[15px] font-semibold leading-5 tracking-tight text-main;
+  @apply text-lg leading-6;
+}
+
+@utility text-main {
+  color: var(--foreground);
+}
+
+@utility text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+@utility text-success {
+  color: var(--success);
+}
+
+@utility text-warning {
+  color: var(--warning);
+}
+
+@utility text-danger {
+  color: var(--danger);
+}
+
+@utility text-info {
+  color: var(--info);
+}
+
+@utility badge {
+  @apply inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium tracking-[.03em];
+  @apply text-xs tracking-normal;
+}
+
+@utility badge-success {
+  @apply border-success/25 bg-success/10 text-success;
+}
+
+@utility badge-warning {
+  @apply border-warning/25 bg-warning/10 text-warning;
+}
+
+@utility badge-danger {
+  @apply border-danger/25 bg-danger/10 text-danger;
+}
+
+@utility badge-info {
+  @apply border-info/25 bg-info/10 text-info;
+}
+
+@utility badge-neutral {
+  @apply border-border bg-void/60 text-muted-foreground;
+}
+
+@utility status-indicator {
+  @apply inline-flex items-center gap-1.5 whitespace-nowrap;
+  .showcase-lifecycle-marker & {
+    @apply text-[0px];
+  }
+  .showcase-lifecycle-marker & svg {
+    @apply h-4 w-4;
+  }
+}
+
+@utility status-success {
+  @apply text-success;
+}
+
+@utility status-warning {
+  @apply text-warning;
+}
+
+@utility status-danger {
+  @apply text-danger;
+}
+
+@utility status-info {
+  @apply text-info;
+}
+
+@utility status-neutral {
+  @apply text-muted-foreground;
+}
+
+@utility activity-pulse {
+  @apply h-2 w-2 rounded-full bg-info;
+}
+
+@utility metric-card {
+  @apply rounded-none border-0 bg-void/40 first:rounded-l-lg last:rounded-r-lg;
+}
+
+@utility workspace-grid {
+  @apply grid items-start gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(460px,.8fr)];
+}
+
+@utility workspace-control-grid {
+  @apply grid min-w-0 items-start gap-5 xl:grid-cols-[240px_minmax(0,1fr)_minmax(360px,.78fr)];
+}
+
+@utility workspace-rail {
+  @apply flex min-h-[620px] min-w-0 flex-col overflow-hidden;
+}
+
+@utility rail-item {
+  @apply rounded-lg border border-transparent p-3 transition-colors hover:border-border-strong hover:bg-void/50;
+}
+
+@utility rail-item-selected {
+  @apply border-info/30 bg-info/5;
+}
+
+@utility rail-icon {
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted-foreground;
+}
+
+@utility rail-icon-active {
+  @apply border-info/30 bg-info/10 text-info;
+}
+
+@utility console-nav {
+  @apply order-3 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-void/50 p-1 md:order-0 md:w-auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  @apply border-0 bg-transparent;
+}
+
+@utility console-nav-button {
+  @apply inline-flex min-h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-main;
+  @apply min-h-10 text-sm;
+}
+
+@utility console-nav-active {
+  @apply bg-surface text-main shadow-xs;
+}
+
+@utility release-hero {
+  @apply p-5 sm:p-6;
+}
+
+@utility evidence-row {
+  @apply flex items-center justify-between gap-5 py-4;
+}
+
+@utility trend-display {
+  @apply rounded-lg border border-border bg-void/40 p-5;
+}
+
+@utility gate-card {
+  @apply flex items-start gap-2.5 border-t border-border bg-transparent p-3;
+}
+
+@utility proposal-field {
+  @apply rounded-lg border border-border bg-void/35 p-3;
+}
+
+@utility control-check {
+  @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-2.5;
+}
+
+@utility control-flow {
+  @apply flex flex-col items-center gap-1 rounded-lg border border-border bg-void/45 p-3 sm:flex-row sm:justify-center sm:gap-2;
+}
+
+@utility flow-node {
+  @apply rounded-md border border-border bg-surface px-2.5 py-2 text-center text-xs font-medium text-muted-foreground;
+}
+
+@utility flow-proposal {
+  @apply border-warning/25 bg-warning/5 text-warning;
+}
+
+@utility flow-authority {
+  @apply border-success/25 bg-success/5 text-success;
+}
+
+@utility flow-arrow {
+  @apply text-info sm:-rotate-90;
+}
+
+@utility operator-action {
+  @apply inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-void/50 px-3 text-xs font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility trace-authority-strip {
+  @apply flex flex-wrap items-center justify-center gap-2 border-y border-border/70 bg-transparent px-1 py-3 text-xs font-medium text-muted-foreground;
+}
+
+@utility trace-proposal-label {
+  @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal;
+}
+
+@utility trace-authority-label {
+  @apply inline-flex items-center gap-1 rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success;
+}
+
+@utility trace-stage-list {
+  @apply mt-3 space-y-0;
+}
+
+@utility trace-layer {
+  @apply rounded-none border-0 bg-transparent p-0;
+  & + & {
+    @apply mt-5;
+  }
+}
+
+@utility trace-layer-heading {
+  @apply flex items-center gap-3 px-1;
+}
+
+@utility trace-layer-rule {
+  @apply h-px flex-1 bg-border/70;
+}
+
+@utility trace-stage-list-compact {
+  @apply mt-0;
+}
+
+@utility trace-stage {
+  @apply overflow-hidden rounded-none border-0 border-t border-border/70 bg-transparent;
+}
+
+@utility trace-stage-completed {
+  @apply border-success/20 bg-transparent;
+  & .trace-stage-marker {
+    @apply text-success;
+  }
+}
+
+@utility trace-stage-not_recorded {
+  @apply border-dashed border-border/70 bg-transparent;
+  & .trace-stage-marker {
+    @apply opacity-70;
+  }
+}
+
+@utility trace-stage-marker {
+  .trace-stage-not_recorded & {
+    @apply opacity-70;
+  }
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-muted-foreground;
+  .trace-stage-completed & {
+    @apply text-success;
+  }
+  .trace-stage-waiting & {
+    @apply text-warning;
+  }
+  .trace-stage-blocked & {
+    @apply text-warning;
+  }
+  .trace-stage-failed & {
+    @apply text-danger;
+  }
+}
+
+@utility trace-stage-waiting {
+  @apply border-warning/35;
+  & .trace-stage-marker {
+    @apply text-warning;
+  }
+}
+
+@utility trace-stage-blocked {
+  @apply border-warning/35;
+  & .trace-stage-marker {
+    @apply text-warning;
+  }
+}
+
+@utility trace-stage-failed {
+  @apply border-danger/35;
+  & .trace-stage-marker {
+    @apply text-danger;
+  }
+}
+
+@utility trace-stage-summary {
+  @apply flex cursor-pointer list-none items-center gap-3 px-2 py-3;
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@utility trace-stage-meta {
+  @apply flex shrink-0 flex-col items-end gap-1;
+}
+
+@utility trace-stage-detail {
+  @apply border-l border-border bg-surface/35 p-3 pl-4 sm:ml-[52px];
+}
+
+@utility trace-stage-explanation {
+  @apply rounded-md border border-border/70 bg-void/25 p-2.5;
+}
+
+@utility trace-stage-evidence {
+  @apply rounded-md border border-border/70 bg-void/25 p-2.5;
+  @apply mt-2 border-info/20 bg-info/5;
+}
+
+@utility trace-event-row {
+  @apply flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-void/25 px-3 py-2;
+}
+
+@utility grounding-boundary {
+  @apply grid items-stretch gap-2 lg:grid-cols-[1fr_auto_1fr];
+}
+
+@utility grounding-column {
+  @apply rounded-lg border p-4;
+}
+
+@utility grounding-model {
+  @apply border-proposal/25 bg-proposal/5;
+}
+
+@utility proposal-badge {
+  @apply inline-flex items-center rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-xs font-medium tracking-[.03em] text-proposal;
+}
+
+@utility grounding-system {
+  @apply border-success/25 bg-success/5;
+}
+
+@utility grounding-divider {
+  @apply hidden items-center justify-center px-2 text-info lg:flex;
+}
+
+@utility grounding-stage-grid {
+  @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-3;
+}
+
+@utility grounding-stage-card {
+  @apply rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility grounding-status {
+  @apply flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 p-3;
+}
+
+@utility context-role-header {
+  @apply rounded-lg border border-border/70 bg-void/20 p-3;
+}
+
+@utility memory-influence-flow {
+  @apply space-y-1 rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility memory-influence-node {
+  @apply border-b border-border/70 py-2 last:border-0 last:pb-0 first:pt-0;
+}
+
+@utility memory-role-card {
+  @apply rounded-lg border border-info/20 bg-info/5 p-3;
+}
+
+@utility memory-summary-card {
+  @apply rounded-lg border border-info/20 bg-info/5 p-3;
+}
+
+@utility memory-role-grid {
+  @apply grid gap-3 sm:grid-cols-2;
+}
+
+@utility context-summary {
+  @apply grid gap-2 sm:grid-cols-3;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+}
+
+@utility policy-detail-grid {
+  @apply grid grid-cols-2 gap-2 rounded-md border border-border bg-void/25 p-3;
+}
+
+@utility trace-run-row {
+  @apply cursor-pointer transition-colors hover:bg-info/5 focus:bg-info/5 focus:outline-hidden;
+}
+
+@utility trace-run-card {
+  @apply rounded-lg border border-border bg-void/25 p-4 transition-colors hover:border-info/30 hover:bg-info/5;
+}
+
+@utility playground-hero {
+  @apply p-5 sm:p-6;
+}
+
+@utility playground-layout {
+  @apply grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(360px,.72fr)_minmax(0,1.28fr)];
+  @apply xl:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)] gap-6;
+  & > * {
+    min-width: 0;
+  }
+}
+
+@utility config-list {
+  @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-1;
+}
+
+@utility scenario-option {
+  @apply flex min-h-9 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-void/50;
+}
+
+@utility scenario-option-selected {
+  @apply border-info/30 bg-info/5;
+}
+
+@utility scenario-option-icon {
+  @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-void text-info;
+}
+
+@utility running-state {
+  @apply rounded-lg border border-info/20 bg-info/5 p-4;
+}
+
+@utility json-panel {
+  @apply min-w-0 rounded-lg border border-border bg-void/45 p-3;
+}
+
+@utility json-viewer {
+  @apply max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-xs leading-5 text-info;
+}
+
+@utility playground-actions {
+  @apply flex flex-wrap gap-2 border-t border-border pt-3;
+}
+
+@utility playground-empty-flow {
+  @apply my-5 flex flex-wrap items-center justify-center gap-2 border-y border-border/70 py-3 text-xs font-medium text-muted-foreground;
+  & span:nth-child(odd) {
+    @apply rounded-md bg-surface-elevated px-2.5 py-1.5 text-main;
+  }
+  & span:nth-child(even) {
+    @apply text-muted-foreground;
+  }
+}
+
+@utility playground-lifecycle-preview {
+  @apply my-5 grid gap-2 border-y border-border/70 py-3 sm:grid-cols-5;
+}
+
+@utility playground-lifecycle-step {
+  @apply relative flex items-center gap-2 rounded-md bg-void/25 px-2.5 py-2;
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-0.5 block text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility playground-lifecycle-number {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info;
+}
+
+@utility playground-lifecycle-arrow {
+  @apply absolute -right-2 z-10 hidden text-muted-foreground sm:block;
+}
+
+@utility run-detail-header {
+  @apply p-5 sm:p-6;
+}
+
+@utility trace-investigation-header {
+  @apply p-5 sm:p-6;
+}
+
+@utility trace-investigation-id {
+  @apply mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-void/30 p-3;
+  & span {
+    @apply text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply font-mono text-xs font-medium text-main;
+  }
+}
+
+@utility trace-investigation-summary {
+  @apply mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-7;
+  & > div {
+    @apply min-w-0 bg-void/40 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility operational-event-list {
+  @apply mt-4 space-y-2;
+}
+
+@utility operational-event-row {
+  @apply grid gap-3 rounded-lg border border-border/70 bg-void/25 p-3 sm:grid-cols-[116px_minmax(0,1fr)];
+}
+
+@utility operational-event-completed {
+  @apply border-success/20;
+}
+
+@utility operational-event-waiting {
+  @apply border-warning/30 bg-warning/2.5;
+}
+
+@utility operational-event-blocked {
+  @apply border-border bg-void/35;
+}
+
+@utility operational-event-failed {
+  @apply border-danger/30 bg-danger/2.5;
+}
+
+@utility operational-event-not_recorded {
+  @apply border-dashed border-border/70;
+}
+
+@utility operational-event-time {
+  @apply flex items-center gap-1.5 text-xs font-mono text-muted-foreground sm:items-start sm:pt-0.5;
+  & svg {
+    @apply shrink-0;
+  }
+}
+
+@utility operational-event-main {
+  & > div:first-child strong {
+    @apply text-sm font-medium text-main;
+  }
+}
+
+@utility operational-event-fields {
+  @apply mt-3 grid gap-2 sm:grid-cols-3;
+  & > div {
+    @apply min-w-0 rounded-md border border-border/70 bg-void/25 p-2;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium text-main;
+  }
+}
+
+@utility trace-investigation-timeline {
+  @apply mt-4 space-y-1 rounded-lg border border-border bg-void/20 p-3;
+}
+
+@utility trace-investigation-step {
+  @apply relative;
+}
+
+@utility trace-investigation-stage {
+  @apply overflow-hidden rounded-lg border border-border/70 bg-void/25;
+  & summary {
+    @apply flex cursor-pointer list-none items-start gap-3 p-3;
+  }
+  & summary::-webkit-details-marker {
+    display: none;
+  }
+  & summary > span:nth-child(2) strong {
+    @apply block text-sm font-medium text-main;
+  }
+  & summary > span:nth-child(2) small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility trace-investigation-stage-completed {
+  @apply border-success/20;
+}
+
+@utility trace-investigation-stage-waiting {
+  @apply border-warning/30 bg-warning/2.5;
+}
+
+@utility trace-investigation-stage-blocked {
+  @apply border-warning/30 bg-warning/2.5;
+}
+
+@utility trace-investigation-stage-failed {
+  @apply border-danger/30 bg-danger/2.5;
+}
+
+@utility trace-investigation-marker {
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated;
+}
+
+@utility trace-investigation-stage-status {
+  @apply ml-auto flex shrink-0 flex-col items-end gap-1 text-xs font-mono text-muted-foreground;
+  & svg {
+    @apply inline-block align-text-bottom;
+  }
+}
+
+@utility trace-filter-bar {
+  @apply grid gap-3 rounded-lg border border-border bg-void/25 p-3 sm:grid-cols-3;
+}
+
+@utility trace-filter {
+  @apply min-w-0;
+}
+
+@utility trace-filter-note {
+  @apply text-xs leading-5 text-muted-foreground sm:col-span-3;
+}
+
+@utility decision-lifecycle-summary {
+  @apply border-info/25 bg-info/1.5;
+}
+
+@utility decision-lifecycle-grid {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-5;
+  & > div {
+    @apply min-w-0 bg-void/35 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block wrap-break-word text-xs font-semibold capitalize text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility decision-lifecycle-proposal {
+  @apply border-t-2 border-proposal/30;
+}
+
+@utility decision-lifecycle-decision {
+  @apply border-t-2 border-warning/40 bg-warning/5;
+}
+
+@utility decision-lifecycle-authority {
+  @apply border-t-2 border-success/30;
+}
+
+@utility decision-lifecycle-execution {
+  @apply border-t-2 border-danger/20;
+}
+
+@utility decision-lifecycle-note {
+  @apply mt-3 rounded-md border border-border bg-void/25 p-3 text-xs leading-5 text-muted-foreground;
+}
+
+@utility trace-investigation-stage-detail {
+  @apply border-t border-border/70 bg-surface/30 p-3 sm:ml-10;
+}
+
+@utility trace-investigation-detail-grid {
+  @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4;
+  & > div {
+    @apply min-w-0 bg-void/35 p-3;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium text-main;
+  }
+}
+
+@utility trace-investigation-evidence {
+  @apply mt-3 flex items-start gap-2 rounded-md border border-info/20 bg-info/5 p-3 text-xs leading-5 text-info;
+  & svg {
+    @apply mt-0.5 shrink-0;
+  }
+}
+
+@utility trace-investigation-stage-note {
+  @apply mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3 text-xs text-muted-foreground;
+}
+
+@utility decision-explanation-card {
+  @apply border-warning/25 bg-warning/1.5;
+}
+
+@utility decision-explanation-result {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2;
+  & > div {
+    @apply min-w-0 bg-void/30 p-4;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block truncate text-sm font-semibold text-main;
+  }
+}
+
+@utility decision-explanation-columns {
+  @apply mt-4 grid gap-4 sm:grid-cols-2;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & h3 {
+    @apply flex items-center gap-2 text-xs font-medium text-main;
+  }
+  & h3 svg {
+    @apply text-success;
+  }
+  & > div:last-child h3 svg {
+    @apply text-warning;
+  }
+}
+
+@utility decision-explanation-check {
+  @apply mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground;
+}
+
+@utility decision-explanation-authority {
+  @apply mt-4 rounded-lg border border-success/20 bg-success/5 p-3;
+  & h3 {
+    @apply flex items-center gap-2 text-xs font-medium text-main;
+  }
+  & h3 svg {
+    @apply text-success;
+  }
+  & p {
+    @apply mt-2 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility decision-explanation-blocking {
+  @apply mt-3 flex items-start gap-2 border-t border-warning/20 pt-3 text-xs leading-5 text-warning;
+}
+
+@utility evidence-relationship-graph {
+  @apply mt-4 grid gap-1 lg:grid-cols-7 lg:items-center;
+}
+
+@utility evidence-relationship-step {
+  @apply flex flex-col items-stretch;
+}
+
+@utility evidence-relationship-node {
+  overflow-wrap: anywhere;
+  @apply min-w-0 min-h-16 rounded-lg border p-3;
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & span {
+    @apply mt-1 block text-xs text-muted-foreground;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility evidence-relationship-input {
+  @apply border-border bg-void/30;
+}
+
+@utility evidence-relationship-context {
+  @apply border-info/25 bg-info/5;
+}
+
+@utility evidence-relationship-proposal {
+  @apply border-proposal/25 bg-proposal/5;
+}
+
+@utility evidence-relationship-decision {
+  @apply border-decision/25 bg-decision/2.5;
+}
+
+@utility evidence-relationship-authority {
+  @apply border-success/25 bg-success/5;
+}
+
+@utility evidence-relationship-arrow {
+  @apply mx-auto text-muted-foreground lg:-rotate-90;
+}
+
+@utility evidence-relationship-context-group {
+  @apply relative;
+}
+
+@utility evidence-relationship-branches {
+  @apply mt-2 grid gap-2 sm:grid-cols-2;
+  & > div {
+    @apply relative min-w-0;
+  }
+}
+
+@utility evidence-relationship-branch-label {
+  @apply mt-1 block text-center text-xs text-muted-foreground;
+}
+
+@utility evidence-relationship-note {
+  @apply mt-4 flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs leading-5 text-muted-foreground;
+  & svg {
+    @apply mt-0.5 shrink-0 text-success;
+  }
+}
+
+@utility trace-report-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4;
+}
+
+@utility trace-report-modal {
+  @apply max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-panel sm:p-6;
+}
+
+@utility trace-report-header {
+  @apply flex items-start justify-between gap-4 border-b border-border pb-4;
+  & h2 {
+    @apply mt-1 text-lg font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility trace-report-overview {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5;
+  & > div {
+    @apply min-w-0 bg-void/35 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility trace-report-decision {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-warning/25 bg-warning/10 sm:grid-cols-2 lg:grid-cols-4;
+  & > div {
+    @apply min-w-0 bg-void/30 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility trace-report-sections {
+  @apply mt-4 divide-y divide-border/70 rounded-lg border border-border bg-void/20 px-4;
+  & section {
+    @apply py-3;
+  }
+  & h3 {
+    @apply text-xs font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility trace-report-evidence-list {
+  @apply mt-3 grid gap-2 sm:grid-cols-3;
+  & span {
+    @apply rounded-md border border-border bg-void/30 p-2 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility trace-report-check {
+  @apply text-success;
+}
+
+@utility trace-report-footer {
+  @apply mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4;
+}
+
+@utility overview-hero {
+  @apply p-5 sm:p-6;
+}
+
+@utility guided-journey {
+  @apply grid gap-2 md:grid-cols-2 xl:grid-cols-4;
+}
+
+@utility journey-step {
+  @apply flex min-h-24 items-center gap-3 rounded-lg border border-border bg-void/25 p-3 text-left transition-colors hover:border-info/30 hover:bg-info/5 disabled:cursor-wait disabled:opacity-60;
+  & span:not(.journey-number) {
+    @apply min-w-0 flex-1;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility journey-number {
+  @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-info/30 bg-info/5 font-mono text-xs text-info;
+}
+
+@utility overview-boundary-flow {
+  @apply flex flex-wrap items-center gap-2 rounded-lg border border-border bg-void/35 p-3 text-xs font-medium text-muted-foreground;
+}
+
+@utility overview-flow-proposal {
+  @apply rounded-md border border-proposal/25 bg-proposal/5 px-2 py-1 text-proposal;
+}
+
+@utility overview-flow-system {
+  @apply rounded-md border border-info/25 bg-info/5 px-2 py-1 text-info;
+}
+
+@utility overview-flow-authority {
+  @apply rounded-md border border-success/25 bg-success/5 px-2 py-1 text-success;
+}
+
+@utility safety-explanation-grid {
+  @apply mt-4 grid gap-2 sm:grid-cols-3;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & strong {
+    @apply mt-1 block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility overview-safety-card {
+  @apply rounded-lg border border-border bg-void/25 p-4;
+}
+
+@utility overview-status-row {
+  @apply flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-void/25 p-3 text-xs text-main;
+}
+
+@utility overview-next-grid {
+  @apply grid gap-3 md:grid-cols-3;
+}
+
+@utility overview-next-card {
+  @apply flex min-h-20 items-center gap-3 rounded-lg border border-border bg-void/25 p-4 text-left transition-colors hover:border-info/30 hover:bg-info/5;
+  & span {
+    @apply min-w-0 flex-1;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility overview-next-static {
+  @apply cursor-default hover:border-border hover:bg-void/25;
+}
+
+@utility architecture-flow {
+  @apply mx-auto max-w-3xl;
+}
+
+@utility architecture-flow-item {
+  @apply flex flex-col items-center;
+}
+
+@utility architecture-zone {
+  @apply rounded-lg border border-border/70 bg-void/20 p-4 sm:p-5;
+  & > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+  & > summary::after {
+    content: '⌄';
+    display: none;
+    color: var(--muted-foreground);
+    font-size: 14px;
+    line-height: 1;
+  }
+  &[open] > summary::after {
+    content: '⌃';
+  }
+}
+
+@utility architecture-zone-content {
+  @apply mt-1;
+}
+
+@utility architecture-zone-context {
+  @apply border-info/25 bg-info/2.5;
+}
+
+@utility architecture-zone-proposal {
+  @apply border-proposal/25 bg-proposal/2.5;
+}
+
+@utility architecture-zone-decision {
+  @apply border-decision/25 bg-decision/2.5;
+}
+
+@utility architecture-zone-authority {
+  @apply border-success/25 bg-success/2.5;
+}
+
+@utility architecture-zone-header {
+  @apply flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3;
+  & h3 {
+    @apply text-base font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility architecture-source-list {
+  @apply divide-y divide-border/70;
+}
+
+@utility architecture-decision-list {
+  @apply divide-y divide-border/70;
+}
+
+@utility architecture-authority-list {
+  @apply divide-y divide-border/70;
+}
+
+@utility architecture-source-row {
+  @apply flex items-start gap-3 py-3 first:pt-4 last:pb-0;
+  & strong {
+    @apply block text-sm font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility architecture-decision-row {
+  @apply flex items-start gap-3 py-3 first:pt-4 last:pb-0;
+  & strong {
+    @apply block text-sm font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility architecture-authority-row {
+  @apply flex items-start gap-3 py-3 first:pt-4 last:pb-0;
+  & strong {
+    @apply block text-sm font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility architecture-zone-badge {
+  @apply shrink-0 rounded-md bg-surface-elevated px-2 py-1 text-xs font-medium text-muted-foreground;
+}
+
+@utility architecture-legend {
+  @apply mb-4 grid gap-2 sm:grid-cols-4;
+  & > span {
+    @apply flex items-center justify-between gap-3 rounded-md border px-3 py-2;
+  }
+  & strong {
+    @apply text-xs font-medium;
+  }
+  & small {
+    @apply text-xs text-muted-foreground;
+  }
+}
+
+@utility architecture-legend-context {
+  @apply border-info/25 bg-info/5;
+  & strong {
+    @apply text-info;
+  }
+}
+
+@utility architecture-legend-proposal {
+  @apply border-proposal/25 bg-proposal/5;
+  & strong {
+    @apply text-proposal;
+  }
+}
+
+@utility architecture-legend-decision {
+  @apply border-decision/25 bg-decision/2.5;
+  & strong {
+    @apply text-decision;
+  }
+}
+
+@utility architecture-legend-authority {
+  @apply border-success/25 bg-success/5;
+  & strong {
+    @apply text-success;
+  }
+}
+
+@utility architecture-flow-arrow {
+  @apply my-2 text-muted-foreground;
+}
+
+@utility architecture-side-list {
+  @apply space-y-3;
+  & > div {
+    @apply flex items-start gap-2.5 rounded-lg border border-border bg-void/25 p-3;
+  }
+  & span {
+    @apply min-w-0;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility architecture-boundary-callout {
+  @apply flex items-start gap-3 rounded-lg border border-success/25 bg-success/5 p-4;
+}
+
+@utility decision-context-summary {
+  @apply rounded-lg border border-info/20 bg-surface-elevated/70 p-4 shadow-xs;
+}
+
+@utility decision-context-item {
+  @apply border-l border-border/70 pl-3 first:border-l-0 first:pl-0;
+  & strong {
+    @apply mt-1 block text-xs font-semibold text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility overview-evidence-grid {
+  @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3;
+  & > div {
+    @apply bg-void/35 p-4;
+  }
+  & strong {
+    @apply mt-1 block font-mono text-sm font-semibold text-success;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility overview-guarantees-grid {
+  @apply grid gap-2 sm:grid-cols-2;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility safety-mechanism-note {
+  @apply mb-3 rounded-lg border border-info/20 bg-info/5 p-3;
+}
+
+@utility scenario-card-list {
+  @apply grid gap-2;
+}
+
+@utility scenario-card {
+  @apply w-full rounded-lg border border-border/70 bg-transparent p-3 transition-colors hover:border-info/30 hover:bg-info/5;
+  &:hover {
+    @apply border-info/40;
+  }
+}
+
+@utility scenario-lifecycle-hint {
+  @apply rounded-lg border border-info/20 bg-info/5 p-3;
+}
+
+@utility scenario-lifecycle-stage {
+  @apply inline-flex items-center gap-1 rounded-md border border-border bg-void/35 px-2 py-1 text-xs text-main;
+}
+
+@utility back-link {
+  @apply inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-main;
+}
+
+@utility run-detail-metric {
+  @apply min-w-0 bg-void/40 p-3;
+  & strong {
+    @apply mt-1 block truncate font-mono text-xs font-semibold capitalize text-main;
+  }
+}
+
+@utility investigation-layout {
+  @apply grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)];
+  & > * {
+    min-width: 0;
+  }
+}
+
+@utility investigation-fact {
+  @apply flex items-start gap-2.5 rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility policy-decision-hero {
+  @apply flex items-start justify-between gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4;
+}
+
+@utility compare-selects {
+  @apply grid gap-3 md:grid-cols-2;
+}
+
+@utility compare-grid {
+  @apply grid gap-3 lg:grid-cols-2;
+}
+
+@utility compare-column {
+  @apply rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility compare-traces {
+  @apply col-span-full rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility evidence-report-entry {
+  @apply flex flex-wrap items-center justify-between gap-4 rounded-lg border border-info/20 bg-info/5 p-4;
+}
+
+@utility control-plane-responsibilities {
+  @apply space-y-2;
+}
+
+@utility control-plane-scenarios {
+  @apply space-y-2;
+}
+
+@utility control-plane-responsibility {
+  @apply flex items-start gap-3 rounded-lg border p-3;
+  & h3 {
+    @apply text-xs font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility control-plane-scenario {
+  & h3 {
+    @apply text-xs font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+  @apply rounded-lg border bg-void/25 p-3;
+  & strong {
+    @apply font-medium text-main;
+  }
+  &.control-plane-doc-danger {
+    @apply border-danger/20 bg-danger/5;
+  }
+  &.control-plane-doc-warning {
+    @apply border-warning/20 bg-warning/5;
+  }
+}
+
+@utility control-plane-doc-info {
+  @apply border-info/20 bg-info/5 text-info;
+}
+
+@utility control-plane-doc-proposal {
+  @apply border-proposal/20 bg-proposal/5 text-proposal;
+}
+
+@utility control-plane-doc-decision {
+  @apply border-decision/20 bg-decision/2.5 text-decision;
+}
+
+@utility control-plane-doc-success {
+  @apply border-success/20 bg-success/5 text-success;
+}
+
+@utility control-plane-doc-danger {
+  &.control-plane-scenario {
+    @apply border-danger/20 bg-danger/5;
+  }
+}
+
+@utility control-plane-doc-warning {
+  &.control-plane-scenario {
+    @apply border-warning/20 bg-warning/5;
+  }
+}
+
+@utility tablist {
+  @apply flex gap-1 overflow-x-auto border-b border-border;
+}
+
+@utility tab {
+  @apply inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-main;
+}
+
+@utility tab-active {
+  @apply border-info text-main;
+}
+
+@utility data-row {
+  @apply flex items-center justify-between gap-4 py-2.5 text-xs;
+}
+
+@utility empty-state {
+  @apply flex min-h-28 items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-void/25 p-5 text-muted-foreground;
+}
+
+@utility skeleton {
+  @apply rounded-sm bg-border/80;
+}
+
+@utility field-label {
+  @apply block text-xs font-medium text-muted-foreground;
+  @apply text-xs leading-5;
+}
+
+@utility field-control {
+  @apply mt-1.5 min-h-10 w-full rounded-lg border border-border bg-void/70 px-3 text-sm text-main transition-colors placeholder:text-muted-foreground/70 hover:border-border-strong focus:border-info focus:outline-hidden;
+}
+
+@utility field-readonly {
+  @apply mt-1.5 flex min-h-10 items-center rounded-lg border border-border bg-void/40 px-3 text-xs text-muted-foreground;
+}
+
+@utility button-primary {
+  @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-info px-4 text-sm font-semibold text-void transition-colors hover:bg-info/85 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+@utility conversation-scroll {
+  max-height: 540px;
+  overflow-y: auto;
+}
+
+@utility message-row {
+  @apply flex items-start gap-3;
+}
+
+@utility message-user {
+  @apply justify-end;
+}
+
+@utility message-icon {
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted-foreground;
+}
+
+@utility message-icon-agent {
+  @apply border-info/25 bg-info/10 text-info;
+}
+
+@utility message-label {
+  @apply mb-1 text-xs font-medium text-muted-foreground;
+}
+
+@utility message-bubble {
+  @apply rounded-lg border px-3.5 py-3 text-sm leading-6;
+}
+
+@utility message-bubble-user {
+  @apply border-border bg-void/70 text-main;
+}
+
+@utility message-bubble-agent {
+  @apply border-border bg-surface text-main;
+}
+
+@utility conversation-evidence {
+  @apply space-y-3;
+}
+
+@utility conversation-evidence-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility conversation-evidence-customer {
+  @apply border-border;
+}
+
+@utility conversation-evidence-agent {
+  @apply border-info/20 bg-info/5;
+  & .conversation-evidence-icon {
+    @apply bg-info/10 text-info;
+  }
+}
+
+@utility conversation-evidence-icon {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-void text-muted-foreground;
+  .conversation-evidence-agent & {
+    @apply bg-info/10 text-info;
+  }
+}
+
+@utility agent-lifecycle {
+  @apply space-y-1 rounded-lg border border-border bg-void/20 p-3;
+}
+
+@utility agent-lifecycle-item {
+  @apply relative flex items-start gap-3;
+  &:has(+ &)::after {
+    content: '';
+    @apply absolute bottom-[-6px] left-[13px] top-9 w-px bg-border;
+  }
+}
+
+@utility agent-lifecycle-marker {
+  @apply z-10 mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground;
+}
+
+@utility agent-lifecycle-summary {
+  @apply flex cursor-pointer list-none items-start justify-between gap-3 rounded-md border border-transparent p-2.5 transition-colors hover:border-border hover:bg-surface;
+  &::-webkit-details-marker {
+    display: none;
+  }
+  & strong {
+    @apply block text-xs font-medium capitalize text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility agent-lifecycle-detail {
+  @apply mb-2 ml-2 grid gap-2 rounded-md border border-border bg-surface/60 p-3 sm:grid-cols-2;
+}
+
+@utility agent-lifecycle-arrow {
+  @apply absolute -bottom-2 left-[7px] z-20 text-muted-foreground;
+}
+
+@utility memory-evidence-grid {
+  @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-4;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility proposal-evidence-grid {
+  @apply grid gap-2 sm:grid-cols-2 xl:grid-cols-4;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility memory-evidence-detail {
+  @apply grid gap-1 rounded-lg border border-border bg-void/25 p-3;
+  & strong {
+    @apply text-xs font-medium leading-5 text-main;
+  }
+  & small {
+    @apply text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility rag-evidence-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3;
+  & strong {
+    @apply block truncate text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block truncate text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility decision-compiler-result {
+  @apply flex items-start justify-between gap-3 rounded-lg border border-decision/25 bg-decision/4 p-4;
+  & strong {
+    @apply mt-1 block font-mono text-base font-semibold text-decision;
+  }
+}
+
+@utility decision-check {
+  @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3;
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility scenario-summary-header {
+  @apply flex flex-wrap items-start justify-between gap-5 rounded-lg border border-info/20 bg-surface-elevated/70 p-4;
+  & h2 {
+    @apply mt-1 text-lg font-medium tracking-tight text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility scenario-summary-grid {
+  @apply grid min-w-0 flex-1 gap-2 sm:grid-cols-5;
+  & > div {
+    @apply rounded-md border border-border bg-void/30 p-2.5;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility activity-progress {
+  @apply mt-1 flex items-center gap-3 rounded-lg border border-border bg-surface p-3 text-xs text-muted-foreground;
+}
+
+@utility path-strip {
+  @apply flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-void/35 p-3;
+}
+
+@utility path-step {
+  @apply inline-flex items-center gap-1.5 rounded-md bg-void px-2 py-1 font-mono text-xs text-muted-foreground;
+}
+
+@utility path-arrow {
+  @apply text-info;
+}
+
+@utility decision-block {
+  @apply rounded-lg border border-border bg-void/30 p-4;
+}
+
+@utility source-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/30 p-3;
+}
+
+@utility memory-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/30 p-3;
+  @apply items-center justify-between;
+}
+
+@utility health-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/30 p-3;
+  @apply block;
+}
+
+@utility source-icon {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-info/10 text-info;
+}
+
+@utility notice {
+  @apply flex items-start gap-2 rounded-lg border p-3 text-xs leading-5;
+}
+
+@utility notice-info {
+  @apply border-info/20 bg-info/5 text-muted-foreground;
+}
+
+@utility notice-warning {
+  @apply items-center border-warning/20 bg-warning/5 text-warning;
+}
+
+@utility timeline {
+  @apply relative ml-1 space-y-0;
+}
+
+@utility timeline-item {
+  @apply relative flex min-h-16 gap-3 border-l border-border pb-5 pl-6 last:border-transparent last:pb-0;
+}
+
+@utility timeline-marker {
+  @apply absolute left-[-9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-void;
+}
+
+@utility marker-success {
+  @apply text-success;
+}
+
+@utility marker-warning {
+  @apply text-warning;
+}
+
+@utility marker-danger {
+  @apply text-danger;
+}
+
+@utility marker-neutral {
+  @apply text-muted-foreground;
+}
+
+@utility tooltip-wrap {
+  @apply relative inline-flex;
+}
+
+@utility tooltip-content {
+  @apply pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-xs text-main shadow-panel group-hover:block;
+}
+
+@utility showcase-page {
+  @apply mx-auto w-full min-w-0 max-w-[1540px];
+}
+
+@utility showcase-hero {
+  @apply flex flex-wrap items-end justify-between gap-6 overflow-hidden p-6 sm:p-8;
+  background: #161b22;
+  & h1 {
+    @apply mt-2 text-3xl font-semibold tracking-[-.03em] text-main sm:text-4xl;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  & p {
+    @apply mt-3 max-w-3xl text-base leading-7 text-muted-foreground;
+  }
+  .showcase-compact & {
+    display: none;
+  }
+}
+
+@utility showcase-hero-copy {
+  @apply min-w-0 max-w-4xl;
+}
+
+@utility showcase-hero-boundary {
+  @apply mt-6 flex flex-wrap items-center gap-2;
+  & span {
+    @apply rounded-md border border-border bg-void/45 px-3 py-2 text-xs font-medium text-main;
+  }
+  & span:nth-child(1) {
+    @apply border-info/25 text-info;
+  }
+  & span:nth-child(2) {
+    @apply border-proposal/25 text-proposal;
+  }
+  & span:nth-child(3) {
+    @apply border-decision/25 text-decision;
+  }
+  & span:nth-child(4) {
+    @apply border-success/25 text-success;
+  }
+}
+
+@utility showcase-hero-mark {
+  @apply flex items-center gap-3 rounded-lg border border-success/20 bg-success/5 px-4 py-3 text-xs leading-5 text-success;
+}
+
+@utility showcase-guarantee-grid {
+  @apply grid gap-2 md:grid-cols-2 xl:grid-cols-5;
+}
+
+@utility showcase-guarantee {
+  @apply relative flex min-h-28 items-start gap-3 rounded-lg border border-border bg-void/25 p-4;
+  & h3 {
+    @apply text-xs font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-guarantee-icon {
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success;
+}
+
+@utility showcase-guarantee-number {
+  @apply absolute right-3 top-3 font-mono text-xs text-border-strong;
+}
+
+@utility showcase-architecture-flow-section {
+  @apply rounded-lg border border-border bg-void/20 p-4 sm:p-5;
+  .showcase-compact & {
+    display: none;
+  }
+}
+
+@utility showcase-architecture-flow {
+  @apply mt-4 grid gap-2 lg:grid-cols-6;
+}
+
+@utility showcase-architecture-flow-step {
+  @apply relative min-w-0;
+}
+
+@utility showcase-architecture-flow-node {
+  @apply min-h-32 rounded-lg border border-border bg-void/30 p-3;
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & span {
+    @apply mt-1 block text-xs leading-4 text-muted-foreground;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-4 text-muted-foreground;
+  }
+  & span {
+    @apply text-info;
+  }
+}
+
+@utility showcase-architecture-flow-node-1 {
+  @apply border-info/25 bg-info/5;
+}
+
+@utility showcase-architecture-flow-node-2 {
+  @apply border-proposal/25 bg-proposal/5;
+}
+
+@utility showcase-architecture-flow-node-3 {
+  @apply border-decision/25 bg-decision/5;
+}
+
+@utility showcase-architecture-flow-node-4 {
+  @apply border-decision/25 bg-decision/5;
+}
+
+@utility showcase-architecture-flow-node-5 {
+  @apply border-success/25 bg-success/5;
+}
+
+@utility showcase-architecture-flow-arrow {
+  @apply absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 -rotate-90 text-muted-foreground lg:block;
+}
+
+@utility showcase-scenario-picker {
+  @apply mt-5 flex gap-1.5 overflow-x-auto border-b border-border pb-px;
+  & button {
+    @apply min-h-10 shrink-0 border-b-2 border-transparent px-3 text-left text-xs text-muted-foreground transition-colors hover:bg-void/35 hover:text-main;
+  }
+  & button.showcase-scenario-active {
+    @apply border-info bg-info/5 text-main;
+  }
+  .showcase-compact & {
+    @apply mt-3;
+  }
+}
+
+@utility showcase-scenario-active {
+  .showcase-scenario-picker &button {
+    @apply border-info bg-info/5 text-main;
+  }
+}
+
+@utility showcase-selected-header {
+  @apply flex flex-wrap items-start justify-between gap-4 rounded-lg border border-info/20 bg-surface-elevated/70 p-4;
+  & h2 {
+    @apply mt-1 text-lg font-medium tracking-tight text-main;
+  }
+  & p {
+    @apply mt-1 max-w-3xl text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-selected-status {
+  @apply flex items-center gap-2 text-xs text-muted-foreground;
+}
+
+@utility showcase-focus-note {
+  @apply flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 p-4 text-xs leading-5 text-warning;
+  & strong {
+    @apply font-semibold text-main;
+  }
+}
+
+@utility showcase-investigation-summary {
+  @apply rounded-lg border border-info/25 bg-surface-elevated/70 p-4;
+  & h2 {
+    @apply mt-1 text-lg font-medium tracking-tight text-main;
+  }
+  & p {
+    @apply mt-1 max-w-3xl text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-investigation-summary-heading {
+  @apply flex flex-wrap items-start justify-between gap-4;
+}
+
+@utility showcase-report-button {
+  @apply inline-flex min-h-9 items-center justify-center rounded-md border border-info/30 bg-info/10 px-3 text-xs font-medium text-info transition-colors hover:border-info/50 hover:bg-info/15;
+}
+
+@utility showcase-summary-grid {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-5;
+  & > div {
+    @apply bg-void/35 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility showcase-conversation {
+  @apply space-y-4;
+}
+
+@utility showcase-message {
+  @apply flex items-start gap-3;
+}
+
+@utility showcase-message-customer {
+  @apply pr-8 sm:pr-16;
+}
+
+@utility showcase-message-agent {
+  @apply pl-8 sm:pl-16;
+  & .showcase-message-avatar {
+    @apply border-info/25 bg-info/10 text-info;
+  }
+  & .showcase-message-bubble {
+    @apply border-info/20 bg-info/5;
+  }
+}
+
+@utility showcase-message-avatar {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-void text-muted-foreground;
+  .showcase-message-agent & {
+    @apply border-info/25 bg-info/10 text-info;
+  }
+}
+
+@utility showcase-message-meta {
+  @apply mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground;
+  & strong {
+    @apply font-medium text-main;
+  }
+  & span {
+    @apply inline-flex items-center gap-1;
+  }
+}
+
+@utility showcase-message-bubble {
+  @apply rounded-lg border border-border bg-void/45 px-4 py-3 text-sm leading-6 text-main;
+  .showcase-message-agent & {
+    @apply border-info/20 bg-info/5;
+  }
+}
+
+@utility showcase-message-tags {
+  @apply mt-2 flex flex-wrap gap-1.5;
+}
+
+@utility showcase-conversation-highlight {
+  @apply grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr];
+}
+
+@utility showcase-conversation-party {
+  @apply min-w-0 rounded-lg border border-border bg-void/35 p-4;
+}
+
+@utility showcase-conversation-agent {
+  @apply border-info/25 bg-info/5;
+  & .showcase-conversation-party-label svg {
+    @apply text-info;
+  }
+}
+
+@utility showcase-conversation-party-label {
+  @apply flex flex-wrap items-center gap-2 text-xs font-medium text-main;
+  & svg {
+    @apply text-muted-foreground;
+  }
+  .showcase-conversation-agent & svg {
+    @apply text-info;
+  }
+}
+
+@utility showcase-conversation-party-meta {
+  @apply mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground;
+  & span {
+    @apply inline-flex items-center gap-1;
+  }
+}
+
+@utility showcase-conversation-bridge {
+  @apply flex items-center justify-center text-info lg:-rotate-90;
+}
+
+@utility showcase-conversation-boundary {
+  @apply mt-4 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-5;
+  & > div {
+    @apply min-w-0 bg-void/45 p-3;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium capitalize text-main;
+  }
+}
+
+@utility showcase-conversation-boundary-warning {
+  @apply border-warning/30;
+}
+
+@utility showcase-conversation-boundary-danger {
+  @apply border-danger/30;
+}
+
+@utility showcase-conversation-transcript {
+  @apply mt-4 border-t border-border/70 pt-3;
+  & summary {
+    @apply cursor-pointer text-xs font-medium text-muted-foreground hover:text-main;
+  }
+}
+
+@utility showcase-evidence-summary {
+  @apply grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3;
+  & > div {
+    @apply bg-void/35 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block text-xs font-medium text-main;
+  }
+}
+
+@utility showcase-proposal-grid {
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  @apply grid gap-2 sm:grid-cols-2 lg:grid-cols-4;
+  & > div {
+    @apply rounded-lg border border-proposal/15 bg-void/25 p-3;
+  }
+  & strong {
+    @apply mt-1 block truncate text-xs font-medium text-main;
+  }
+}
+
+@utility showcase-decision-result {
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  @apply mt-4 grid gap-3 rounded-lg border border-decision/25 bg-decision/5 p-4 sm:grid-cols-3;
+  & > div {
+    @apply min-w-0;
+  }
+  & strong {
+    @apply mt-1 block font-mono text-sm font-semibold text-decision;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-main;
+  }
+}
+
+@utility showcase-evidence-list {
+  @apply mt-4 space-y-2;
+}
+
+@utility showcase-evidence-row {
+  @apply flex items-start gap-3 rounded-lg border border-border bg-void/25 p-3;
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+  & small {
+    @apply mt-2 block font-mono text-xs leading-4 text-info;
+  }
+}
+
+@utility showcase-memory-usage {
+  @apply mt-3 grid gap-2 sm:grid-cols-2;
+  & > div {
+    @apply rounded-lg border border-border bg-void/25 p-3;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & span {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-citation-preview {
+  @apply mt-3 rounded-md border border-success/20 bg-success/5 px-3 py-2 text-xs leading-5 text-main;
+}
+
+@utility showcase-evidence-role {
+  @apply mt-3 flex flex-wrap items-baseline gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-xs;
+  & strong {
+    @apply font-medium text-success;
+  }
+  & span {
+    @apply text-muted-foreground;
+  }
+}
+
+@utility showcase-boundary-note {
+  @apply mt-4 flex items-start gap-2 rounded-lg border border-info/20 bg-info/5 p-3 text-xs leading-5 text-muted-foreground;
+  & svg {
+    @apply shrink-0 text-info;
+  }
+}
+
+@utility showcase-proposal-callout {
+  @apply mt-4 flex items-start gap-2 rounded-lg border border-info/20 bg-info/5 p-3 text-xs leading-5 text-muted-foreground;
+  & svg {
+    @apply shrink-0 text-info;
+  }
+  @apply border-proposal/20 bg-proposal/5;
+  & svg {
+    @apply text-proposal;
+  }
+}
+
+@utility showcase-context-grid {
+  @apply grid gap-5 xl:grid-cols-2;
+}
+
+@utility showcase-proposal-card {
+  @apply border-proposal/25 bg-proposal/2.5;
+}
+
+@utility showcase-proposal-compare {
+  @apply mt-3 grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)];
+  & > div {
+    @apply rounded-lg border border-proposal/15 bg-void/25 p-3;
+  }
+  & span {
+    @apply block text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply mt-1 block text-xs font-medium text-main;
+  }
+}
+
+@utility showcase-proposal-compare-arrow {
+  @apply flex items-center justify-center border-0 bg-transparent! p-0! text-proposal;
+}
+
+@utility showcase-proposal-system {
+  @apply border-decision/25 bg-decision/5!;
+  & strong {
+    @apply text-decision;
+  }
+}
+
+@utility showcase-decision-card {
+  @apply border-decision/30 bg-decision/2.5;
+}
+
+@utility showcase-decision-flow {
+  @apply mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-6;
+  & span {
+    @apply flex items-center gap-2 rounded-md border border-decision/15 bg-void/30 px-2.5 py-2 text-xs text-muted-foreground;
+  }
+  & strong {
+    @apply font-medium text-main;
+  }
+  & svg {
+    @apply ml-auto shrink-0 text-decision sm:hidden;
+  }
+}
+
+@utility showcase-check-grid {
+  @apply mt-4 grid gap-2 sm:grid-cols-2;
+  & > div {
+    @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3;
+  }
+  & > div > span:first-child {
+    @apply mt-0.5 shrink-0;
+  }
+  & strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & small {
+    @apply mt-1 block text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-lifecycle {
+  @apply grid gap-2 lg:grid-cols-9;
+}
+
+@utility showcase-lifecycle-stage {
+  @apply relative min-w-0 rounded-lg border border-border bg-void/25 p-3;
+}
+
+@utility showcase-lifecycle-completed {
+  @apply border-success/20;
+}
+
+@utility showcase-lifecycle-waiting {
+  @apply border-warning/30 bg-warning/2.5;
+}
+
+@utility showcase-lifecycle-blocked {
+  @apply border-danger/25 bg-danger/2.5;
+}
+
+@utility showcase-lifecycle-unavailable {
+  @apply border-border/70 opacity-75;
+}
+
+@utility showcase-lifecycle-marker {
+  @apply mb-3 flex h-5 w-5 items-center justify-center;
+  & .status-indicator {
+    @apply text-[0px];
+  }
+  & .status-indicator svg {
+    @apply h-4 w-4;
+  }
+}
+
+@utility showcase-lifecycle-content {
+  & > strong {
+    @apply block text-xs font-medium text-main;
+  }
+  & > p {
+    @apply mt-1 min-h-10 text-xs leading-4 text-muted-foreground;
+  }
+}
+
+@utility showcase-lifecycle-meta {
+  @apply mt-3 space-y-1 border-t border-border/70 pt-2 text-xs leading-4 text-muted-foreground;
+  & span {
+    @apply block;
+  }
+  & b {
+    @apply mr-1 font-medium text-main;
+  }
+}
+
+@utility showcase-lifecycle-arrow {
+  @apply absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 text-muted-foreground lg:block;
+}
+
+@utility showcase-footer-note {
+  @apply flex items-start gap-2 rounded-lg border border-border bg-void/25 p-3 text-xs leading-5 text-muted-foreground;
+  & svg {
+    @apply mt-0.5 shrink-0 text-muted-foreground;
+  }
+}
+
+@utility showcase-modal-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4;
+}
+
+@utility showcase-report-modal {
+  @apply max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-panel sm:p-6;
+}
+
+@utility showcase-report-header {
+  @apply flex items-start justify-between gap-4 border-b border-border pb-4;
+  & h2 {
+    @apply mt-1 text-lg font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-muted-foreground;
+  }
+}
+
+@utility showcase-report-close {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none text-muted-foreground hover:bg-void hover:text-main;
+}
+
+@utility showcase-report-sections {
+  @apply divide-y divide-border/70;
+  & > div {
+    @apply py-3;
+  }
+  & span {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+  & p {
+    @apply mt-1 text-xs leading-5 text-main;
+  }
+}
+
+@utility showcase-report-footer {
+  @apply flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4;
+}
+
+@utility showcase-report-secondary {
+  @apply min-h-9 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-void hover:text-main;
+}
+
+@utility showcase-compact {
+  & .showcase-hero {
+    display: none;
+  }
+  & .showcase-guarantees {
+    display: none;
+  }
+  & .showcase-architecture-flow-section {
+    display: none;
+  }
+  & .showcase-scenario-section {
+    @apply pt-1;
+  }
+  & .showcase-scenario-picker {
+    @apply mt-3;
+  }
+}
+
+@utility showcase-guarantees {
+  .showcase-compact & {
+    display: none;
+  }
+}
+
+@utility showcase-scenario-section {
+  .showcase-compact & {
+    @apply pt-1;
+  }
+}
+
+@utility secondary-nav {
+  @apply relative text-sm text-muted-foreground;
+  & > summary {
+    @apply cursor-pointer rounded-md px-3 py-2;
+  }
+  & > nav {
+    @apply absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-lg border border-border bg-surface p-2 shadow-panel;
+  }
+  & a {
+    @apply flex min-h-10 items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-void hover:text-main;
+  }
+  & a[aria-current='page'] {
+    @apply bg-void text-main;
+  }
+  & summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+}
+
+@utility scenario-shortcuts {
+  @apply grid gap-3 sm:grid-cols-3;
+  & button {
+    @apply flex min-h-16 items-center gap-3 rounded-lg border border-border bg-surface px-4 text-left text-sm text-muted-foreground transition-colors hover:border-info/50 hover:text-main;
+  }
+  & button[aria-pressed='true'] {
+    @apply border-info/50 bg-info/5 text-main;
+  }
+  & button svg:last-child {
+    @apply ml-auto shrink-0;
+  }
+}
+
+@utility progressive-panel {
+  @apply min-w-0 border-t border-border pt-4;
+  & summary {
+    @apply cursor-pointer text-sm font-medium text-main;
+  }
+  & summary > span {
+    @apply ml-2 text-xs font-normal text-muted-foreground;
+  }
+  & summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+}
+
+@utility investigation-tabs {
+  @apply flex gap-2 overflow-x-auto border-b border-border;
+  & button {
+    @apply min-h-12 border-b-2 border-transparent px-5 text-sm text-muted-foreground;
+  }
+  & button[aria-selected='true'] {
+    @apply border-info text-main;
+  }
+}
+
+@utility run-id-copy {
+  @apply mt-3 inline-flex max-w-full flex-wrap items-center gap-2 text-xs text-muted-foreground;
+  & code {
+    @apply break-all font-mono;
+  }
+  & button {
+    @apply inline-flex shrink-0 items-center gap-1.5 text-info hover:text-main;
+  }
+  & [role='status'] {
+    @apply text-info;
+  }
+}
+
+@utility product-hero {
+  @apply grid items-center gap-10 p-6 sm:p-10 xl:grid-cols-[1.15fr_.85fr];
+  & h1 {
+    @apply mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl;
+  }
+}
+
+@utility product-boundary {
+  @apply rounded-lg border border-border bg-void/40 p-5 sm:p-6;
+  & ol {
+    @apply mt-5 grid gap-5;
+  }
+  & li {
+    @apply flex items-start gap-4;
+  }
+  & li > span {
+    @apply mt-1 font-mono text-xs text-info;
+  }
+  & strong {
+    @apply text-sm font-medium text-main;
+  }
+  & p {
+    @apply mt-1 text-sm leading-6 text-muted-foreground;
+  }
+}
+
+@utility recorded-evidence {
+  @apply border-dashed bg-void/20;
+}
+
+@layer utilities {
+  :root {
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 14px;
+  }
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  main {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+  button,
+  select,
+  input {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  [role='tab']:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  @media (max-width: 1279px) {
+    .workspace-rail {
+      min-height: auto;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .topbar-inner {
+      overflow: hidden;
+    }
+    .console-nav {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+    }
+    .showcase-page {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    .showcase-hero {
+      @apply items-start p-5;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .showcase-hero-copy {
+      flex-basis: 100%;
+      width: 100%;
+      max-width: 100%;
+    }
+    .showcase-hero h1 {
+      width: 100%;
+      max-width: 100%;
+      white-space: normal;
+    }
+    .showcase-hero p {
+      width: 100%;
+      max-width: 100%;
+    }
+    .showcase-guarantee-grid,
+    .showcase-guarantee {
+      width: 100%;
+      max-width: 100%;
+    }
+    .showcase-hero-mark {
+      @apply mt-1;
+    }
+    .console-nav {
+      scroll-snap-type: x proximity;
+    }
+    .console-nav-button {
+      scroll-snap-align: start;
+    }
+    .trace-stage-summary {
+      @apply items-start;
+    }
+    .trace-stage-meta {
+      @apply ml-auto;
+    }
+    .trace-stage-detail {
+      @apply pl-3;
+    }
+    .trace-authority-strip {
+      @apply justify-start;
+    }
+    .run-detail-header > div:first-child {
+      @apply flex-col items-start;
+    }
+    .run-detail-header > div:first-child > div {
+      @apply w-full;
+    }
+    .run-detail-header > div:first-child > div .operator-action {
+      @apply w-full;
+    }
+    .run-detail-header,
+    .trace-investigation-header,
+    .scenario-summary-header,
+    .decision-context-summary {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .run-detail-header h1,
+    .trace-investigation-header p {
+      max-width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .trace-investigation-summary {
+      width: 100%;
+      min-width: 0;
+    }
+    .run-detail-header > .mt-5.grid,
+    .trace-investigation-summary,
+    .decision-lifecycle-grid {
+      grid-template-columns: 1fr;
+    }
+    .decision-lifecycle-grid > div {
+      min-height: 0;
+    }
+    .trace-investigation-id strong {
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    .architecture-zone {
+      @apply p-3;
+    }
+    .architecture-zone > summary {
+      @apply flex items-start justify-between gap-3;
+    }
+    .architecture-zone > summary::after {
+      display: block;
+    }
+    .architecture-zone-content {
+      @apply mt-0;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .architecture-flow {
+      @apply max-w-none items-stretch gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.25fr)_auto_minmax(0,1fr)];
+    }
+    .architecture-flow-arrow {
+      @apply my-auto -rotate-90;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Shared operator presentation: readable content, quiet metadata, bounded layouts. */
 }
 
 @media (max-width: 639px) {
@@ -670,4 +2592,319 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
   .console-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 0; }
   .console-nav-button { justify-content: center; min-width: 0; padding-inline: 4px; gap: 0; font-size: 12px; }
   .console-nav-button svg { display: none; }
+}
+/*
+  ---break---
+*/
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+/*
+  ---break---
+*/
+:root {
+  --background: #ffffff;
+  --foreground: #111113;
+  --card: #ffffff;
+  --card-foreground: #111113;
+  --popover: #ffffff;
+  --popover-foreground: #111113;
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #111113;
+  --muted: #f4f4f5;
+  --muted-foreground: #6e6e76;
+  --accent: #f1f1f3;
+  --accent-foreground: #111113;
+  --destructive: #dc2626;
+  --border: #e8e8eb;
+  --border-strong: #d4d4d8;
+  --input: #e4e4e7;
+  --ring: #2f6bff;
+  --surface-elevated: #fafafa;
+  --success: #16a34a;
+  --warning: #d97706;
+  --proposal: #b45309;
+  --danger: #e5484d;
+  --info: #2f6bff;
+  --decision: #2f6bff;
+  --chart-1: #2f6bff;
+  --chart-2: #16a34a;
+  --chart-3: #8b5cf6;
+  --chart-4: #f59e0b;
+  --chart-5: #e5484d;
+  --radius: 0.75rem;
+  --sidebar: #f3f3f4;
+  --sidebar-foreground: #3f3f46;
+  --sidebar-primary: #18181b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #111113;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #2f6bff;
+  color-scheme: light;
+}
+
+/* Follow the system until the operator picks a theme. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #141415;
+    --foreground: #ededef;
+    --card: #18181a;
+    --card-foreground: #ededef;
+    --popover: #1b1b1d;
+    --popover-foreground: #ededef;
+    --primary: #f4f4f5;
+    --primary-foreground: #111113;
+    --secondary: #1f1f22;
+    --secondary-foreground: #ededef;
+    --muted: #1f1f22;
+    --muted-foreground: #8e8e96;
+    --accent: #222225;
+    --accent-foreground: #ededef;
+    --destructive: #f2555a;
+    --border: #27272a;
+    --border-strong: #36363b;
+    --input: #2a2a2e;
+    --ring: #4c82ff;
+    --surface-elevated: #1c1c1f;
+    --success: #3ecf6e;
+    --warning: #f5a524;
+    --proposal: #d4a24c;
+    --danger: #f2555a;
+    --info: #4c82ff;
+    --decision: #4c82ff;
+    --chart-1: #3b78ff;
+    --chart-2: #3ecf6e;
+    --chart-3: #a78bfa;
+    --chart-4: #f5a524;
+    --chart-5: #f2555a;
+    --sidebar: #0d0d0e;
+    --sidebar-foreground: #b4b4bb;
+    --sidebar-primary: #f4f4f5;
+    --sidebar-primary-foreground: #111113;
+    --sidebar-accent: #1c1c1f;
+    --sidebar-accent-foreground: #ededef;
+    --sidebar-border: #232326;
+    --sidebar-ring: #4c82ff;
+    color-scheme: dark;
+}
+}
+
+.dark {
+  --background: #141415;
+  --foreground: #ededef;
+  --card: #18181a;
+  --card-foreground: #ededef;
+  --popover: #1b1b1d;
+  --popover-foreground: #ededef;
+  --primary: #f4f4f5;
+  --primary-foreground: #111113;
+  --secondary: #1f1f22;
+  --secondary-foreground: #ededef;
+  --muted: #1f1f22;
+  --muted-foreground: #8e8e96;
+  --accent: #222225;
+  --accent-foreground: #ededef;
+  --destructive: #f2555a;
+  --border: #27272a;
+  --border-strong: #36363b;
+  --input: #2a2a2e;
+  --ring: #4c82ff;
+  --surface-elevated: #1c1c1f;
+  --success: #3ecf6e;
+  --warning: #f5a524;
+  --proposal: #d4a24c;
+  --danger: #f2555a;
+  --info: #4c82ff;
+  --decision: #4c82ff;
+  --chart-1: #3b78ff;
+  --chart-2: #3ecf6e;
+  --chart-3: #a78bfa;
+  --chart-4: #f5a524;
+  --chart-5: #f2555a;
+  --sidebar: #0d0d0e;
+  --sidebar-foreground: #b4b4bb;
+  --sidebar-primary: #f4f4f5;
+  --sidebar-primary-foreground: #111113;
+  --sidebar-accent: #1c1c1f;
+  --sidebar-accent-foreground: #ededef;
+  --sidebar-border: #232326;
+  --sidebar-ring: #4c82ff;
+  color-scheme: dark;
+}
+/* Typing indicator: a calm opacity wave instead of bouncing dots. */
+@keyframes typing-dot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.typing-dot { animation: typing-dot 1.2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+/* Touch screens: segmented controls and tabs get thumb-sized targets. */
+@media (pointer: coarse) {
+  [role="radiogroup"] > [role="radio"],
+  [role="tablist"] > [role="tab"] { min-height: 2.25rem; }
+}
+
+/* Dot-matrix charts fill bottom-up once, on first paint. */
+@keyframes dot-in { from { opacity: 0.15; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+.dot-cell[data-filled] { animation: dot-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .dot-cell[data-filled] { animation: none; } }
+
+/* The assistant's mark: a thin gradient ring; it turns only while the assistant is working. */
+.agent-orb { position: relative; display: inline-grid; place-items: center; border-radius: 9999px; isolation: isolate; }
+.agent-orb::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: conic-gradient(from 200deg, #4c82ff, #a78bfa, #f472b6, #f5a524, #4c82ff); }
+.agent-orb-core { display: grid; place-items: center; width: calc(100% - 3px); height: calc(100% - 3px); border-radius: inherit; background: var(--background); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06); }
+.agent-orb[data-thinking]::before { animation: agent-orb-turn 2.4s linear infinite; }
+@keyframes agent-orb-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .agent-orb[data-thinking]::before { animation: none; } }
+
+/* Older reference pages: their hero cards read as a plain page header, like every other page. */
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header):is(.surface, *) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--border);
+}
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) h1 {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) h1 + p,
+:is(.release-hero, .overview-hero, .showcase-hero, .playground-hero, .run-header) p { font-size: 0.875rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* Remaining part of a bar: a quiet diagonal hatch, so empty reads as "not yet" rather than missing. */
+@utility track-hatched {
+  background-color: color-mix(in oklab, var(--foreground) 4%, transparent);
+  background-image: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--foreground) 9%, transparent) 0 1px, transparent 1px 4px);
+}
+
+/* Menus: items settle in one after another as the popup opens from its trigger. */
+@keyframes menu-item-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+.menu-stagger[data-open] :is([data-slot="dropdown-menu-item"], [data-slot="dropdown-menu-checkbox-item"], [data-slot="dropdown-menu-radio-item"], [data-slot="dropdown-menu-label"]) {
+  animation: menu-item-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.menu-stagger[data-open] :nth-child(2 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 18ms; }
+.menu-stagger[data-open] :nth-child(3 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 36ms; }
+.menu-stagger[data-open] :nth-child(4 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 54ms; }
+.menu-stagger[data-open] :nth-child(5 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 72ms; }
+.menu-stagger[data-open] :nth-child(n + 6 of :is([data-slot^="dropdown-menu-"])) { animation-delay: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .menu-stagger[data-open] * { animation: none !important; }
+}
+
+
+/* ---------- Sign-in ---------- */
+@keyframes signin-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.signin-rise { animation: signin-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--rise, 0) * 60ms + 80ms); }
+
+.signin-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.11) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(ellipse 70% 65% at 55% 45%, #000 30%, transparent 80%);
+}
+.signin-sweep {
+  background: linear-gradient(105deg, transparent 35%, rgb(76 130 255 / 0.10) 48%, rgb(167 139 250 / 0.08) 52%, transparent 65%);
+  background-size: 250% 100%;
+  animation: signin-sweep 9s ease-in-out infinite;
+  mask-image: radial-gradient(rgb(0 0 0) 1px, transparent 1.2px);
+  mask-size: 16px 16px;
+}
+@keyframes signin-sweep { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
+.signin-glow { background: radial-gradient(circle, rgb(76 130 255 / 0.22), rgb(167 139 250 / 0.10) 40%, transparent 70%); filter: blur(10px); }
+.signin-live { box-shadow: 0 0 0 0 rgb(60 207 122 / 0.6); animation: signin-live 2s ease-out infinite; }
+@keyframes signin-live { 0% { box-shadow: 0 0 0 0 rgb(60 207 122 / 0.55); } 70%, 100% { box-shadow: 0 0 0 6px rgb(60 207 122 / 0); } }
+
+/* One 10 s loop: message arrives, the assistant thinks, each step completes, the conversation resolves. */
+.signin-card { animation: signin-card 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-card { 0% { opacity: 0; transform: translateY(10px) scale(0.985); } 5%, 92% { opacity: 1; transform: none; } 99%, 100% { opacity: 0; transform: translateY(-6px) scale(0.99); } }
+.signin-msg { animation: signin-msg 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-msg { 0%, 3% { opacity: 0; transform: translateY(6px); } 8%, 100% { opacity: 1; transform: none; } }
+.signin-think { animation: signin-think 10s ease infinite; }
+@keyframes signin-think { 0%, 9% { opacity: 0; } 12%, 60% { opacity: 1; } 64%, 100% { opacity: 0.35; } }
+.signin-step { opacity: 0.3; }
+.signin-tick { color: transparent; }
+.signin-bar > span { width: 0; }
+.signin-done { animation: signin-done 10s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes signin-done { 0%, 60% { opacity: 0; transform: translateY(4px); } 65%, 100% { opacity: 1; transform: none; } }
+
+.signin-step:nth-child(1) { animation: signin-step-0 10s ease infinite; }
+.signin-step:nth-child(1) .signin-tick { animation: signin-tick-0 10s ease infinite; }
+.signin-step:nth-child(1) .signin-bar > span { animation: signin-bar-0 10s ease-in-out infinite; }
+@keyframes signin-step-0 { 0%, 13% { opacity: 0.3; } 15%, 100% { opacity: 1; } }
+@keyframes signin-tick-0 { 0%, 21% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 23%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-0 { 0%, 14% { width: 0; opacity: 1; } 22% { width: 100%; opacity: 1; } 25%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(2) { animation: signin-step-1 10s ease infinite; }
+.signin-step:nth-child(2) .signin-tick { animation: signin-tick-1 10s ease infinite; }
+.signin-step:nth-child(2) .signin-bar > span { animation: signin-bar-1 10s ease-in-out infinite; }
+@keyframes signin-step-1 { 0%, 24% { opacity: 0.3; } 26%, 100% { opacity: 1; } }
+@keyframes signin-tick-1 { 0%, 32% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 34%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-1 { 0%, 25% { width: 0; opacity: 1; } 33% { width: 100%; opacity: 1; } 36%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(3) { animation: signin-step-2 10s ease infinite; }
+.signin-step:nth-child(3) .signin-tick { animation: signin-tick-2 10s ease infinite; }
+.signin-step:nth-child(3) .signin-bar > span { animation: signin-bar-2 10s ease-in-out infinite; }
+@keyframes signin-step-2 { 0%, 35% { opacity: 0.3; } 37%, 100% { opacity: 1; } }
+@keyframes signin-tick-2 { 0%, 43% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 45%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-2 { 0%, 36% { width: 0; opacity: 1; } 44% { width: 100%; opacity: 1; } 47%, 100% { width: 100%; opacity: 0; } }
+.signin-step:nth-child(4) { animation: signin-step-3 10s ease infinite; }
+.signin-step:nth-child(4) .signin-tick { animation: signin-tick-3 10s ease infinite; }
+.signin-step:nth-child(4) .signin-bar > span { animation: signin-bar-3 10s ease-in-out infinite; }
+@keyframes signin-step-3 { 0%, 46% { opacity: 0.3; } 48%, 100% { opacity: 1; } }
+@keyframes signin-tick-3 { 0%, 54% { color: transparent; background: transparent; border-color: rgb(255 255 255 / 0.15); } 56%, 100% { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; } }
+@keyframes signin-bar-3 { 0%, 47% { width: 0; opacity: 1; } 55% { width: 100%; opacity: 1; } 58%, 100% { width: 100%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .signin-rise, .signin-sweep, .signin-live, .signin-card, .signin-msg, .signin-think, .signin-done,
+  .signin-step, .signin-step .signin-tick, .signin-step .signin-bar > span { animation: none !important; }
+  .signin-step { opacity: 1; }
+  .signin-step .signin-tick { color: #0b0b0d; background: #5fe09a; border-color: #5fe09a; }
 }

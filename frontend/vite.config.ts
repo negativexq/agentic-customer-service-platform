@@ -1,8 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath, URL } from "node:url";
 
 export const backendPathPattern =
-  "^/(agent|ui|customers|orders|tickets|memories|escalations)(?:/|$)|^/(health|ready)$";
+  "^/(agent|ui|operator|customers|orders|tickets|memories|escalations)(?:/|$)|^/conversations/|^/(health|ready)$";
 
 export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, "..", "");
@@ -32,7 +34,10 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_AUTH_MODE": JSON.stringify(authMode),
       "import.meta.env.VITE_DEMO_AUTH_TOKEN": JSON.stringify(demoToken),
     },
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    },
     server: {
       port: 5173,
       proxy: {

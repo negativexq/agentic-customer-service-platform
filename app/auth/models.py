@@ -42,6 +42,7 @@ class Principal(BaseModel):
         default=None, min_length=1, max_length=500, repr=False, exclude=True
     )
     email: str | None = Field(default=None, min_length=3, max_length=320, repr=False, exclude=True)
+    display_name: str | None = Field(default=None, min_length=1, max_length=200)
     roles: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
         default_factory=list, max_length=50
     )

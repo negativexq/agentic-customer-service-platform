@@ -174,3 +174,32 @@ def _valid_card(value: str) -> bool:
                 digit -= 9
         total += digit
     return total % 10 == 0
+
+
+_MESSAGE_VALUE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_BEARER, "[REDACTED_TOKEN]"),
+    (_API_TOKEN, "[REDACTED_TOKEN]"),
+    (_PASSWORD, "[REDACTED_PASSWORD]"),
+    (_SECRET, "[REDACTED_SECRET]"),
+    (_NATIONAL_ID, "[REDACTED_NATIONAL_ID]"),
+    (_EMAIL, "[REDACTED_EMAIL]"),
+)
+
+
+def redact_message_text(content: str) -> tuple[str, bool]:
+    """Redact sensitive values in transcript text; returns the text and whether it changed.
+
+    Unlike memory candidates, a whole message is never dropped: operators need the
+    conversation, so only the detected values are replaced by category placeholders.
+    """
+
+    redacted = content
+    for pattern, placeholder in _MESSAGE_VALUE_PATTERNS:
+        redacted = pattern.sub(placeholder, redacted)
+    redacted = _CARD.sub(
+        lambda match: "[REDACTED_CARD]" if _valid_card(match.group(0)) else match.group(0),
+        redacted,
+    )
+    redacted = _IBAN.sub("[REDACTED_IBAN]", redacted)
+    redacted = _PHONE.sub("[REDACTED_PHONE]", redacted)
+    return redacted, redacted != content

@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test } from "../fixtures/operator";
-import { loginOperator } from "../helpers/operator";
+import { loginOperator, startTestConversation, submitWorkspaceMessage } from "../helpers/operator";
 
 const capture = async (page: import("@playwright/test").Page, name: string) => {
   if (process.env.UI_POLISH_SCREENSHOTS !== "1") return;
@@ -10,28 +10,60 @@ const capture = async (page: import("@playwright/test").Page, name: string) => {
   await page.screenshot({ path: resolve(directory, name), fullPage: false, animations: "disabled" });
 };
 
+test("signing in with the demo account opens the console and survives a reload", async ({ page }) => {
+  await page.goto("/overview");
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
+  await expect(page.getByLabel("Work email")).toHaveValue("alex@agentops.demo");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+});
+
 test("navigation survives reload and browser history", async ({ page }) => {
   await loginOperator(page);
   const nav = page.getByRole("navigation", { name: "Console views" });
-  await expect(nav.getByRole("link")).toHaveCount(4);
-  for (const [label, path] of [["Playground", "/playground"], ["Runs", "/traces"], ["Safety", "/safety"], ["Overview", "/overview"]]) {
+  await expect(nav.getByRole("link")).toHaveCount(20);
+  for (const [label, path] of [
+    ["Playground", "/playground"], ["Runs", "/traces"], ["Monitoring", "/monitoring"], ["Audit log", "/audit"], ["Safety", "/safety"],
+    ["Conversations", "/workspace"], ["Architecture", "/architecture"], ["Recorded showcase", "/showcase"],
+    ["Chat and activity", "/chat"], ["Overview", "/overview"],
+  ]) {
     await nav.getByRole("link", { name: label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     await page.reload();
     await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
   }
-  for (const [label, path] of [["Architecture", "/architecture"], ["Workspace", "/workspace"], ["Chat + activity", "/chat"], ["Recorded showcase", "/showcase"]]) {
-    await page.locator(".secondary-nav > summary").click();
-    await page.getByRole("navigation", { name: "More views" }).getByRole("link", { name: label, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${path}$`));
-    await page.reload();
-    await page.locator(".secondary-nav > summary").click();
-    await expect(page.getByRole("navigation", { name: "More views" }).getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
-    await page.locator(".secondary-nav > summary").click();
-  }
   await page.goBack();
   await expect(page).toHaveURL(/\/chat$/);
   await expect(page.getByTestId("unified-chat")).toBeVisible();
+});
+
+test("operator watches a conversation live, takes over, replies, and hands it back", async ({ page }) => {
+  await loginOperator(page, "/workspace");
+  await expect(page.getByRole("navigation", { name: "Conversation list" })).toBeVisible();
+  await startTestConversation(page, "1");
+  await submitWorkspaceMessage(page, "Where is my order 1?");
+
+  await expect(page.getByTestId("conversation-handler")).toContainText("AI assistant is replying");
+  await page.getByRole("button", { name: "Take over" }).first().click();
+  await expect(page.getByTestId("conversation-handler")).toContainText("You are replying");
+  await expect(page.getByRole("region", { name: "Conversation" }).getByText(/joined the conversation/)).toBeVisible();
+
+  await page.getByTestId("operator-reply").fill("Hi, an operator here. Checking your order now.");
+  await page.getByTestId("send-operator-reply").click();
+  await expect(page.getByTestId("operator-message").last()).toContainText("Checking your order now.");
+
+  await page.getByRole("button", { name: "Inspect run" }).first().click();
+  await expect(page.getByTestId("run-context")).toHaveCount(0);
+  await page.getByRole("tab", { name: /Context/ }).click();
+  await expect(page.getByTestId("run-context")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Return to AI" }).click();
+  await expect(page.getByTestId("conversation-handler")).toContainText("AI assistant is replying");
 });
 
 test("scenario presets populate requests and disclose settings without executing", async ({ page }) => {
@@ -57,7 +89,7 @@ test("scenario presets populate requests and disclose settings without executing
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page.goto("/overview");
   const previousSubmissions = submissions;
-  await page.getByRole("button", { name: "Explore the refund workflow" }).click();
+  await page.getByRole("button", { name: "Refund workflow", exact: true }).click();
   await expect(page).toHaveURL(/\/playground\?demo=refund-memory-rag$/);
   await expect(page.getByRole("heading", { name: "Refund request with memory + RAG", exact: true })).toBeVisible();
   expect(submissions).toBe(previousSubmissions);
@@ -73,7 +105,7 @@ test("investigation prioritizes outcome and supports keyboard-accessible detail 
   await expect(page.getByLabel("Decision lifecycle summary")).toContainText("Confirmation required");
   await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
   await page.getByRole("button", { name: "Copy run ID" }).click();
-  await expect(page.getByRole("status")).toHaveText("Copied");
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("demo-refund-memory-rag-20260823");
   await expect(page.getByRole("tab", { name: "Evidence", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Evidence", exact: true }).focus();
@@ -100,7 +132,7 @@ test("clipboard denial leaves selectable run metadata and honest feedback", asyn
   });
   await loginOperator(page, "/runs/demo-refund-memory-rag-20260823");
   await page.getByRole("button", { name: "Copy run ID" }).click();
-  await expect(page.getByRole("status")).toHaveText("Copy unavailable; select the ID.");
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Copy unavailable; select the ID.");
   await expect(page.getByTestId("investigation-run-id")).toHaveText("demo-refund-memory-rag-20260823");
   await expect(page.getByTestId("investigation-run-id")).toHaveCSS("user-select", "text");
 });
@@ -113,7 +145,9 @@ test("primary surfaces fit mobile and tablet widths without clipping content", a
       await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
       if (path.startsWith("/runs/")) await expect(page.getByRole("heading", { level: 1 })).toContainText("Awaiting confirmation");
       if (path === "/showcase") await expect(page.getByTestId("investigation-summary")).toBeVisible();
-      const navigationFits = await page.getByRole("navigation", { name: "Console views" }).getByRole("link").evaluateAll((links) => links.every((link) => {
+      // Below 768px the sidebar is an off-canvas sheet behind the header trigger.
+      if (width < 768) await expect(page.getByRole("button", { name: "Toggle Sidebar" })).toBeVisible();
+      const navigationFits = width < 768 ? true : await page.getByRole("navigation", { name: "Console views" }).getByRole("link").evaluateAll((links) => links.every((link) => {
         const box = link.getBoundingClientRect();
         return box.left >= 0 && box.right <= window.innerWidth && box.height >= 40;
       }));

@@ -221,7 +221,9 @@ class FailingMemoryService(MemoryService):
         raise ResilienceError(FailureCategory.MEMORY_FAILURE, "simulated memory failure")
 
 
-def run_scenario(scenario: EvaluationScenario) -> ScenarioResult:
+def run_scenario(
+    scenario: EvaluationScenario, responses_sink: list[AgentResponse] | None = None
+) -> ScenarioResult:
     started = time.perf_counter()
     session = evaluation_session()
     clock = EvaluationClock()
@@ -278,14 +280,15 @@ def run_scenario(scenario: EvaluationScenario) -> ScenarioResult:
         with fault_scope(scenario):
             for turn in scenario.conversation:
                 clock.advance(turn.advance_seconds)
-                responses.append(
-                    runtime.run(
-                        conversation_id=scenario.id,
-                        customer_id=scenario.customer_id,
-                        message=turn.user,
-                        session=session,
-                    )
+                response = runtime.run(
+                    conversation_id=scenario.id,
+                    customer_id=scenario.customer_id,
+                    message=turn.user,
+                    session=session,
                 )
+                responses.append(response)
+                if responses_sink is not None:
+                    responses_sink.append(response)
     except Exception as error:
         session.close()
         return ScenarioResult(

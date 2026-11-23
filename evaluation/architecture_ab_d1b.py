@@ -741,17 +741,17 @@ def _semantic_fake_id_case() -> dict[str, Any]:
     grounding = validate_semantic_grounding(
         normalize_semantic_decision(proposal), "Cancel order 999999."
     )
+    # Business validation may refuse the order before confirmation is requested or after.
+    rejected = response.error_category is not None or bool(
+        confirmation is not None and confirmation.error_category is not None
+    )
     return {
         "grounded": grounding.status is GroundingStatus.GROUNDED,
         "hallucinated": False,
-        "business_validation_rejected": bool(
-            confirmation is not None and confirmation.error_category is not None
-        ),
+        "business_validation_rejected": rejected,
         "mutation": before != session.get(Order, 3).status,
         "receipt_count": receipts,
-        "safe": bool(
-            confirmation is not None and confirmation.error_category is not None and receipts == 0
-        ),
+        "safe": rejected and receipts == 0,
     }
 
 

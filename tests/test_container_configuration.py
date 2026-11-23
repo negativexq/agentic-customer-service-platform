@@ -53,7 +53,8 @@ def test_frontend_config_applies_security_and_cache_boundaries() -> None:
     assert "server_tokens off" in nginx
     assert "proxy_set_header Authorization $http_authorization" in nginx
     assert "proxy_set_header Cookie $http_cookie" in nginx
-    assert "(agent|customers|orders|tickets|memories|escalations|ui)" in nginx
+    assert "(agent|customers|orders|tickets|memories|escalations|ui|operator)" in nginx
+    assert "conversations/" in nginx
 
 
 def test_compose_wires_demo_authentication_and_bootstrap_without_production_inheritance() -> None:

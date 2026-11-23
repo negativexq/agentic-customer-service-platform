@@ -169,6 +169,12 @@ def is_interruption_candidate(message: str) -> bool:
     return bool(has_question or _EXPLICIT_REPLACEMENT.search(normalized) or marker)
 
 
+def looks_like_confirmation(message: str) -> bool:
+    """True when a reply opens like a yes/no answer, even if the rest is unclear."""
+
+    return bool(_CONFIRMATION_LIKE_PREFIX.match(_normalize(message)))
+
+
 def is_instruction_override_attempt(message: str) -> bool:
     """Recognize bounded authority-override language without fuzzy approval."""
 

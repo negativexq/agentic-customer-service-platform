@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
 
@@ -6,6 +7,13 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from opentelemetry import trace
 from sqlalchemy.orm import Session
 
+from app.agent.blocks import ResponseBlock, build_blocks
+from app.agent.compound import (
+    MAX_PARTS,
+    MessageReader,
+    OpenAICompatibleReader,
+    read_message,
+)
 from app.agent.errors import RuntimeFailureSource, classify_runtime_error
 from app.agent.graph import build_graph
 from app.agent.llm.base import DecisionProposalProvider
@@ -15,21 +23,32 @@ from app.agent.llm.integration import (
     DeterministicSemanticDecisionV3Provider,
 )
 from app.agent.llm.provider import OpenAICompatibleProvider
+from app.agent.localize import (
+    OpenAICompatibleLocalizer,
+    ResponseLocalizer,
+    conversation_language,
+    detect_language,
+    localize_reply,
+)
 from app.agent.schemas import (
     AgentExecutionMode,
     AgentProposal,
     AgentRequestType,
     AgentResponse,
     AgentToolCall,
+    EarlierReply,
     Intent,
     ProposalValidationStatus,
     ProviderRunMetadata,
 )
 from app.agent.state import AgentState
+from app.agent_config.context import current_agent_config, use_agent_config
+from app.agent_config.service import load_published_config
 from app.auth.models import ActorType, Principal
 from app.core.config import DecisionContractVersion, LLMProvider, Settings, get_settings
 from app.core.context import ExecutionContext
 from app.memory.service import MemoryService
+from app.models.entities import ConversationOwner, Customer
 from app.observability.metrics import get_metrics, record_agent_run_summary
 from app.observability.privacy import safe_exception_type
 from app.observability.tracing import span
@@ -41,6 +60,7 @@ from app.persistence.checkpoint import (
 )
 from app.policies.confirmation import Clock, SystemClock
 from app.policies.engine import PolicyEngine
+from app.policies.models import PendingActionStatus
 from app.policies.repository import (
     PolicyAuditRepository,
     build_policy_audit_repository,
@@ -54,10 +74,20 @@ from app.rag.interfaces import (
 from app.rag.retrieval.service import build_default_knowledge_service
 from app.resilience.config import ResilienceConfig
 from app.resilience.control import ReliabilityController
+from app.services.conversations import begin_agent_turn, current_ownership
 from app.ui.projection import get_projection_store
 from app.ui.repository import AgentRunProjectionRepository, build_agent_run_projection_repository
+from app.ui.schemas import AgentRunView, UIMemoryUsage
 
 logger = logging.getLogger(__name__)
+
+HANDOFF_ACKNOWLEDGEMENT = (
+    "A support specialist is handling this conversation and will reply here as soon as one is "
+    "available."
+)
+HANDOFF_ACKNOWLEDGEMENT_TR = (
+    "Bir destek uzmanı bu konuşmayla ilgileniyor ve müsait olduğunda size buradan yanıt verecek."
+)
 
 
 class AgentRuntime:
@@ -77,6 +107,8 @@ class AgentRuntime:
         projection_repository: AgentRunProjectionRepository | None = None,
         decision_contract_version: DecisionContractVersion | None = None,
         reliability_controller: ReliabilityController | None = None,
+        localizer: ResponseLocalizer | None = None,
+        reader: MessageReader | None = None,
     ) -> None:
         settings = get_settings()
         self.settings = settings
@@ -87,6 +119,19 @@ class AgentRuntime:
         )
         self.provider = provider or _build_decision_provider(
             settings, self.decision_contract_version
+        )
+        # Replies are translated only alongside the live model; injected test providers and the
+        # deterministic integration provider keep English replies.
+        self.localizer = localizer or (
+            OpenAICompatibleLocalizer(settings)
+            if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
+            else None
+        )
+        # Messages are read (split, upset, asked language) only alongside the live model.
+        self.reader = reader or (
+            OpenAICompatibleReader(settings)
+            if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
+            else None
         )
         self.checkpointer = checkpointer or MemoryCheckpointProvider().checkpointer
         self.checkpoint_backend = checkpoint_backend
@@ -142,7 +187,116 @@ class AgentRuntime:
         execution_mode: AgentExecutionMode = AgentExecutionMode.RECORDED_REPLAY,
     ) -> AgentResponse:
         execution_context = context or _legacy_execution_context(conversation_id, customer_id)
+        # A caller (for example a simulation of a draft) may already have chosen the configuration.
+        if current_agent_config() is not None:
+            return self._run(message, session, execution_context, execution_mode)
+        config = load_published_config(session, execution_context.tenant_id)
+        with use_agent_config(config):
+            return self._run(message, session, execution_context, execution_mode)
+
+    def _run(
+        self,
+        message: str,
+        session: Session,
+        execution_context: ExecutionContext,
+        execution_mode: AgentExecutionMode,
+    ) -> AgentResponse:
+        """Answer every separate request in the message, in order.
+
+        A part that leaves something waiting (a confirmation, a missing detail) stops the
+        sequence; the remaining parts are kept in the conversation checkpoint and run after the
+        turn that finishes it.
+        """
+
         self.reliability_controller.enforce_request_limits(execution_context)
+        reading = read_message(self.reader, message)
+        parts = [request.model_dump() for request in reading.requests]
+        queue = parts[1:] if len(parts) > 1 else None
+        signals: AgentState = {
+            "customer_upset": reading.upset,
+            "issue_explained": reading.explains_issue,
+            "language_requested": reading.reply_language,
+            "status_question": bool(parts[0]["status_question"]),
+            "list_position": _position(parts[0].get("list_position")),
+            "withdraws": reading.withdraws,
+            "asks_memory_summary": reading.asks_memory_summary,
+            "acknowledgement": reading.acknowledgement,
+            "conversation_move": reading.conversation_move,
+        }
+        if reading.conversation_move == "own_name":
+            signals["customer_name"] = _customer_name(session, execution_context)
+        if reading.language in {"english", "turkish"}:
+            # The language this message is written in; kept so "2" or "👍" keep it too.
+            signals["message_language"] = reading.language
+        if reading.reply_language:
+            # A language the customer chose stays chosen until they choose another.
+            signals["reply_language_choice"] = reading.reply_language
+        response, state = self._run_turn(
+            str(parts[0]["text"]),
+            session,
+            execution_context,
+            execution_mode,
+            queue=queue,
+            signals=signals,
+        )
+        replies = [response]
+        for _ in range(MAX_PARTS):
+            if state is None or _waiting(response, state):
+                break
+            pending = _queued_requests(state)
+            if not pending:
+                break
+            response, state = self._run_turn(
+                str(pending[0]["text"]),
+                session,
+                execution_context,
+                execution_mode,
+                queue=pending[1:],
+                signals={
+                    "customer_upset": None,
+                    "issue_explained": None,
+                    "language_requested": None,
+                    "status_question": bool(pending[0].get("status_question")),
+                    "list_position": _position(pending[0].get("list_position")),
+                    "withdraws": False,
+                    "asks_memory_summary": False,
+                    "acknowledgement": False,
+                    "conversation_move": None,
+                },
+            )
+            replies.append(response)
+        if state is not None and _waiting(response, state) and _queued_requests(state):
+            if len(parts) > 1 or len(replies) > 1:
+                response = response.model_copy(
+                    update={"message": f"{response.message}\n\n{_queue_note(response.message)}"}
+                )
+                replies[-1] = response
+        return _combined(replies)
+
+    def _run_turn(
+        self,
+        message: str,
+        session: Session,
+        execution_context: ExecutionContext,
+        execution_mode: AgentExecutionMode,
+        *,
+        queue: list[dict[str, object]] | None,
+        signals: AgentState,
+    ) -> tuple[AgentResponse, AgentState | None]:
+        turn = begin_agent_turn(session, execution_context)
+        if not turn.ai_may_respond:
+            response = _handoff_response(
+                execution_context,
+                turn.owner,
+                execution_mode,
+                turkish=signals.get("message_language") == "turkish"
+                or (
+                    signals.get("message_language") is None
+                    and detect_language(message) == "Turkish"
+                ),
+            )
+            self._record_handoff_projection(session, execution_context, response)
+            return response, None
         conversation_id = execution_context.conversation_id
         customer_id = execution_context.effective_customer_id
         thread_id = checkpoint_thread_id(execution_context)
@@ -207,7 +361,25 @@ class AgentRuntime:
                                 "execution_context": execution_context,
                                 "conversation_id": conversation_id,
                                 "agent_run_id": agent_run_id,
+                                "conversation_ownership_version": turn.version,
+                                "conversation_ai_resumed_at": turn.ai_resumed_at,
                                 "messages": [{"role": "user", "content": message}],
+                                # Per-turn flag; the checkpoint would otherwise carry it over.
+                                "handoff_offered": False,
+                                # What the model read in the message (upset, asked language,
+                                # status question); per turn, like the flag above.
+                                **signals,
+                                # Requests still to answer from an earlier compound message.
+                                **(
+                                    {}
+                                    if queue is None
+                                    else {
+                                        "queued_requests": {
+                                            "requests": queue,
+                                            "ownership_version": turn.version,
+                                        }
+                                    }
+                                ),
                             },
                             config={
                                 "configurable": {
@@ -223,10 +395,40 @@ class AgentRuntime:
                             },
                         ),
                     )
+                    choice = state.get("reply_language_choice") or state.get("message_language")
+                    reply_language = (
+                        _CHOSEN_LANGUAGES[choice]
+                        if choice in _CHOSEN_LANGUAGES
+                        else conversation_language(
+                            [m["content"] for m in state.get("messages", []) if m["role"] == "user"]
+                        )
+                    )
                     response = _response_from_state(
                         state,
                         execution_mode=actual_mode,
                         fallback_message=fallback_message,
+                    )
+                    response = response.model_copy(
+                        update={
+                            "message": localize_reply(
+                                self.localizer,
+                                message,
+                                response.message,
+                                language=reply_language,
+                            )
+                        }
+                    )
+                    response = response.model_copy(
+                        update={
+                            "blocks": _reply_blocks(
+                                session,
+                                execution_context,
+                                customer_id,
+                                state,
+                                response,
+                                reply_language,
+                            )
+                        }
                     )
                     try:
                         view = projection_store.build_view(
@@ -262,7 +464,12 @@ class AgentRuntime:
                     root_span.set_attribute("error.category", response.error_category.value)
                 else:
                     root_span.set_attribute("agent.status", "ok")
-                return response
+                return _apply_current_ownership(
+                    session,
+                    execution_context,
+                    response,
+                    expected_version=state.get("conversation_ownership_version", turn.version),
+                ), state
             except Exception as error:
                 classification = classify_runtime_error(error, source=RuntimeFailureSource.RUNTIME)
                 labels["status"] = "error"
@@ -286,6 +493,43 @@ class AgentRuntime:
                 )
                 if labels["status"] == "error":
                     metric.agent_errors_total.add(1, labels)
+
+    def _record_handoff_projection(
+        self, session: Session, context: ExecutionContext, response: AgentResponse
+    ) -> None:
+        """Keep the response's run ID resolvable; a gated turn stores no message text."""
+
+        try:
+            repository = self.projection_repository_override or (
+                build_agent_run_projection_repository(self.settings, session)
+            )
+            repository.upsert(
+                AgentRunView(
+                    run_id=response.agent_run_id,
+                    request_id=context.request_id,
+                    conversation_id=context.conversation_id,
+                    tenant_id=context.tenant_id,
+                    customer_id=context.effective_customer_id,
+                    actor_id=context.principal.actor_id,
+                    actor_type=context.principal.actor_type.value,
+                    roles=list(context.principal.roles),
+                    intent=response.intent.value,
+                    request_type=response.request_type.value,
+                    status="completed",
+                    started_at=datetime.now(UTC),
+                    duration_ms=0.0,
+                    memory=UIMemoryUsage(item_count=0),
+                    decision_reason=response.decision_reason,
+                    execution_mode=response.execution_mode.value,
+                )
+            )
+        except Exception as error:
+            # The projection is observational and must not fail the customer's turn.
+            session.rollback()
+            logger.warning(
+                "Handoff turn projection persistence failed.",
+                extra={"projection_error_type": type(error).__name__},
+            )
 
     def _provider_for_execution(
         self, requested_mode: AgentExecutionMode
@@ -320,6 +564,151 @@ class AgentRuntime:
             AgentExecutionMode.LIVE_PROPOSAL,
             None,
         )
+
+
+def _handoff_text(turkish: bool) -> str:
+    return HANDOFF_ACKNOWLEDGEMENT_TR if turkish else HANDOFF_ACKNOWLEDGEMENT
+
+
+def _customer_name(session: Session, context: ExecutionContext) -> str | None:
+    """The signed-in customer's own name, within their tenant; None if it can't be read."""
+
+    try:
+        customer = session.get(Customer, context.effective_customer_id)
+    except Exception:  # noqa: BLE001 - the reply says it can't see the name
+        return None
+    if customer is None or customer.tenant_id != context.tenant_id:
+        return None
+    return customer.name
+
+
+def _handoff_response(
+    context: ExecutionContext,
+    owner: ConversationOwner,
+    execution_mode: AgentExecutionMode,
+    *,
+    turkish: bool = False,
+) -> AgentResponse:
+    return AgentResponse(
+        conversation_id=context.conversation_id,
+        agent_run_id=str(uuid4()),
+        message=_handoff_text(turkish),
+        intent=Intent.HUMAN_ESCALATION,
+        request_type=AgentRequestType.ESCALATION,
+        decision_reason="conversation_handoff_active",
+        execution_mode=execution_mode,
+        conversation_owner=owner.value,
+    )
+
+
+def _apply_current_ownership(
+    session: Session,
+    context: ExecutionContext,
+    response: AgentResponse,
+    *,
+    expected_version: int,
+) -> AgentResponse:
+    """Withhold a reply if ownership moved during the run; its projection is already saved."""
+
+    try:
+        owner, version = current_ownership(session, context)
+    except Exception as error:
+        # The business result may already be committed, so this must not become a retryable
+        # failure. Without a confirmed owner the AI reply stays withheld.
+        session.rollback()
+        logger.warning(
+            "Conversation ownership check failed after an agent run (%s).",
+            type(error).__name__,
+            extra={"ownership_error_type": type(error).__name__},
+        )
+        return _withheld_response(response, ConversationOwner.QUEUED)
+    if version != expected_version:
+        return _withheld_response(response, owner)
+    return response.model_copy(update={"conversation_owner": owner.value})
+
+
+def _withheld_response(response: AgentResponse, owner: ConversationOwner) -> AgentResponse:
+    return response.model_copy(
+        update={
+            # The withheld reply was already in the customer's language; the notice follows it.
+            "message": _handoff_text(detect_language(response.message) == "Turkish"),
+            "blocks": [],
+            "decision_reason": "conversation_ownership_changed",
+            "tool_call": None,
+            "pending_action": None,
+            "citations": [],
+            "conversation_owner": owner.value,
+        }
+    )
+
+
+def _waiting(response: AgentResponse, state: AgentState) -> bool:
+    """The reply leaves the customer something to answer, or the AI no longer owns the chat."""
+
+    return (
+        (
+            response.pending_action is not None
+            and response.pending_action.status == PendingActionStatus.PENDING
+        )
+        or bool(state.get("workflow_active"))
+        or response.conversation_owner != ConversationOwner.AI.value
+        or response.decision_reason == "conversation_ownership_changed"
+    )
+
+
+def _position(value: object) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+_CHOSEN_LANGUAGES: dict[object, str | None] = {"english": None, "turkish": "Turkish"}
+
+
+def _queued_requests(state: AgentState) -> list[dict[str, object]]:
+    """Requests left from a compound message; dropped once a person took the conversation."""
+
+    queued = state.get("queued_requests")
+    if not queued or queued.get("ownership_version") != state.get("conversation_ownership_version"):
+        return []
+    return [
+        item if isinstance(item, dict) else {"text": str(item), "status_question": False}
+        for item in queued.get("requests") or []
+    ]
+
+
+def _queue_note(message: str) -> str:
+    if detect_language(message) == "Turkish":
+        return "Bu tamamlanınca diğer isteğinizle de ilgileneceğim."
+    return "Once this is done, I'll take care of your other request too."
+
+
+def _combined(replies: list[AgentResponse]) -> AgentResponse:
+    """One response for the customer; each part stays its own recorded reply."""
+
+    last = replies[-1]
+    if len(replies) == 1:
+        return last
+    earlier = replies[:-1]
+    return last.model_copy(
+        update={
+            "message": "\n\n".join(reply.message for reply in replies),
+            "blocks": [
+                block
+                for reply in earlier
+                for block in reply.blocks
+                if block.type != "quick_replies"
+            ]
+            + list(last.blocks),
+            "citations": [c for reply in replies for c in reply.citations],
+            "earlier_replies": [
+                EarlierReply(
+                    agent_run_id=reply.agent_run_id,
+                    message=reply.message,
+                    decision_reason=reply.decision_reason,
+                )
+                for reply in earlier
+            ],
+        }
+    )
 
 
 def _legacy_execution_context(
@@ -379,6 +768,41 @@ def _resolve_decision_contract(
     # without a declared semantic contract retain the legacy direct contract;
     # the normal settings-built runtime never enters this branch.
     return "direct_tool_v1"
+
+
+def _reply_blocks(
+    session: Session,
+    context: ExecutionContext,
+    customer_id: int,
+    state: AgentState,
+    response: AgentResponse,
+    language: str | None,
+) -> list[ResponseBlock]:
+    """Tables, cards and quick replies for the reply; presentation never fails a run."""
+
+    if response.error_category is not None:
+        return []
+    pending = response.pending_action
+    try:
+        return build_blocks(
+            session,
+            tenant_id=context.tenant_id,
+            customer_id=customer_id,
+            tool_name=state.get("selected_tool"),
+            tool_executed=state.get("tool_execution_status") == "executed",
+            message=response.message,
+            language=language,
+            awaiting_confirmation=pending is not None
+            and pending.status == PendingActionStatus.PENDING,
+            handoff_offered=bool(state.get("handoff_offered")),
+        )
+    except Exception as error:
+        logger.warning(
+            "Reply blocks could not be built (%s).",
+            type(error).__name__,
+            extra={"blocks_error_type": type(error).__name__},
+        )
+        return []
 
 
 def _response_from_state(

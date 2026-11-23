@@ -1,10 +1,12 @@
-import { ArrowDown, CheckCircle2, CircleAlert, Clock3, FileText, LockKeyhole, Network, XCircle } from "lucide-react";
+import { ArrowDown, CheckCircle2, ChevronRight, CircleAlert, Clock3, FileText, LockKeyhole, Network, XCircle } from "lucide-react";
+import { Fragment } from "react";
 import type { AgentRun } from "../types";
 import { formatTraceDuration } from "../data/traceFixtures";
 import "../styles/report-polish.css";
 import { buildTraceStages, type TraceStage } from "./TraceTimeline";
 import { Badge, Card, SectionHeader, StatusIndicator } from "./ui";
 import { deriveRunSemantics } from "./runSemantics";
+import { UI_LOCALE } from "@/lib/utils";
 
 type Tone = "success" | "warning" | "danger" | "neutral";
 
@@ -29,8 +31,9 @@ function executionState(run: AgentRun): string {
   if (semantics.status === "needs_input") return "Not attempted";
   if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
   if (semantics.status === "completed") return "Completed";
-  if (semantics.status === "blocked") return "Prevented";
-  if (semantics.status === "failed_validation") return "Failed validation";
+  if (semantics.status === "failed") return "Failed";
+  if (semantics.status === "blocked") return "Blocked";
+  if (semantics.status === "declined") return "Declined";
   if (semantics.status === "suspended") return "Suspended";
   if (semantics.status === "replaced") return "Replaced";
   if (semantics.status === "replayed") return "Already completed · no repeat";
@@ -63,7 +66,7 @@ function stageStatusLabel(run: AgentRun, stage: TraceStage): string {
 
 function stageTimestamp(stage: TraceStage): string {
   const timestamp = stage.events[0]?.timestamp;
-  return timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded";
+  return timestamp ? new Date(timestamp).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded";
 }
 
 type OperationalEventDefinition = {
@@ -112,7 +115,7 @@ function operationalEvents(run: AgentRun, stages: InvestigationStage[]) {
       evidence: definition.id === "execution" && clarification ? "Required target information missing" : definition.id === "execution" && waiting ? "Confirmation boundary remains unsatisfied" : stage ? eventEvidence(stage) : "No bounded evidence recorded",
       outcome: definition.id === "execution" && clarification ? "Not attempted" : definition.id === "execution" && waiting ? "Awaiting confirmation" : stage ? eventOutcome(stage.status) : "Not recorded",
       status: stage?.status ?? "not_recorded",
-      timestamp: timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded",
+      timestamp: timestamp ? new Date(timestamp).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded",
     };
   });
   const workflowEvents = run.trace
@@ -139,7 +142,7 @@ function operationalEvents(run: AgentRun, stages: InvestigationStage[]) {
         evidence,
         outcome: transition,
         status: "completed" as const,
-        timestamp: event.timestamp ? new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded",
+        timestamp: event.timestamp ? new Date(event.timestamp).toLocaleTimeString(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Timestamp not recorded",
       };
     });
   return [...stageEvents.slice(0, 2), ...workflowEvents, ...stageEvents.slice(2)];
@@ -153,8 +156,9 @@ function investigationOutcome(run: AgentRun): string {
   const semantics = deriveRunSemantics(run);
   if (semantics.status === "needs_input") return "Clarification required";
   if (semantics.status === "waiting_confirmation") return "Awaiting confirmation";
-  if (semantics.status === "blocked") return "Prevented";
-  if (semantics.status === "failed_validation") return "Validation failed";
+  if (semantics.status === "failed") return "Failed";
+  if (semantics.status === "blocked") return "Blocked";
+  if (semantics.status === "declined") return "Declined";
   if (semantics.status === "suspended") return "Suspended";
   if (semantics.status === "replaced") return "Replaced";
   return humanize(run.status);
@@ -163,7 +167,8 @@ function investigationOutcome(run: AgentRun): string {
 function investigationTone(run: AgentRun): Tone {
   const status = deriveRunSemantics(run).status;
   if (status === "needs_input" || status === "waiting_confirmation") return "warning";
-  if (status === "blocked" || status === "failed_validation") return "danger";
+  if (status === "failed") return "danger";
+  if (status === "blocked") return "warning";
   if (status === "completed") return "success";
   return "neutral";
 }
@@ -183,7 +188,7 @@ export function DecisionLifecycleSummary({ run }: { run: AgentRun }) {
 
 export function TraceInvestigationHeader({ run }: { run: AgentRun }) {
   const duration = run.duration_ms > 0 ? `${run.duration_ms.toFixed(0)} ms` : run.run_id.startsWith("demo-") ? "Not applicable" : "Not recorded";
-  return <section className="trace-investigation-header surface" aria-label="Trace investigation header"><div className="flex flex-wrap items-start justify-between gap-5"><div><div className="eyebrow">Runs & traces · investigation</div><h2 className="mt-2 text-xl font-semibold tracking-tight text-main">Trace investigation</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Follow the bounded operational path from request to authority. This surface does not expose hidden reasoning.</p></div><StatusIndicator label={investigationOutcome(run)} tone={investigationTone(run)} /></div><div className="trace-investigation-id"><span>Trace ID</span><strong>{run.trace_id ?? "Not recorded"}</strong><Badge tone="neutral">Operator projection</Badge></div><div className="trace-investigation-summary"><div><span>Scenario</span><strong>{humanize(run.intent || run.request_type)}</strong></div><div><span>Status</span><strong>{statusLabel(run)}</strong></div><div><span>Evidence</span><strong>{evidenceCount(run)} sources collected</strong></div><div><span>Outcome</span><strong>{investigationOutcome(run)}</strong></div><div><span>Duration</span><strong>{duration}</strong></div><div><span>Execution</span><strong>{executionState(run)}</strong></div><div><span>Authority</span><strong>{authorityState(run)}</strong></div></div></section>;
+  return <section className="trace-investigation-header surface" aria-label="Trace investigation header"><div className="flex flex-wrap items-start justify-between gap-5"><div><div className="eyebrow">Runs & traces · investigation</div><h2 className="mt-2 text-xl font-semibold tracking-tight text-main">Trace investigation</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Follow the bounded operational path from request to authority. This surface does not expose hidden reasoning.</p></div><StatusIndicator label={investigationOutcome(run)} tone={investigationTone(run)} /></div><div className="trace-investigation-id"><span>Trace ID</span><strong>{run.trace_id ?? "Not recorded"}</strong><Badge tone="neutral">Operator projection</Badge></div><div className="trace-investigation-summary"><div><span>Scenario</span><strong>{humanize(run.intent || run.request_type)}</strong></div><div><span>Status</span><strong>{statusLabel(run)}</strong></div><div><span>Evidence</span><strong>{evidenceCount(run)} sources collected</strong></div><div><span>Outcome</span><strong>{investigationOutcome(run)}</strong></div><div><span>Duration</span><strong>{duration}</strong></div><div><span>Execution</span><strong>{executionState(run)}</strong></div><div><span>Authority</span><strong>{authorityState(run)}</strong></div></div></section>;
 }
 
 type InvestigationStage = {
@@ -248,7 +253,7 @@ export function DecisionExplanationCard({ run }: { run: AgentRun }) {
     : run.evidence.write_outcome.status === "blocked"
     ? [run.decision_reason ?? "Deterministic controls prevented execution"]
     : [];
-  const renderChecks = (checks: Array<{ label: string; pass: boolean }>) => checks.map((check) => <div className="decision-explanation-check" key={check.label}><span className={check.pass ? "text-success" : "text-muted"}>{check.pass ? <CheckCircle2 size={14} aria-hidden="true" /> : <CircleAlert size={14} aria-hidden="true" />}</span><span>{check.label}</span></div>);
+  const renderChecks = (checks: Array<{ label: string; pass: boolean }>) => checks.map((check) => <div className="decision-explanation-check" key={check.label}><span className={check.pass ? "text-success" : "text-muted-foreground"}>{check.pass ? <CheckCircle2 size={14} aria-hidden="true" /> : <CircleAlert size={14} aria-hidden="true" />}</span><span>{check.label}</span></div>);
   const authorityReason = policy?.outcome === "deny"
     ? "Execution was not granted because deterministic policy controls rejected the request."
     : run.evidence.confirmation.required || run.status === "waiting_confirmation"
@@ -261,14 +266,90 @@ export function DecisionExplanationCard({ run }: { run: AgentRun }) {
   return <Card as="section" className="decision-explanation-card p-5" aria-label="Decision explanation"><SectionHeader eyebrow="Deterministic explanation" title="Why this decision?" description="Only bounded validation and policy outcomes are shown; model reasoning is excluded." action={<Badge tone={policy?.outcome === "deny" ? "danger" : "warning"}>{decision}</Badge>} /><div className="decision-explanation-result"><div><span>Decision</span><strong>{decision}</strong></div><div><span>Required next step</span><strong>{blocking[0] ?? "No additional step recorded"}</strong></div></div><div className="decision-explanation-columns"><div><h3><CheckCircle2 size={14} aria-hidden="true" />Evidence · Satisfied checks</h3>{renderChecks(evidenceChecks)}</div><div><h3><CheckCircle2 size={14} aria-hidden="true" />Controls</h3>{renderChecks(controlChecks)}</div></div><div className="decision-explanation-authority"><h3><LockKeyhole size={14} aria-hidden="true" />Authority</h3><p>{authorityReason}</p>{blocking.length > 0 && <div className="decision-explanation-blocking"><XCircle size={14} aria-hidden="true" /><span>{blocking[0]}</span></div>}</div></Card>;
 }
 
+type FlowTone = "neutral" | "warning" | "info" | "success" | "danger";
+type FlowNode = { label: string; owner: string; evidence: string; authority: string; tone: FlowTone };
+
+const flowToneClass: Record<FlowTone, string> = {
+  neutral: "bg-muted text-muted-foreground",
+  warning: "bg-warning/12 text-warning",
+  info: "bg-info/12 text-info",
+  success: "bg-success/12 text-success",
+  danger: "bg-danger/12 text-danger",
+};
+
+function FlowCard({ node, compact = false }: { node: FlowNode; compact?: boolean }) {
+  return (
+    <div className={`grid min-w-0 gap-1.5 rounded-lg border border-border bg-background ${compact ? "px-3 py-2" : "px-3 py-2.5"}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <strong className="truncate text-sm font-medium text-foreground">{node.label}</strong>
+        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{node.evidence}</span>
+      </div>
+      <span className="truncate text-xs text-muted-foreground">{node.owner}</span>
+      <span className={`w-fit rounded px-1.5 py-0.5 text-[11px] leading-4 ${flowToneClass[node.tone]}`}>{node.authority}</span>
+    </div>
+  );
+}
+
+function FlowConnector() {
+  return (
+    <div className="flex items-center justify-center text-muted-foreground/60 lg:pt-5" aria-hidden="true">
+      <ChevronRight className="hidden size-4 lg:block" />
+      <ArrowDown className="size-4 lg:hidden" />
+    </div>
+  );
+}
+
 export function EvidenceRelationshipGraph({ run }: { run: AgentRun }) {
   const memoryCount = run.memory.items_used ?? run.memory.retrieved_count ?? run.memory.item_count;
   const ragCount = run.rag_documents.length;
   const proposalCount = run.proposal ? 1 : 0;
   const policyCount = run.policy.length;
   const execution = executionState(run);
-  const node = (label: string, owner: string, type: string, count: string, authority: string, tone: string) => <div className={`evidence-relationship-node evidence-relationship-${tone}`}><strong>{label}</strong><span>{owner}</span><small>Type · {type}</small><small>Evidence · {count}</small><small>Authority · {authority}</small></div>;
-  return <Card as="section" className="p-5" aria-label="Evidence relationship graph"><SectionHeader eyebrow="Evidence relationships" title="Information flow and authority" description="Each node is a bounded projection with an explicit owner and authority boundary." /><div className="evidence-relationship-graph"><div className="evidence-relationship-step">{node("Customer request", "Request gateway", "Input", "1 item", "Input only", "input")}<ArrowDown className="evidence-relationship-arrow" size={14} aria-hidden="true" /></div><div className="evidence-relationship-step evidence-relationship-context-group">{node("Context sources", "Context layer", "Supporting evidence", `${memoryCount + ragCount} item${memoryCount + ragCount === 1 ? "" : "s"}`, "No execution authority", "context")}<div className="evidence-relationship-branches"><div>{node("Memory evidence", "Context layer", "Customer state", `${memoryCount} item${memoryCount === 1 ? "" : "s"}`, "No execution authority", "context")}<span className="evidence-relationship-branch-label">Context only</span></div><div>{node("RAG evidence", "Context layer", "Knowledge source", `${ragCount} source${ragCount === 1 ? "" : "s"}`, "No execution authority", "context")}<span className="evidence-relationship-branch-label">Grounding only</span></div></div><ArrowDown className="evidence-relationship-arrow" size={14} aria-hidden="true" /></div><div className="evidence-relationship-step">{node("LLM proposal", "Model layer", "Untrusted suggestion", `${proposalCount} proposal`, "Suggestion only", "proposal")}<ArrowDown className="evidence-relationship-arrow" size={14} aria-hidden="true" /></div><div className="evidence-relationship-step">{node("Decision compiler", "Control plane", "Deterministic validation", `${policyCount} check${policyCount === 1 ? "" : "s"}`, "Decision owner", "decision")}<ArrowDown className="evidence-relationship-arrow" size={14} aria-hidden="true" /></div><div className="evidence-relationship-step">{node("Policy / confirmation gate", "Control plane", "Control boundary", `${policyCount} policy result${policyCount === 1 ? "" : "s"}`, "Confirmation required", "decision")}<ArrowDown className="evidence-relationship-arrow" size={14} aria-hidden="true" /></div><div className="evidence-relationship-step">{node("Authority outcome", "Execution layer", "Runtime boundary", execution, "Controlled effects only", "authority")}</div></div><div className="evidence-relationship-note"><Network size={15} aria-hidden="true" /><span>Authority boundary remains system-owned. Memory informs. RAG grounds. The model proposes. Deterministic systems decide. Runtime authority remains controlled.</span></div></Card>;
+  const outcomeTone: FlowTone = execution === "Completed" ? "success" : execution === "Failed" ? "danger" : execution === "Blocked" ? "warning" : execution === "Awaiting confirmation" ? "warning" : "neutral";
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+  const stages: { title: string; nodes: FlowNode[] }[] = [
+    { title: "Input", nodes: [{ label: "Customer request", owner: "Request gateway", evidence: "1", authority: "Input only", tone: "neutral" }] },
+    { title: "Context", nodes: [
+      { label: "Memory evidence", owner: "Customer state", evidence: String(memoryCount), authority: "Context only", tone: "neutral" },
+      { label: "RAG evidence", owner: "Knowledge source", evidence: String(ragCount), authority: "Grounding only", tone: "neutral" },
+    ] },
+    { title: "Model", nodes: [{ label: "LLM proposal", owner: "Untrusted suggestion", evidence: String(proposalCount), authority: "Suggestion only", tone: "warning" }] },
+    { title: "Control plane", nodes: [
+      { label: "Decision compiler", owner: "Deterministic validation", evidence: String(policyCount), authority: "Decision owner", tone: "info" },
+      { label: "Policy gate", owner: "Confirmation boundary", evidence: String(policyCount), authority: run.evidence.confirmation.required ? "Confirmation required" : "Policy authority", tone: "info" },
+    ] },
+    { title: "Outcome", nodes: [{ label: "Authority outcome", owner: "Execution layer", evidence: "", authority: execution, tone: outcomeTone }] },
+  ];
+
+  return (
+    <section className="min-w-0 rounded-xl border border-border bg-card" aria-label="Evidence relationship graph">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border px-5 py-3">
+        <div className="grid gap-0.5">
+          <span className="text-xs text-muted-foreground">Evidence relationships</span>
+          <h2 className="text-sm font-medium text-foreground">Information flow and authority</h2>
+        </div>
+        <span className="text-xs text-muted-foreground">{plural(memoryCount + ragCount, "context item")} · {plural(policyCount, "policy result")}</span>
+      </div>
+      <div className="grid gap-2 p-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
+        {stages.map((stage, index) => (
+          <Fragment key={stage.title}>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="px-0.5 text-[11px] leading-4 text-muted-foreground">{stage.title}</span>
+              <div className={`grid flex-1 content-center gap-1.5 ${stage.nodes.length > 1 ? "sm:grid-cols-2 lg:grid-cols-1" : ""}`}>
+                {stage.nodes.map((node) => <FlowCard key={node.label} node={node} compact={stage.nodes.length > 1} />)}
+              </div>
+            </div>
+            {index < stages.length - 1 && <FlowConnector />}
+          </Fragment>
+        ))}
+      </div>
+      <p className="flex items-start gap-2 border-t border-border px-5 py-3 text-xs leading-5 text-muted-foreground">
+        <Network className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <span>Authority boundary stays system-owned. Memory informs, RAG grounds, the model proposes, and deterministic controls decide what may run.</span>
+      </p>
+    </section>
+  );
 }
 
 export function InvestigationReportModal({ run, onClose, onExport }: { run: AgentRun; onClose: () => void; onExport: () => void }) {
@@ -281,5 +362,5 @@ export function InvestigationReportModal({ run, onClose, onExport }: { run: Agen
     : clarificationRequired(run)
     ? "Clarification required · required target information is missing"
     : run.decision_reason ?? "No deterministic decision reason was emitted.";
-  return <div className="trace-report-backdrop" role="presentation" onClick={onClose}><section className="trace-report-modal" role="dialog" aria-modal="true" aria-labelledby="trace-report-title" onClick={(event) => event.stopPropagation()}><div className="trace-report-header"><div><div className="eyebrow">Agent run report · read-only investigation</div><h2 id="trace-report-title">Agent Investigation Report</h2><p>Bounded operational evidence for engineering review. No runtime action is available here.</p></div><button type="button" className="showcase-report-close" onClick={onClose} aria-label="Close report">×</button></div><div className="trace-report-overview"><div><span>Run ID</span><strong className="whitespace-normal break-words overflow-visible">{run.run_id}</strong></div><div><span>Scenario</span><strong className="whitespace-normal break-words overflow-visible">{humanize(run.intent || run.request_type)}</strong></div><div><span>Timestamp</span><strong className="whitespace-normal break-words overflow-visible">{new Date(run.started_at).toLocaleString()}</strong></div><div><span>Status</span><strong className="whitespace-normal break-words overflow-visible">{statusLabel(run)}</strong></div><div><span>Outcome</span><strong className="whitespace-normal break-words overflow-visible">{investigationOutcome(run)}</strong></div></div><div className="trace-report-decision"><div><span>Evidence collected</span><strong className="whitespace-normal break-words overflow-visible">{evidenceCount} sources</strong></div><div><span>Decision</span><strong className="whitespace-normal break-words overflow-visible">{humanize(policy?.outcome ?? run.evidence.compiler.status)}</strong></div><div><span>Authority</span><strong className="whitespace-normal break-words overflow-visible">{authorityState(run)}</strong></div><div><span>Outcome</span><strong className="whitespace-normal break-words overflow-visible">{executionState(run)}</strong></div></div><div className="trace-report-sections"><section><h3>Evidence available</h3><p>Customer context · {memoryCount} bounded memory item{memoryCount === 1 ? "" : "s"} · {run.rag_documents.length} RAG source{run.rag_documents.length === 1 ? "" : "s"} · {run.proposal ? "proposal recorded" : "proposal not recorded"}</p><div className="trace-report-evidence-list"><span>Customer context · bounded request projection</span><span>Memory snapshot · {memoryCount ? "available" : "not recorded"}</span><span>RAG policy source · {run.rag_documents[0]?.title ?? "not recorded"}</span></div></section><section><h3>Deterministic decision</h3>{checks.map((check) => <p className="trace-report-check" key={check}>✓ {check}</p>)}<p>{decisionText}</p></section><section><h3>Authority</h3><p>{authorityState(run)}. Permission remains system-owned and is not granted by the model proposal.</p></section><section><h3>Outcome</h3><p>{clarificationRequired(run) ? "Clarification required; execution was not attempted." : `${investigationOutcome(run)} · ${executionState(run)}.`}</p></section></div><div className="trace-report-footer"><Badge tone="neutral">No hidden reasoning · no model tokens</Badge><div className="flex flex-wrap gap-2"><button type="button" className="operator-action" onClick={onExport}>Export bounded HTML</button><button type="button" className="showcase-report-secondary" onClick={onClose}>Close</button></div></div></section></div>;
+  return <div className="trace-report-backdrop" role="presentation" onClick={onClose}><section className="trace-report-modal" role="dialog" aria-modal="true" aria-labelledby="trace-report-title" onClick={(event) => event.stopPropagation()}><div className="trace-report-header"><div><div className="eyebrow">Agent run report · read-only investigation</div><h2 id="trace-report-title">Agent Investigation Report</h2><p>Bounded operational evidence for engineering review. No runtime action is available here.</p></div><button type="button" className="showcase-report-close" onClick={onClose} aria-label="Close report">×</button></div><div className="trace-report-overview"><div><span>Run ID</span><strong className="whitespace-normal wrap-break-word overflow-visible">{run.run_id}</strong></div><div><span>Scenario</span><strong className="whitespace-normal wrap-break-word overflow-visible">{humanize(run.intent || run.request_type)}</strong></div><div><span>Timestamp</span><strong className="whitespace-normal wrap-break-word overflow-visible">{new Date(run.started_at).toLocaleString(UI_LOCALE)}</strong></div><div><span>Status</span><strong className="whitespace-normal wrap-break-word overflow-visible">{statusLabel(run)}</strong></div><div><span>Outcome</span><strong className="whitespace-normal wrap-break-word overflow-visible">{investigationOutcome(run)}</strong></div></div><div className="trace-report-decision"><div><span>Evidence collected</span><strong className="whitespace-normal wrap-break-word overflow-visible">{evidenceCount} sources</strong></div><div><span>Decision</span><strong className="whitespace-normal wrap-break-word overflow-visible">{humanize(policy?.outcome ?? run.evidence.compiler.status)}</strong></div><div><span>Authority</span><strong className="whitespace-normal wrap-break-word overflow-visible">{authorityState(run)}</strong></div><div><span>Outcome</span><strong className="whitespace-normal wrap-break-word overflow-visible">{executionState(run)}</strong></div></div><div className="trace-report-sections"><section><h3>Evidence available</h3><p>Customer context · {memoryCount} bounded memory item{memoryCount === 1 ? "" : "s"} · {run.rag_documents.length} RAG source{run.rag_documents.length === 1 ? "" : "s"} · {run.proposal ? "proposal recorded" : "proposal not recorded"}</p><div className="trace-report-evidence-list"><span>Customer context · bounded request projection</span><span>Memory snapshot · {memoryCount ? "available" : "not recorded"}</span><span>RAG policy source · {run.rag_documents[0]?.title ?? "not recorded"}</span></div></section><section><h3>Deterministic decision</h3>{checks.map((check) => <p className="trace-report-check" key={check}>✓ {check}</p>)}<p>{decisionText}</p></section><section><h3>Authority</h3><p>{authorityState(run)}. Permission remains system-owned and is not granted by the model proposal.</p></section><section><h3>Outcome</h3><p>{clarificationRequired(run) ? "Clarification required; execution was not attempted." : `${investigationOutcome(run)} · ${executionState(run)}.`}</p></section></div><div className="trace-report-footer"><Badge tone="neutral">No hidden reasoning · no model tokens</Badge><div className="flex flex-wrap gap-2"><button type="button" className="operator-action" onClick={onExport}>Export bounded HTML</button><button type="button" className="showcase-report-secondary" onClick={onClose}>Close</button></div></div></section></div>;
 }

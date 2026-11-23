@@ -31,6 +31,8 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app scripts ./scripts
+# Scenario library and isolated worker for console simulations (scripted, no provider calls).
+COPY --chown=app:app evaluation ./evaluation
 
 USER app
 

@@ -136,3 +136,31 @@ def _context() -> ExecutionContext:
         ),
         effective_customer_id=1,
     )
+
+
+_LISTING = "You have 2 orders: #1: delivered, $149.99; #2: shipped, $39.50."
+
+
+def test_ordinal_read_resolves_against_the_listed_orders() -> None:
+    lookup = _decision(Intent.ORDER_LOOKUP, SemanticTarget(type="explicit_order", order_id=2))
+    assert (
+        validate_semantic_grounding(lookup, "Where is the second one?", _LISTING).trusted_source
+        == "previous_reply_listing"
+    )
+    assert validate_semantic_grounding(lookup, "İkincisi nerede?", _LISTING).status == (
+        GroundingStatus.GROUNDED
+    )
+    wrong = _decision(Intent.ORDER_LOOKUP, SemanticTarget(type="explicit_order", order_id=1))
+    assert validate_semantic_grounding(wrong, "Where is the second one?", _LISTING).status == (
+        GroundingStatus.UNGROUNDED
+    )
+    assert validate_semantic_grounding(lookup, "Where is the second one?", "").status == (
+        GroundingStatus.UNGROUNDED
+    )
+
+
+def test_ordinal_reference_never_grounds_a_write() -> None:
+    cancel = _decision(Intent.ORDER_CANCEL, SemanticTarget(type="explicit_order", order_id=2))
+    assert validate_semantic_grounding(cancel, "Cancel the second one.", _LISTING).status == (
+        GroundingStatus.UNGROUNDED
+    )

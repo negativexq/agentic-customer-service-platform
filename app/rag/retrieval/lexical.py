@@ -96,6 +96,9 @@ class LexicalIndex:
         )
 
 
+METADATA_PRECISION = 12
+
+
 def build_lexical_index(chunks: Sequence[DocumentChunk]) -> LexicalIndex:
     documents = [_tokens(chunk.content) for chunk in chunks]
     document_count = len(documents)
@@ -103,11 +106,15 @@ def build_lexical_index(chunks: Sequence[DocumentChunk]) -> LexicalIndex:
         raise ValueError("At least one knowledge chunk is required for lexical indexing.")
     document_frequency = Counter(token for tokens in documents for token in set(tokens))
     vocabulary = {token: index for index, token in enumerate(sorted(document_frequency), start=1)}
+    # Rounded so the values survive Qdrant's JSON metadata round trip bit-for-bit; full
+    # double precision can come back with a different last digit and break provenance hashes.
     inverse_document_frequency = {
-        token: math.log((document_count + 1) / (frequency + 1)) + 1.0
+        token: round(math.log((document_count + 1) / (frequency + 1)) + 1.0, METADATA_PRECISION)
         for token, frequency in document_frequency.items()
     }
-    average_document_length = sum(len(tokens) for tokens in documents) / document_count
+    average_document_length = round(
+        sum(len(tokens) for tokens in documents) / document_count, METADATA_PRECISION
+    )
     return LexicalIndex(
         vocabulary=vocabulary,
         inverse_document_frequency=inverse_document_frequency,

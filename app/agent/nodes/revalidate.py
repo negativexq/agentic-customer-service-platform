@@ -204,7 +204,7 @@ def _revalidate_action(
                 RequestRefundInput.model_validate(arguments),
                 tenant_id=context.tenant_id,
             )
-        else:
+        elif not _confirmable_without_state_check(action.tool_name):
             policy_span.set_attribute("policy.outcome", "deny")
             trace_fields["policy_revalidation_result"] = "unsupported_revalidation_tool"
             return _failed(
@@ -247,6 +247,18 @@ def _revalidate_action(
         trace_fields["policy_revalidation_stage"] = "business_state_validation"
         trace_fields["policy_revalidation_result"] = error_category(error).value
         return _failed(state, error_category(error), str(error), **trace_fields)
+
+
+def _confirmable_without_state_check(tool_name: str) -> bool:
+    """Low-risk writes an operator put in confirm mode have no business-state precondition.
+
+    Policy, ownership, and unchanged inputs were re-checked above, which is the whole
+    revalidation such a tool needs.
+    """
+
+    from app.agent_config.schemas import ActionMode, allowed_action_modes
+
+    return ActionMode.CONFIRM in allowed_action_modes(tool_name)
 
 
 def _failed(

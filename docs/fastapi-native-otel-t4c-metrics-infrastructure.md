@@ -25,12 +25,12 @@ Prometheus UI/API is bound to `127.0.0.1:${PROMETHEUS_PORT:-9090}`. There is no 
 
 | Service | Version | Multi-platform manifest digest |
 |---|---|---|
-| `otel/opentelemetry-collector-contrib` | `0.164.0` | `sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b` |
+| `otel/opentelemetry-collector-contrib` | `0.165.0` | `sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea` |
 | `prom/prometheus` | `v3.15.1` | `sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2` |
 
 Both pinned manifests provide linux/amd64 and linux/arm64 images. The original T4C selection was Collector 0.161.0 / Prometheus 3.15.0. PR #15 updates these to security-patched releases built with Go 1.26.10 / 1.27.3 and updated certificate bundles; both address the Go runtime vulnerabilities reported by the image security gate. Configuration is validated with the selected binaries, not inferred from moving documentation. Historical T4D evidence records the versions used at the time.
 
-Relevant official sources: [Collector 0.164.0 release](https://github.com/open-telemetry/opentelemetry-collector-releases/releases/tag/v0.164.0), [Prometheus 3.15.1 release](https://github.com/prometheus/prometheus/releases/tag/v3.15.1), [tagged Prometheus exporter configuration](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.161.0/exporter/prometheusexporter/config.go), [tagged batch processor](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.161.0/processor/batchprocessor/README.md).
+Relevant official sources: [Collector 0.165.0 release](https://github.com/open-telemetry/opentelemetry-collector-releases/releases/tag/v0.165.0), [Prometheus 3.15.1 release](https://github.com/prometheus/prometheus/releases/tag/v3.15.1), [tagged Prometheus exporter configuration](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.161.0/exporter/prometheusexporter/config.go), [tagged batch processor](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.161.0/processor/batchprocessor/README.md).
 
 ## Resource, privacy and durability boundaries
 

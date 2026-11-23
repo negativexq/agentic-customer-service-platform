@@ -123,8 +123,8 @@ def context() -> ExecutionContext:
             proposal(Intent.HUMAN_ESCALATION, reason="need help"),
             "Escalate",
             "escalation_details_required",
-            ["priority", "summary"],
-            ["priority", "summary"],
+            ["summary"],
+            ["summary"],
         ),
         (
             proposal(Intent.HUMAN_ESCALATION, priority="high", summary="Assistance"),

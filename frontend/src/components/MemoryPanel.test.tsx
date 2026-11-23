@@ -37,7 +37,7 @@ describe("MemoryPanel", () => {
     expect(html).toContain("response_style");
     expect(html).toContain("user explicit");
     expect(html).toContain("2027-01-20T00:00:00.000Z");
-    expect(html).toContain("Memory content is intentionally hidden");
+    expect(html).toContain("restricted data is never kept");
     expect(html).toContain("Decision impact");
     expect(html).toContain("context only");
     expect(html).toContain("No impact");

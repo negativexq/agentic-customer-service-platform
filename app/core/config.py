@@ -23,6 +23,7 @@ class LLMProvider(StrEnum):
 
 LLMReasoningEffort = Literal["none", "low", "medium", "high"]
 LLMStructuredOutputMode = Literal["schema", "function_calling"]
+LLMApi = Literal["chat_completions", "responses"]
 DecisionContractVersion = Literal["direct_tool_v1", "semantic_decision_v2", "semantic_decision_v3"]
 
 
@@ -41,6 +42,8 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     llm_reasoning_effort: LLMReasoningEffort | None = None
+    # Some reasoning models accept function tools with reasoning only on the Responses API.
+    llm_api: LLMApi = "chat_completions"
     llm_structured_output_mode: LLMStructuredOutputMode = "schema"
     agent_decision_contract_version: DecisionContractVersion = "semantic_decision_v3"
     llm_connect_timeout_seconds: float = Field(default=5.0, gt=0.0)
@@ -53,6 +56,20 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = Field(default=32, gt=0)
     embedding_base_url: str | None = None
+    # Matryoshka models (for example qwen3-embedding) can truncate to a smaller size on request.
+    embedding_output_dimension: int | None = Field(default=None, gt=0)
+    # Instruction-tuned embedders expect queries (not documents) to carry a task prefix.
+    embedding_query_instruction: str = ""
+
+    @field_validator(
+        "embedding_output_dimension", "embedding_base_url", "embedding_api_key", mode="before"
+    )
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        """Compose passes unset variables as empty strings."""
+
+        return None if value == "" else value
+
     embedding_api_key: SecretStr | None = None
     embedding_connect_timeout_seconds: float = Field(default=5.0, gt=0.0)
     embedding_timeout_seconds: float = Field(default=30.0, gt=0.0)
@@ -76,6 +93,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_metrics_endpoint: str = ""
     otel_metric_export_interval_millis: int = Field(default=15000, ge=1000, le=300000)
     otel_metric_export_timeout_millis: int = Field(default=5000, ge=1, le=30000)
+    conversation_message_ttl_days: int = Field(default=365, gt=0, le=3650)
     memory_enabled: bool = True
     memory_max_context_items: int = Field(default=5, gt=0, le=20)
     memory_default_ttl_days: int = Field(default=365, ge=0)
@@ -106,6 +124,7 @@ class Settings(BaseSettings):
     auth_mode: AuthenticationMode = AuthenticationMode.DISABLED
     local_demo_auth_token: SecretStr | None = None
     local_demo_actor_id: str = Field(default="operator-local-demo", min_length=1, max_length=200)
+    local_demo_operator_name: str = Field(default="Demo operator", min_length=1, max_length=200)
     auth_tokens_json: SecretStr = SecretStr("{}")
     oidc_issuer: str | None = Field(default=None, min_length=1, max_length=500)
     oidc_audience: str | None = Field(default=None, min_length=1, max_length=500)
@@ -117,6 +136,11 @@ class Settings(BaseSettings):
     oidc_customer_scope_claim: str = Field(default="customer_ids", min_length=1, max_length=100)
     oidc_email_claim: str = Field(default="email", min_length=1, max_length=100)
     oidc_support_role: str = Field(default="support_operator", min_length=1, max_length=100)
+    oidc_name_claim: str = Field(default="name", min_length=1, max_length=100)
+    oidc_support_tenant_wide_role: str | None = Field(default=None, min_length=1, max_length=100)
+    # When set, changing agent configuration or knowledge requires this role in addition to
+    # support_operator. Unset keeps every support operator able to edit (demo default).
+    studio_editor_role: str | None = Field(default=None, min_length=1, max_length=100)
     oidc_customer_role: str = Field(default="customer", min_length=1, max_length=100)
     oidc_service_role: str = Field(default="service", min_length=1, max_length=100)
     oidc_require_tenant: bool = True

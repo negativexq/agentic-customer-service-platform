@@ -1,0 +1,86 @@
+"""When a customer asks for a person: offer to help once, or connect them straight away.
+
+Customers should never be kept from a person. The assistant offers help a single time and
+only for a bare request with nothing behind it: a repeated request, frustrated wording, a
+sensitive matter (the decision marks those high or urgent priority), a message that already
+says what the customer needs help with, or one no model could read all hand off at once.
+"""
+
+from app.agent.state import AgentState
+from app.agent_config.context import current_agent_config
+
+_OFFER_OPENING = "I can connect you with a member of our support team."
+HANDOFF_OFFER_MESSAGE = (
+    _OFFER_OPENING + " If you tell me what it's about, "
+    "I'll try to sort it out right away or make sure it reaches the right person. "
+    "If you'd rather talk to someone now, just say so and I'll connect you."
+)
+
+URGENT_PRIORITIES = frozenset({"high", "urgent"})
+
+# Sent alongside the pinned system prompt, so the decision marks which requests may not wait.
+HANDOFF_PRIORITY_PROMPT = (
+    "HAND-OFF PRIORITY: when you return human_escalation, a plain request to speak with a "
+    "person is priority medium. Use high or urgent only for sensitive matters (an "
+    "unrecognized, unauthorized, or disputed charge; legal, safety, or account-security "
+    "concerns) or when the customer is clearly upset. When the customer asks for a person and "
+    "says what it is about in the same message, return human_escalation with that issue as the "
+    "reason and summary, not the issue's own intent. After the assistant offered to help "
+    "first: if the customer's latest message explains their issue, handle that issue with its "
+    "own intent (for example shipping_policy or order_lookup) instead of human_escalation; "
+    "return human_escalation only if they again ask for a person or accept being connected."
+)
+
+# Wording that shows the customer is already upset. Asking for a person is not on this
+# list: that request alone is what the offer answers.
+FRUSTRATION_MARKERS = (
+    "useless",
+    "not helpful",
+    "ridiculous",
+    "terrible",
+    "frustrat",
+    "angry",
+    "furious",
+    "waste of time",
+    "fed up",
+    "unacceptable",
+    "this is wrong",
+    "doesn't work",
+    "does not work",
+    "again and again",
+    "rezalet",
+    "saçma",
+    "işe yaramıyor",
+)
+
+
+def customer_upset(state: AgentState, text: str) -> bool:
+    """The model's reading when there is one; the fixed phrases only when no model read it."""
+
+    upset = state.get("customer_upset")
+    if upset is not None:
+        return bool(upset)
+    return any(marker in text.casefold() for marker in FRUSTRATION_MARKERS)
+
+
+def should_offer_before_handoff(state: AgentState) -> bool:
+    config = current_agent_config()
+    if config is not None and config.handoff == "immediate":
+        return False
+    messages = state.get("messages", [])
+    if any(
+        # Later layers may append to the stored reply, so match on its fixed opening.
+        item["role"] == "assistant" and item["content"].startswith(_OFFER_OPENING)
+        for item in messages
+    ):
+        return False
+    if state.get("issue_explained") is not False:
+        # They already said what it is about, or no model read the message so nobody knows:
+        # offering to help first would only delay them. Only a request the model read as a
+        # bare "can I talk to someone?" gets the offer.
+        return False
+    arguments = state.get("tool_arguments") or {}
+    if str(arguments.get("priority", "")).casefold() in URGENT_PRIORITIES:
+        return False
+    latest = next((item["content"] for item in reversed(messages) if item["role"] == "user"), "")
+    return not customer_upset(state, latest)

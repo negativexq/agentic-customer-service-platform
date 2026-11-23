@@ -1,9 +1,11 @@
 import time
 from collections.abc import Callable
+from datetime import UTC
 
 from app.agent.nodes.workflow_lifecycle import (
     is_interruption_candidate,
     is_resume_request,
+    looks_like_confirmation,
 )
 from app.agent.schemas import AgentErrorCategory
 from app.agent.state import AgentState
@@ -17,6 +19,7 @@ from app.policies.confirmation import (
     transition,
 )
 from app.policies.models import (
+    PendingAction,
     PendingActionStatus,
     PolicyAuditEvent,
     PolicyOutcome,
@@ -94,6 +97,18 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
     current_message = _latest_user_message(state)
     parsed = parse_confirmation(current_message)
     if action is None:
+        suspended = state.get("suspended_workflow")
+        if (
+            parsed == "confirmed"
+            and isinstance(suspended, dict)
+            and suspended.get("pending_action") is not None
+        ):
+            # "Okay, yes, cancel it" after a side question: bring the saved action back and
+            # ask again. Resuming never confirms, so the customer still has to say yes to it.
+            return {
+                "confirmation_status": "resume_suspended",
+                "workflow_resume_source": "explicit_user_resume",
+            }
         if is_resume_request(current_message):
             if state.get("suspended_workflow") is None:
                 return {
@@ -113,7 +128,7 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
             "error_category": AgentErrorCategory.OWNERSHIP_VIOLATION,
         }
     if action.status == PendingActionStatus.PENDING:
-        if is_expired(action, clock.now(), ttl_seconds):
+        if is_expired(action, clock.now(), ttl_seconds) or _predates_ai_resume(action, state):
             return {
                 "pending_action": transition(action, PendingActionStatus.EXPIRED),
                 "confirmation_status": "expired",
@@ -129,7 +144,11 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
                 "confirmation_status": "rejected",
                 "workflow_state": "cancelled",
             }
-        if is_interruption_candidate(current_message):
+        if is_interruption_candidate(current_message) or not looks_like_confirmation(
+            current_message
+        ):
+            # Anything that is not an attempt to answer the confirmation ("thanks, that's
+            # all") is read as a new turn; the pending action stays saved, never executed.
             return {
                 "confirmation_status": "inspect_interruption",
                 "workflow_interruption_pending": True,
@@ -146,6 +165,18 @@ def _check_pending(state: AgentState, clock: Clock, ttl_seconds: int) -> AgentSt
             }
         return {"confirmation_status": "no_pending"}
     return {"confirmation_status": "normal", "pending_action": None}
+
+
+def _predates_ai_resume(action: PendingAction, state: AgentState) -> bool:
+    """A confirmation from before a human handoff must not authorize a write after it."""
+
+    resumed_at = state.get("conversation_ai_resumed_at")
+    if resumed_at is None:
+        return False
+    created_at = action.created_at
+    if created_at.tzinfo is not None:
+        created_at = created_at.astimezone(UTC).replace(tzinfo=None)
+    return created_at <= resumed_at
 
 
 def _latest_user_message(state: AgentState) -> str:

@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_support_operator, resolve_customer_scope
-from app.auth.models import Principal, PrincipalType
+from app.auth.models import Principal
+from app.auth.scope import operator_customer_filter, operator_may_access
 from app.core.config import LLMProvider, get_settings
 from app.core.database import get_db
 from app.health import RuntimeHealthService
+from app.memory.models import MemoryRecord
 from app.memory.service import MemoryService
+from app.models.entities import Conversation, MessageSender
 from app.policies.repository import SqlAlchemyPolicyAuditRepository
+from app.services.conversation_messages import list_messages
 from app.ui.demo import demo_scenarios
 from app.ui.repository import AgentRunProjectionRepository, build_agent_run_projection_repository
 from app.ui.schemas import (
@@ -18,6 +23,9 @@ from app.ui.schemas import (
     RuntimeConfigView,
     SystemComponentHealth,
     SystemHealthView,
+    UIMemoryItem,
+    UIMemoryUsage,
+    UIMessageView,
     UIPolicyEvent,
     UIRagDocument,
     UIToolEvent,
@@ -43,18 +51,23 @@ def demo_scenario_projections() -> list[DemoScenarioView]:
     return demo_scenarios()
 
 
+_MESSAGE_ROLES = {
+    MessageSender.CUSTOMER: "user",
+    MessageSender.AI: "assistant",
+    MessageSender.OPERATOR: "operator",
+    MessageSender.SYSTEM: "system",
+}
+
+
 def _customer_filter(principal: Principal) -> list[int] | None:
-    return principal.customer_ids if principal.principal_type == PrincipalType.OIDC else None
+    return operator_customer_filter(principal)
 
 
 def _run_or_404(
     run_id: str, repository: AgentRunProjectionRepository, principal: Principal
 ) -> AgentRunView:
     run = repository.get_by_run_id(run_id, tenant_id=principal.tenant_id or "default")
-    if run is None or (
-        principal.principal_type == PrincipalType.OIDC
-        and run.customer_id not in principal.customer_ids
-    ):
+    if run is None or not operator_may_access(principal, run.customer_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     return _bounded_operator_view(run)
 
@@ -101,10 +114,26 @@ def conversation(
     if not runs:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     runs = [_bounded_operator_view(run) for run in runs]
+    conversation_row = session.scalar(
+        select(Conversation).where(
+            Conversation.tenant_id == (principal.tenant_id or "default"),
+            Conversation.customer_id == runs[-1].customer_id,
+            Conversation.conversation_id == conversation_id,
+        )
+    )
+    recorded = list_messages(session, conversation_row) if conversation_row is not None else []
     messages = [
-        {"role": "user", "content_available": False},
-        {"role": "assistant", "content_available": False},
-    ] * len(runs)
+        UIMessageView(
+            role=_MESSAGE_ROLES[MessageSender(message.sender_type)],
+            content_available=True,
+            content=message.content,
+        )
+        for message in recorded
+    ] or [
+        UIMessageView(role=role, content_available=False)
+        for _ in runs
+        for role in ("user", "assistant")
+    ]
     return ConversationView(
         conversation_id=conversation_id,
         customer_id=runs[-1].customer_id,
@@ -252,6 +281,61 @@ def traces(
         build_agent_run_projection_repository(get_settings(), session),
         principal,
     ).trace
+
+
+@router.get("/agent-runs/{agent_run_id}/memory", response_model=UIMemoryUsage)
+def agent_run_memory(
+    agent_run_id: str,
+    principal: Principal = Depends(require_support_operator),
+    session: Session = Depends(get_db),
+) -> UIMemoryUsage:
+    """Resolve the run's memory references against the live, governed memory store.
+
+    Deleted, expired, or restricted memories return no content, so retention and deletion
+    apply to the debug view as well.
+    """
+
+    run = _run_or_404(
+        agent_run_id, build_agent_run_projection_repository(get_settings(), session), principal
+    )
+    usage = run.memory
+    items = [*usage.read_items, *([usage.written_item] if usage.written_item else [])]
+    ids = [item.memory_id for item in items if item.memory_id is not None]
+    records = (
+        {
+            record.id: record
+            for record in session.scalars(
+                select(MemoryRecord).where(
+                    MemoryRecord.id.in_(ids),
+                    MemoryRecord.tenant_id == (principal.tenant_id or "default"),
+                    MemoryRecord.customer_id == run.customer_id,
+                )
+            )
+        }
+        if ids
+        else {}
+    )
+
+    def resolve(item: UIMemoryItem) -> UIMemoryItem:
+        record = records.get(item.memory_id) if item.memory_id is not None else None
+        if record is None:
+            return item.model_copy(update={"content": None, "status": "unavailable"})
+        status_value = str(getattr(record.status, "value", record.status))
+        visible = (
+            status_value == "active"
+            and str(getattr(record.sensitivity_level, "value", record.sensitivity_level))
+            != "restricted"
+        )
+        return item.model_copy(
+            update={"content": record.content if visible else None, "status": status_value}
+        )
+
+    return usage.model_copy(
+        update={
+            "read_items": [resolve(item) for item in usage.read_items],
+            "written_item": resolve(usage.written_item) if usage.written_item else None,
+        }
+    )
 
 
 @router.get("/memory/{customer_id}", response_model=list[MemoryView])

@@ -37,6 +37,7 @@ class OIDCConfiguration:
     tenant_claim: str = "tenant_id"
     customer_scope_claim: str = "customer_ids"
     email_claim: str = "email"
+    name_claim: str = "name"
     support_role: str = "support_operator"
     customer_role: str = "customer"
     service_role: str = "service"
@@ -244,6 +245,10 @@ class OIDCAuthenticator:
             actor_type = ActorType.SERVICE
             customer_id = None
 
+        name_value = claims.get(self._configuration.name_claim)
+        display_name = (
+            name_value.strip()[:200] if isinstance(name_value, str) and name_value.strip() else None
+        )
         email_value = claims.get(self._configuration.email_claim)
         email = _required_string(email_value, max_length=320) if email_value is not None else None
         identity_digest = hashlib.sha256(
@@ -256,6 +261,7 @@ class OIDCAuthenticator:
             principal_type=PrincipalType.OIDC,
             subject=subject,
             email=email,
+            display_name=display_name,
             roles=roles,
             groups=groups,
             tenant_id=tenant_id,

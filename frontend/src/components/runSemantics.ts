@@ -4,7 +4,8 @@ export type RunSemanticStatus =
   | "waiting_confirmation"
   | "completed"
   | "blocked"
-  | "failed_validation"
+  | "declined"
+  | "failed"
   | "needs_input"
   | "suspended"
   | "replaced"
@@ -48,9 +49,10 @@ export function deriveRunSemantics(run: AgentRun): RunSemantics {
   else if (waiting) status = "waiting_confirmation";
   else if (projectedDecision === "already_completed" || executionStatus === "not_repeated") status = "replayed";
   else if (executed) status = "completed";
-  else if (failedValidation) status = "failed_validation";
-  else if (denied) status = "blocked";
-  else if (run.status === "error") status = "blocked";
+  // A system fault, a safeguard that stopped the request, or a request that could not be done as asked.
+  else if (run.status === "error") status = "failed";
+  else if (run.status === "declined" || failedValidation) status = "declined";
+  else if (denied || run.status === "blocked") status = "blocked";
 
   return {
     decision: projectedDecision,

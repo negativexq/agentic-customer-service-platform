@@ -1,3 +1,5 @@
+import type { SlaStatus } from "./features/workspace/types";
+
 export type ToolEvent = {
   name: string;
   risk_level: number | null;
@@ -62,7 +64,12 @@ export type AnswerGrounding = {
   accepted: boolean;
 };
 
+export type MemoryItem = { memory_id?: number | null; key: string; memory_type: string; content?: string | null; status?: string | null; source?: string | null; redaction_state?: string | null };
+
 export type MemoryUsage = {
+  read_items?: MemoryItem[];
+  written_item?: MemoryItem | null;
+  write_status?: string | null;
   item_count: number;
   keys: string[];
   types: string[];
@@ -228,6 +235,17 @@ export type RuntimeConfig = {
   live_proposal_available: boolean;
 };
 
+export type OrderRow = { id: number; status: string; total_amount: string | number; created_at: string; refund_status?: string | null };
+export type TicketRow = { id: number; status: string; category: string; order_id?: number | null; created_at: string; description?: string | null };
+export type QuickReply = { label: string; reply: string; tone: "primary" | "neutral" };
+/** Server-built presentation of the same facts as the reply text; never written by the model. */
+export type ReplyBlock =
+  | { type: "orders"; orders: OrderRow[] }
+  | { type: "order"; order: OrderRow }
+  | { type: "tickets"; tickets: TicketRow[] }
+  | { type: "ticket"; ticket: TicketRow }
+  | { type: "quick_replies"; purpose: "confirmation" | "handoff"; replies: QuickReply[] };
+
 export type AgentResponse = {
   conversation_id: string;
   agent_run_id: string;
@@ -258,6 +276,7 @@ export type AgentResponse = {
   fallback_message: string | null;
   proposal?: AgentProposal | null;
   provider_metadata?: ProviderMetadata | null;
+  blocks?: ReplyBlock[];
 };
 
 export type ConversationTurn = {
@@ -284,4 +303,52 @@ export type PlaygroundHistoryItem = {
   run: AgentRun;
   scenario: string;
   orderId: string;
+};
+
+export type ConversationOwner = "ai" | "queued" | "human" | "closed";
+
+export type RecordedMessage = {
+  sequence: number;
+  sender_type: "customer" | "ai" | "operator" | "system";
+  sender_name: string | null;
+  sent_by_me: boolean;
+  content: string;
+  redacted: boolean;
+  agent_run_id: string | null;
+  created_at: string;
+  blocks?: ReplyBlock[];
+};
+
+export type OperatorConversation = {
+  id: number;
+  conversation_id: string;
+  customer_id: number;
+  customer_name: string;
+  owner: ConversationOwner;
+  assigned_to_me: boolean;
+  assignee_name: string | null;
+  ownership_version: number;
+  created_at: string;
+  updated_at: string;
+  last_message: RecordedMessage | null;
+  escalation: { priority: string; reason: string; summary: string; status: string; created_at: string | null } | null;
+  sla?: SlaStatus | null;
+  csat_rating?: number | null;
+};
+
+export type OperatorConversationDetail = OperatorConversation & { messages: RecordedMessage[] };
+
+export type OperatorIdentity = { actor_id: string; display_name: string };
+
+export type OperatorSettings = {
+  actor_id: string;
+  display_name: string;
+  sign_in_method: string;
+  tenant_id: string;
+  roles: string[];
+  customer_scope: "tenant" | "assigned_customers";
+  scoped_customer_count: number | null;
+  message_retention_days: number;
+  memory_retention_days: number;
+  support_context_retention_days: number;
 };

@@ -1,0 +1,13 @@
+# Accepted findings for the pinned metrics infrastructure image scan in CI.
+# Every entry names the image, the reason, and an expiry date: after it the finding fails CI
+# again, so it is reviewed instead of forgotten.
+vulnerabilities:
+  - id: CVE-2026-78661
+    purls:
+      - "pkg:golang/golang.org/x/net"
+    statement: >-
+      prom/prometheus v3.15.1 bundles golang.org/x/net v0.60.0. The fix (0.62.0) is not in any
+      Prometheus release yet; v3.16.0 still ships v0.61.0. The issue is a denial of service in
+      the HTML parser. Prometheus runs only in the optional local metrics profile and does not
+      parse untrusted HTML. Bump Prometheus and remove this entry once a fixed release exists.
+    expired_at: 2027-01-31

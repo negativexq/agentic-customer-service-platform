@@ -10,11 +10,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.entities import AgentRunProjectionRecord
+from app.ui.outcome import normalize_stored_status
 from app.ui.schemas import AgentRunView
 
 DEFAULT_PROJECTION_QUERY_LIMIT = 50
 MAX_PROJECTION_QUERY_LIMIT = 100
 DEFAULT_PROJECTION_MEMORY_LIMIT = 500
+# Analytics reads a time window instead of the last N runs; still bounded.
+MAX_PROJECTION_WINDOW = 5000
 _DECISION_EVIDENCE_KEY = "_operator_decision_evidence"
 _DECISION_REASON_KEY = "_operator_decision_reason"
 _MEMORY_USAGE_KEY = "_operator_memory_usage"
@@ -54,6 +57,14 @@ class AgentRunProjectionRepository(Protocol):
         *,
         tenant_id: str = "default",
         limit: int = DEFAULT_PROJECTION_QUERY_LIMIT,
+        customer_ids: Sequence[int] | None = None,
+    ) -> list[AgentRunView]: ...
+
+    def list_window(
+        self,
+        *,
+        tenant_id: str = "default",
+        since: datetime,
         customer_ids: Sequence[int] | None = None,
     ) -> list[AgentRunView]: ...
 
@@ -108,6 +119,25 @@ class InMemoryAgentRunProjectionRepository:
                 ],
                 limit,
             )
+
+    def list_window(
+        self,
+        *,
+        tenant_id: str = "default",
+        since: datetime,
+        customer_ids: Sequence[int] | None = None,
+    ) -> list[AgentRunView]:
+        boundary = since.replace(tzinfo=None)
+        with self._lock:
+            items = [
+                item
+                for item in self._projections.values()
+                if item.tenant_id == tenant_id
+                and item.started_at.replace(tzinfo=None) >= boundary
+                and (customer_ids is None or item.customer_id in customer_ids)
+            ]
+        items.sort(key=lambda item: item.started_at, reverse=True)
+        return items[:MAX_PROJECTION_WINDOW]
 
     def list_for_customer(
         self,
@@ -239,6 +269,29 @@ class SqlAlchemyAgentRunProjectionRepository:
             limit,
             newest_first=False,
         )
+
+    def list_window(
+        self,
+        *,
+        tenant_id: str = "default",
+        since: datetime,
+        customer_ids: Sequence[int] | None = None,
+    ) -> list[AgentRunView]:
+        statement = (
+            select(AgentRunProjectionRecord)
+            .where(
+                AgentRunProjectionRecord.tenant_id == tenant_id,
+                AgentRunProjectionRecord.created_at >= since.replace(tzinfo=None),
+                true()
+                if customer_ids is None
+                else AgentRunProjectionRecord.effective_customer_id.in_(customer_ids),
+            )
+            .order_by(
+                AgentRunProjectionRecord.created_at.desc(), AgentRunProjectionRecord.id.desc()
+            )
+            .limit(MAX_PROJECTION_WINDOW)
+        )
+        return [_from_record(row) for row in self.session.scalars(statement)]
 
     def _list(
         self,
@@ -386,7 +439,13 @@ def _from_record(record: AgentRunProjectionRecord) -> AgentRunView:
             "intent": record.intent,
             "request_type": record.request_type,
             "operation_type": operation_type,
-            "status": record.status,
+            "status": normalize_stored_status(
+                record.status,
+                failure_category=record.failure_category,
+                decision_reason=decision_reason if isinstance(decision_reason, str) else None,
+                path=list(record.path or []),
+                security_signal=security_signal if isinstance(security_signal, str) else None,
+            ),
             "started_at": record.started_at,
             "duration_ms": record.duration_ms,
             "trace_id": record.trace_id,

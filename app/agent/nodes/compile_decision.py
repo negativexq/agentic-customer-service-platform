@@ -10,14 +10,22 @@ from app.agent.decision_compiler import (
     CompileStatus,
     DecisionCompiler,
 )
-from app.agent.schemas import AgentErrorCategory, Intent, SemanticDecision
+from app.agent.nodes.create_pending import _business_state_error
+from app.agent.schemas import (
+    AgentErrorCategory,
+    AgentRequestType,
+    Intent,
+    SemanticDecision,
+    SemanticTarget,
+)
 from app.agent.semantic_grounding import (
     GroundingStatus,
     SemanticGrounding,
+    listed_reference,
     validate_semantic_grounding,
 )
 from app.agent.state import AgentState
-from app.agent.target_admissibility import assess_target_admissibility
+from app.agent.target_admissibility import TargetAdmissibility, assess_target_admissibility
 from app.observability.metrics import get_metrics
 from app.observability.tracing import span
 
@@ -40,10 +48,19 @@ def make_compile_decision_node(
         workflow_id = state.get("workflow_id") or f"workflow:{state['agent_run_id']}"
         user_message = _conversation_user_message(state)
         restored_action = bool(state.get("pending_action_restored"))
+        if not restored_action:
+            decision = _status_question_as_lookup(decision, state)
+            decision = _resolve_reference(decision, user_message, state)
         grounding = (
             _restored_grounding(state, decision)
             if restored_action
-            else validate_semantic_grounding(decision, user_message)
+            else validate_semantic_grounding(
+                decision,
+                user_message,
+                _previous_reply(state),
+                state.get("last_reference"),
+                state.get("list_position"),
+            )
         )
         admissibility = assess_target_admissibility(decision.intent, decision.target, grounding)
         result = compiler.compile(
@@ -98,6 +115,31 @@ def make_compile_decision_node(
             }
         workflow_fields = _workflow_input_fields(result)
         workflow_is_active = bool(workflow_fields)
+        ineligible = _ineligible_before_asking(
+            session, state, decision, admissibility, workflow_fields
+        )
+        if ineligible is not None:
+            # Asking "why do you want a refund?" for an order that cannot be refunded only
+            # delays the answer: say it now, and keep nothing waiting for a reason.
+            return {
+                **ineligible,
+                "intent": decision.intent,
+                "request_type": result.request_type,
+                "selected_tool": None,
+                # Names the order in the refusal; nothing runs without a selected tool.
+                "tool_arguments": {"order_id": decision.target.order_id}
+                if decision.target is not None
+                else {},
+                "decision_reason": result.reason,
+                "compile_result": result,
+                "previous_intent": decision.intent,
+                "pending_workflow_decision": None,
+                "missing_required_fields": [],
+                "collected_entities": _collected_entities(decision),
+                "workflow_active": False,
+                "workflow_resume_status": None,
+                "workflow_id": workflow_id,
+            }
         validation_context: dict[str, object] = {
             "grounding_status": grounding.status.value,
             "grounding_reference_type": grounding.reference_type,
@@ -217,3 +259,99 @@ def _workflow_input_fields(result: CompiledDecision) -> list[str]:
     if result.reason_code in workflow_codes or targeted_business_request:
         return [field.value for field in result.clarification_fields]
     return []
+
+
+def _previous_reply(state: AgentState) -> str:
+    """The assistant message right before the current customer message, if any."""
+
+    messages = state.get("messages", [])
+    for message in reversed(messages[:-1]):
+        if message["role"] == "assistant":
+            return message["content"]
+        if message["role"] == "user":
+            return ""
+    return ""
+
+
+# "What's the status of my refund for order 1?" asks about an existing request; reading the
+# order (which carries its refund status) answers it without starting a new refund.
+# A question about something that exists, read as a request to start it: "Where is my refund
+# for order 6?" is a lookup, not a new refund. The message reader says which it is.
+_STATUS_READABLE = frozenset({Intent.REFUND_REQUEST, Intent.ORDER_CANCEL})
+_STATUS_READABLE_WITH_ORDER = frozenset({Intent.REFUND_ELIGIBILITY, Intent.REFUND_POLICY})
+
+
+def _status_question_as_lookup(decision: SemanticDecision, state: AgentState) -> SemanticDecision:
+    readable = decision.intent in _STATUS_READABLE or (
+        decision.intent in _STATUS_READABLE_WITH_ORDER and decision.target is not None
+    )
+    if not readable or not state.get("status_question"):
+        return decision
+    return decision.model_copy(
+        update={
+            "intent": Intent.ORDER_LOOKUP,
+            "request_type": AgentRequestType.READ_ACTION,
+            "requires_retrieval": False,
+            "knowledge_query": None,
+        }
+    )
+
+
+def _resolve_reference(
+    decision: SemanticDecision, user_message: str, state: AgentState
+) -> SemanticDecision:
+    """Give a read-only lookup with no target the record the customer pointed at.
+
+    "Show the second one" points at a row of the list just shown; "what was my ticket number?"
+    at the record the last reply was about. The server resolves both from its own replies and
+    tool results, and grounding checks the target again; the model's guess is never used.
+    """
+
+    kinds = {Intent.ORDER_LOOKUP: "order", Intent.TICKET_LOOKUP: "ticket"}
+    kind = kinds.get(decision.intent)
+    if kind is None or decision.target is not None:
+        return decision
+    identifier = listed_reference(user_message, _previous_reply(state), state.get("list_position"))
+    last = state.get("last_reference")
+    if identifier is None and last is not None and last.get("kind") == kind:
+        identifier = last.get("id") if isinstance(last.get("id"), int) else None
+    if identifier is None:
+        return decision
+    target = (
+        SemanticTarget(type="explicit_order", order_id=identifier)
+        if kind == "order"
+        else SemanticTarget(type="explicit_ticket", ticket_id=identifier)
+    )
+    return decision.model_copy(update={"target": target, "clarification_required": False})
+
+
+def _ineligible_before_asking(
+    session: Session | None,
+    state: AgentState,
+    decision: SemanticDecision,
+    admissibility: TargetAdmissibility,
+    workflow_fields: list[str],
+) -> AgentState | None:
+    """The business-state refusal for a refund whose only missing piece is the reason."""
+
+    target = decision.target
+    context = state.get("execution_context")
+    if (
+        decision.intent != Intent.REFUND_REQUEST
+        or workflow_fields != ["reason"]
+        or admissibility != TargetAdmissibility.ADMISSIBLE
+        or target is None
+        or target.order_id is None
+        or context is None
+    ):
+        return None
+    return _business_state_error(
+        session,
+        "request_refund",
+        {
+            "customer_id": context.effective_customer_id,
+            "order_id": target.order_id,
+            "reason": "eligibility check before asking for a reason",
+        },
+        context.tenant_id,
+    )
