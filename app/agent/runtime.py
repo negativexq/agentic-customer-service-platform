@@ -8,6 +8,12 @@ from opentelemetry import trace
 from sqlalchemy.orm import Session
 
 from app.agent.blocks import ResponseBlock, build_blocks
+from app.agent.compound import (
+    MAX_PARTS,
+    OpenAICompatibleSplitter,
+    RequestSplitter,
+    split_request,
+)
 from app.agent.errors import RuntimeFailureSource, classify_runtime_error
 from app.agent.graph import build_graph
 from app.agent.llm.base import DecisionProposalProvider
@@ -21,6 +27,7 @@ from app.agent.localize import (
     OpenAICompatibleLocalizer,
     ResponseLocalizer,
     conversation_language,
+    detect_language,
     localize_reply,
 )
 from app.agent.schemas import (
@@ -29,6 +36,7 @@ from app.agent.schemas import (
     AgentRequestType,
     AgentResponse,
     AgentToolCall,
+    EarlierReply,
     Intent,
     ProposalValidationStatus,
     ProviderRunMetadata,
@@ -97,6 +105,7 @@ class AgentRuntime:
         decision_contract_version: DecisionContractVersion | None = None,
         reliability_controller: ReliabilityController | None = None,
         localizer: ResponseLocalizer | None = None,
+        splitter: RequestSplitter | None = None,
     ) -> None:
         settings = get_settings()
         self.settings = settings
@@ -112,6 +121,12 @@ class AgentRuntime:
         # deterministic integration provider keep English replies.
         self.localizer = localizer or (
             OpenAICompatibleLocalizer(settings)
+            if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
+            else None
+        )
+        # Compound messages are split only alongside the live model, like translation.
+        self.splitter = splitter or (
+            OpenAICompatibleSplitter(settings)
             if provider is None and isinstance(self.provider, OpenAICompatibleProvider)
             else None
         )
@@ -183,12 +198,52 @@ class AgentRuntime:
         execution_context: ExecutionContext,
         execution_mode: AgentExecutionMode,
     ) -> AgentResponse:
+        """Answer every separate request in the message, in order.
+
+        A part that leaves something waiting (a confirmation, a missing detail) stops the
+        sequence; the remaining parts are kept in the conversation checkpoint and run after the
+        turn that finishes it.
+        """
+
         self.reliability_controller.enforce_request_limits(execution_context)
+        parts = split_request(self.splitter, message)
+        queue: list[str] | None = parts[1:] if len(parts) > 1 else None
+        response, state = self._run_turn(
+            parts[0], session, execution_context, execution_mode, queue=queue
+        )
+        replies = [response]
+        for _ in range(MAX_PARTS):
+            if state is None or _waiting(response, state):
+                break
+            pending = _queued_requests(state)
+            if not pending:
+                break
+            response, state = self._run_turn(
+                pending[0], session, execution_context, execution_mode, queue=pending[1:]
+            )
+            replies.append(response)
+        if state is not None and _waiting(response, state) and _queued_requests(state):
+            if len(parts) > 1 or len(replies) > 1:
+                response = response.model_copy(
+                    update={"message": f"{response.message}\n\n{_queue_note(response.message)}"}
+                )
+                replies[-1] = response
+        return _combined(replies)
+
+    def _run_turn(
+        self,
+        message: str,
+        session: Session,
+        execution_context: ExecutionContext,
+        execution_mode: AgentExecutionMode,
+        *,
+        queue: list[str] | None,
+    ) -> tuple[AgentResponse, AgentState | None]:
         turn = begin_agent_turn(session, execution_context)
         if not turn.ai_may_respond:
             response = _handoff_response(execution_context, turn.owner, execution_mode)
             self._record_handoff_projection(session, execution_context, response)
-            return response
+            return response, None
         conversation_id = execution_context.conversation_id
         customer_id = execution_context.effective_customer_id
         thread_id = checkpoint_thread_id(execution_context)
@@ -258,6 +313,17 @@ class AgentRuntime:
                                 "messages": [{"role": "user", "content": message}],
                                 # Per-turn flag; the checkpoint would otherwise carry it over.
                                 "handoff_offered": False,
+                                # Requests still to answer from an earlier compound message.
+                                **(
+                                    {}
+                                    if queue is None
+                                    else {
+                                        "queued_requests": {
+                                            "requests": queue,
+                                            "ownership_version": turn.version,
+                                        }
+                                    }
+                                ),
                             },
                             config={
                                 "configurable": {
@@ -342,7 +408,7 @@ class AgentRuntime:
                     execution_context,
                     response,
                     expected_version=state.get("conversation_ownership_version", turn.version),
-                )
+                ), state
             except Exception as error:
                 classification = classify_runtime_error(error, source=RuntimeFailureSource.RUNTIME)
                 labels["status"] = "error"
@@ -492,6 +558,65 @@ def _withheld_response(response: AgentResponse, owner: ConversationOwner) -> Age
             "pending_action": None,
             "citations": [],
             "conversation_owner": owner.value,
+        }
+    )
+
+
+def _waiting(response: AgentResponse, state: AgentState) -> bool:
+    """The reply leaves the customer something to answer, or the AI no longer owns the chat."""
+
+    return (
+        (
+            response.pending_action is not None
+            and response.pending_action.status == PendingActionStatus.PENDING
+        )
+        or bool(state.get("workflow_active"))
+        or response.conversation_owner != ConversationOwner.AI.value
+        or response.decision_reason == "conversation_ownership_changed"
+    )
+
+
+def _queued_requests(state: AgentState) -> list[str]:
+    """Requests left from a compound message; dropped once a person took the conversation."""
+
+    queued = state.get("queued_requests")
+    if not queued or queued.get("ownership_version") != state.get("conversation_ownership_version"):
+        return []
+    return [str(item) for item in queued.get("requests") or []]
+
+
+def _queue_note(message: str) -> str:
+    if detect_language(message) == "Turkish":
+        return "Bu tamamlanınca diğer isteğinizle de ilgileneceğim."
+    return "Once this is done, I'll take care of your other request too."
+
+
+def _combined(replies: list[AgentResponse]) -> AgentResponse:
+    """One response for the customer; each part stays its own recorded reply."""
+
+    last = replies[-1]
+    if len(replies) == 1:
+        return last
+    earlier = replies[:-1]
+    return last.model_copy(
+        update={
+            "message": "\n\n".join(reply.message for reply in replies),
+            "blocks": [
+                block
+                for reply in earlier
+                for block in reply.blocks
+                if block.type != "quick_replies"
+            ]
+            + list(last.blocks),
+            "citations": [c for reply in replies for c in reply.citations],
+            "earlier_replies": [
+                EarlierReply(
+                    agent_run_id=reply.agent_run_id,
+                    message=reply.message,
+                    decision_reason=reply.decision_reason,
+                )
+                for reply in earlier
+            ],
         }
     )
 

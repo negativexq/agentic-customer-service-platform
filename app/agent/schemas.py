@@ -233,6 +233,14 @@ class AgentToolCall(BaseModel):
     result: dict[str, object] | None = None
 
 
+class EarlierReply(BaseModel):
+    """A reply to an earlier part of the same customer message, recorded as its own message."""
+
+    agent_run_id: str
+    message: str
+    decision_reason: str | None = None
+
+
 class AgentResponse(BaseModel):
     conversation_id: str
     agent_run_id: str
@@ -258,6 +266,8 @@ class AgentResponse(BaseModel):
     conversation_owner: str = "ai"
     # Server-built tables, cards and quick replies that present the same facts as `message`.
     blocks: list[ResponseBlock] = Field(default_factory=list)
+    # Replies to earlier requests in a compound message; `message` already includes them.
+    earlier_replies: list[EarlierReply] = Field(default_factory=list)
 
 
 class AgentChatRequest(BaseModel):

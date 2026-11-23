@@ -105,11 +105,26 @@ def record_chat_turn(
         content=message,
         agent_run_id=response.agent_run_id,
     )
+    # A compound message got one reply per request; each is its own message with its own run.
+    for earlier in response.earlier_replies:
+        append_message(
+            session,
+            conversation,
+            sender=MessageSender.SYSTEM
+            if earlier.decision_reason in _SYSTEM_DECISIONS
+            else MessageSender.AI,
+            content=earlier.message,
+            agent_run_id=earlier.agent_run_id,
+        )
+    last_reply = response.message
+    if response.earlier_replies:
+        prefix = "".join(f"{earlier.message}\n\n" for earlier in response.earlier_replies)
+        last_reply = last_reply.removeprefix(prefix)
     append_message(
         session,
         conversation,
         sender=MessageSender.SYSTEM if silenced else MessageSender.AI,
-        content=response.message,
+        content=last_reply,
         agent_run_id=response.agent_run_id,
     )
     conversation.updated_at = utc_now_naive()

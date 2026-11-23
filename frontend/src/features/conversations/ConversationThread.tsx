@@ -95,7 +95,11 @@ function NoteRow({ note, onDelete }: { note: Note; onDelete: (id: number) => voi
 
 function Message({ row, customerName, onInspect, onQuickReply }: { row: { message: RecordedMessage; response?: AgentResponse }; customerName: string; onInspect: (runId: string) => void; onQuickReply?: (text: string) => void }) {
   const { message, response } = row;
-  const blocks = message.blocks?.length ? message.blocks : response?.blocks ?? [];
+  // A recorded reply carries its own tables; the live response adds only its quick replies
+  // (a compound answer's live response also holds the earlier replies' tables).
+  const blocks = message.sequence >= 0
+    ? [...(message.blocks ?? []), ...(response?.blocks ?? []).filter((block) => block.type === "quick_replies")]
+    : response?.blocks ?? [];
   if (message.sender_type === "system") {
     return <li className="py-1 text-center text-xs text-muted-foreground">{message.content} · {time(message.created_at)}</li>;
   }

@@ -1,6 +1,6 @@
 import operator
 from datetime import datetime
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from app.agent.decision_compiler import CompiledDecision
 from app.agent.schemas import (
@@ -129,6 +129,8 @@ class AgentState(TypedDict, total=False):
     workflow_transition: str | None
     workflow_interruption_type: str | None
     workflow_tool_arguments: dict[str, object]
+    # Requests left from a compound message: {"requests": [...], "ownership_version": int}.
+    queued_requests: dict[str, Any] | None
     workflow_validation_context: dict[str, object]
     workflow_policy_inputs: dict[str, object]
     pending_action_restored: bool

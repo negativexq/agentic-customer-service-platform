@@ -12,9 +12,14 @@ export const replyLanguage = (text: string): Lang => (TURKISH.test(text) ? "tr" 
  * instead of repeating every row. The full text stays the stored reply.
  */
 export function bubbleText(text: string, blocks: ReplyBlock[]): string {
+  // A compound answer holds one paragraph per request; each is shortened on its own.
+  return text.split("\n\n").map((paragraph) => shortenLead(paragraph, blocks)).join("\n\n");
+}
+
+function shortenLead(text: string, blocks: ReplyBlock[]): string {
   const lang = replyLanguage(text);
   const colon = text.indexOf(":");
-  if (blocks.some((block) => block.type === "orders" || block.type === "tickets") && colon > 0 && colon < 80) {
+  if (blocks.some((block) => block.type === "orders" || block.type === "tickets") && colon > 0 && colon < 80 && /#\d/.test(text.slice(colon))) {
     return `${text.slice(0, colon)}:`;
   }
   const card = blocks.find((block) => block.type === "order" || block.type === "ticket");
