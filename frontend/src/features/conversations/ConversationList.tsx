@@ -82,7 +82,7 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
           />
         </div>
       </div>
-      <ul className="relative grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2 pb-2">
+      <ul className="relative grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto px-2.5 pb-3">
         {visible.length === 0 && (
           <li className="px-2 py-8 text-center text-xs text-muted-foreground">
             {loading ? "Loading conversations…" : query ? "No conversations match." : filter === "queued" ? "Nobody is waiting for a person." : filter === "mine" ? "You are not handling any conversation." : "No conversations here yet."}
@@ -99,29 +99,32 @@ export function ConversationList({ conversations, loading, selectedId, draftActi
                 type="button"
                 onClick={() => onSelect(item)}
                 aria-current={selected ? "true" : undefined}
-                className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none ${selected ? "bg-accent" : ""}`}
+                className={`relative flex w-full items-start gap-3 rounded-xl border px-3 py-3.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none ${selected ? "border-border bg-background shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "border-transparent hover:bg-accent/50"}`}
               >
-                <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground" title={who.label}>
+                {waiting && <span className="absolute top-4 bottom-4 left-0 w-0.5 rounded-full bg-warning" aria-hidden="true" />}
+                <span className="relative mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-[13px] font-medium text-foreground" title={who.label}>
                   {initials(item.customer_name)}
-                  <span className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background ${toneDot[who.tone]}`} aria-hidden="true" />
+                  <span className={`absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-background ${toneDot[who.tone]}`} aria-hidden="true" />
                 </span>
-                <span className="grid min-w-0 flex-1 gap-1">
+                <span className="grid min-w-0 flex-1 gap-1.5">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className={`truncate text-sm text-foreground ${waiting ? "font-semibold" : "font-medium"}`}>{item.customer_name}</span>
+                    <span className={`truncate text-[14px] text-foreground ${waiting ? "font-semibold" : "font-medium"}`}>{item.customer_name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(item.updated_at)}</span>
                   </span>
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="sr-only">{who.label}.</span>
-                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{previewText(item.last_message)}</span>
+                  <span className="line-clamp-2 text-[13px] leading-5 text-muted-foreground">{previewText(item.last_message)}</span>
+                  <span className="flex min-w-0 items-center gap-2 text-xs">
+                    <span className="truncate text-muted-foreground">{who.label}</span>
                     {/* One signal per row: a breached or at-risk reply time, else a high priority. */}
                     {item.sla && item.sla.state !== "ok" ? (
-                      <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] tabular-nums ${slaTone[item.sla.state]}`} data-testid="inbox-sla" title={slaLabel(item.sla)}>
-                        <Clock className="size-3" aria-hidden="true" />{slaShort(item.sla)}
+                      <span className={`ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-current/25 px-1.5 text-[11px] tabular-nums ${slaTone[item.sla.state]}`} data-testid="inbox-sla" title={slaLabel(item.sla)}>
+                        <Clock className="size-3" aria-hidden="true" />{item.sla.state === "breached" ? `Overdue ${slaShort(item.sla)}` : `${slaShort(item.sla)} left`}
                       </span>
                     ) : urgent ? (
-                      <span className="size-2 shrink-0 rounded-full bg-danger" title={`${item.escalation?.priority} priority`} aria-label={`${item.escalation?.priority} priority`} />
+                      <span className="ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-danger/25 px-1.5 text-[11px] text-danger" aria-label={`${item.escalation?.priority} priority`}>
+                        <span className="size-1.5 rounded-full bg-danger" aria-hidden="true" />{item.escalation?.priority === "urgent" ? "Urgent" : "High priority"}
+                      </span>
                     ) : !item.sla && item.csat_rating != null ? (
-                      <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground" aria-label={`Rated ${item.csat_rating} of 5`}><Star className="size-3 fill-warning text-warning" aria-hidden="true" />{item.csat_rating}</span>
+                      <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground" aria-label={`Rated ${item.csat_rating} of 5`}><Star className="size-3 fill-warning text-warning" aria-hidden="true" />{item.csat_rating}</span>
                     ) : null}
                   </span>
                 </span>
