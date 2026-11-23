@@ -54,20 +54,6 @@ def _chat(client: TestClient, conversation_id: str, message: str) -> dict[str, A
     return body
 
 
-def test_plain_request_gets_one_offer_then_a_person(client: TestClient) -> None:
-    _use([_handoff(), _handoff()])
-
-    offered = _chat(client, "handoff-offer", "Can I talk to a person?")
-    assert offered["message"] == HANDOFF_OFFER_MESSAGE
-    assert offered["tool_call"] is None
-    assert offered["conversation_owner"] == "ai"
-
-    connected = _chat(client, "handoff-offer", "No, just connect me please.")
-    assert connected["message"] == CONNECTED
-    assert connected["tool_call"]["status"] == "executed"
-    assert connected["conversation_owner"] == "queued"
-
-
 @pytest.mark.parametrize(
     ("priority", "message"),
     [
@@ -122,6 +108,32 @@ def test_request_that_says_what_it_is_about_connects_immediately(client: TestCli
         client, "handoff-explained", "Can a person help me with a bulk order for my company?"
     )
 
+    assert connected["message"] == CONNECTED
+    assert connected["tool_call"]["status"] == "executed"
+    assert connected["conversation_owner"] == "queued"
+
+
+def test_unread_request_connects_immediately(client: TestClient) -> None:
+    # Without a model reading we cannot tell whether the customer already said what it is
+    # about, so they are never kept from a person.
+    _use([_handoff()])
+
+    connected = _chat(client, "handoff-unread", "Can I talk to a person?")
+
+    assert connected["message"] == CONNECTED
+    assert connected["tool_call"]["status"] == "executed"
+    assert connected["conversation_owner"] == "queued"
+
+
+def test_plain_request_gets_one_offer_then_a_person(client: TestClient) -> None:
+    _use_with_reader([_handoff(), _handoff()], explains_issue=False)
+
+    offered = _chat(client, "handoff-offer", "Can I talk to a person?")
+    assert offered["message"] == HANDOFF_OFFER_MESSAGE
+    assert offered["tool_call"] is None
+    assert offered["conversation_owner"] == "ai"
+
+    connected = _chat(client, "handoff-offer", "No, just connect me please.")
     assert connected["message"] == CONNECTED
     assert connected["tool_call"]["status"] == "executed"
     assert connected["conversation_owner"] == "queued"

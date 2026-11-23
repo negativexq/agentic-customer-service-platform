@@ -2,8 +2,8 @@
 
 Customers should never be kept from a person. The assistant offers help a single time and
 only for a bare request with nothing behind it: a repeated request, frustrated wording, a
-sensitive matter (the decision marks those high or urgent priority), or a message that already
-says what the customer needs help with all hand off at once.
+sensitive matter (the decision marks those high or urgent priority), a message that already
+says what the customer needs help with, or one no model could read all hand off at once.
 """
 
 from app.agent.state import AgentState
@@ -74,8 +74,10 @@ def should_offer_before_handoff(state: AgentState) -> bool:
         for item in messages
     ):
         return False
-    if state.get("issue_explained") is True:
-        # They already said what it is about; offering to help first would only delay them.
+    if state.get("issue_explained") is not False:
+        # They already said what it is about, or no model read the message so nobody knows:
+        # offering to help first would only delay them. Only a request the model read as a
+        # bare "can I talk to someone?" gets the offer.
         return False
     arguments = state.get("tool_arguments") or {}
     if str(arguments.get("priority", "")).casefold() in URGENT_PRIORITIES:
