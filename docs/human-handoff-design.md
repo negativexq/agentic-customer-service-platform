@@ -191,7 +191,7 @@ Customers read their own conversation only, and the response omits operator acto
 ## 8. Frontend
 
 - **Operator Console:** a new Inbox view in the existing `routes` and `WorkspaceRail` structure,
-  following [frontend design guidelines](frontend-design-guidelines.md).
+  following the console's existing components and layout.
 - **Customer widget:** a separate entry point that shares no operator code paths or operator
   tokens. Authentication stays outside this repository, as [security](security.md) already says
   for the console: a deployment-owned frontend or BFF presents the access token.

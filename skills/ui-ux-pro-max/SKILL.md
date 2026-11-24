@@ -5,7 +5,7 @@ description: Project-local guidance for refining the Agentic Customer Service Op
 
 # UI/UX Pro Max — Operator Console
 
-Before changing files under `frontend/`, read [`docs/frontend-design-guidelines.md`](../../docs/frontend-design-guidelines.md). This project-local skill is the design-system contract for future Operator Console work.
+This project-local skill is the design-system contract for future Operator Console work.
 
 ## Product direction
 
