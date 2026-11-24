@@ -263,10 +263,13 @@ The console and the knowledge base work without a model. The assistant needs an 
 **OpenAI.** In `.env`, set:
 
 ~~~bash
-LLM_MODEL=gpt-4.1-mini
+LLM_MODEL=gpt-6-luna
+LLM_REASONING_EFFORT=low
 COMPOSE_LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=sk-...
 ~~~
+
+`gpt-6-luna` is a reasoning model: it accepts only its default temperature, and `LLM_REASONING_EFFORT` set to `low`, `medium`, or `high` stops the temperature from being sent. Models without reasoning, such as `gpt-4.1-mini`, need only the other three lines.
 
 To keep the key out of the file, write `LLM_API_KEY=${OPENAI_API_KEY}` instead and export `OPENAI_API_KEY` in the shell before every `docker compose up`. If it is not set, Compose warns that the variable is not set and the assistant runs without a key.
 
@@ -366,8 +369,7 @@ Makefile             Development and verification commands
 - [Observability architecture and rollback](docs/observability.md)
 - [Telemetry runtime and TLS evidence](docs/fastapi-native-otel-t5-runtime-release-evidence.md)
 - [Deployment expectations](docs/deployment.md)
-- [Production demo walkthrough](docs/demo/walkthrough.md)
-- [Frontend design guidelines](docs/frontend-design-guidelines.md)
+- [Demo walkthrough](docs/demo/walkthrough.md)
 
 ## License
 
