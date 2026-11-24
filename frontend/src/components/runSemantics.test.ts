@@ -49,10 +49,27 @@ describe("run semantic projection", () => {
     const read = run({
       intent: "order_lookup",
       request_type: "read_action",
-      evidence: { ...run().evidence, decision: "allow", execution_status: "completed", authority: "read_access", write_outcome: { status: "not_applicable" } },
+      // As the backend projects a read: nothing is written, so the write status is not_applicable.
+      evidence: { ...run().evidence, decision: "allow", execution_status: "not_applicable", authority: "read_access", write_outcome: { status: "not_applicable" } },
       tools: [{ name: "get_order", risk_level: 0, status: "completed", duration_ms: 2, result_fields: ["status"] }],
     });
     expect(deriveRunSemantics(read).status).toBe("completed");
+    expect(deriveRunSemantics(read).executed).toBe(false);
     expect(deriveRunSemantics(read).authority).toBe("read_access");
+  });
+
+  it("treats a confirmed write the backend reports as executed as completed", () => {
+    const refund = run({
+      evidence: { ...run().evidence, decision: "allow", execution_status: "executed", authority: "controlled_execution", confirmation: { status: "executed", required: true, action_id: "action-test", risk_level: 2 }, write_outcome: { status: "executed" } },
+      tools: [{ name: "request_refund", risk_level: 2, status: "completed", duration_ms: 5, result_fields: ["status"] }],
+    });
+    expect(deriveRunSemantics(refund).status).toBe("completed");
+    expect(deriveRunSemantics(refund).executed).toBe(true);
+    expect(deriveRunSemantics(refund).authority).toBe("controlled_execution");
+  });
+
+  it("does not call a failed run completed", () => {
+    const failed = run({ status: "error", evidence: { ...run().evidence, decision: "allow", execution_status: "failed", authority: "not_granted", write_outcome: { status: "failed" } } });
+    expect(deriveRunSemantics(failed).status).toBe("failed");
   });
 });
