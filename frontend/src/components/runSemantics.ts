@@ -39,7 +39,8 @@ export function deriveRunSemantics(run: AgentRun): RunSemantics {
   const executionStatus = evidence.execution_status ?? "not_recorded";
   const authority = evidence.authority ?? "not_granted";
   const waiting = projectedDecision === "require_confirmation";
-  const executed = executionStatus === "completed";
+  // The backend reports a write that ran as "executed"; "completed" is kept for older projections.
+  const executed = executionStatus === "executed" || executionStatus === "completed";
   const denied = projectedDecision === "deny";
   const failedValidation = projectedDecision === "validation_failed";
 
@@ -53,6 +54,8 @@ export function deriveRunSemantics(run: AgentRun): RunSemantics {
   else if (run.status === "error") status = "failed";
   else if (run.status === "declined" || failedValidation) status = "declined";
   else if (denied || run.status === "blocked") status = "blocked";
+  // Reads and answers write nothing ("not_applicable"), so the run's own outcome is the result.
+  else if (run.status === "completed") status = "completed";
 
   return {
     decision: projectedDecision,
