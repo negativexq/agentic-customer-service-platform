@@ -26,6 +26,12 @@ The operator console, AgentOps, is where a support team watches the assistant wo
 | ![A refund request stopped at the confirmation boundary: intent, LLM proposal, system decision, authority and execution](docs/assets/screenshots/console/run-refund-confirmation.png) | ![Every assistant decision, handoff, takeover and close, grouped by day](docs/assets/screenshots/console/audit-log.png) |
 | Every decision shows what the model proposed, what the control plane decided and what was allowed to run. | Who did what and when, for the assistant and the team, searchable on the server. |
 
+**Monitoring**
+
+![Monitoring for the last 15 live runs: success rate, p50 and p95 latency, tokens and escalations, latency and token usage per run, outcomes, and time per pipeline stage](docs/assets/screenshots/console/monitoring.png)
+
+Success rate, latency, token usage and outcomes across recent live runs, with the time each pipeline stage takes.
+
 ### Train: shape what the assistant knows and does
 
 | Procedures | Knowledge gaps |
